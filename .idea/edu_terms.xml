@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="TermsProjectSettings">
+    <currentTermsLanguage>en</currentTermsLanguage>
+    <terms>
+      <map>
+        <entry key="en">
+          <value>
+            <map>
+              <entry key="71967887">
+                <value>
+                  <list>
+                    <Term value="constants" definition="Fixed values in code that do not change during program execution." />
+                    <Term value="core logic" definition="The main part of a program that handles its essential functionality." />
+                    <Term value="UI" definition="User Interface; the visual part of an application that users interact with." />
+                  </list>
+                </value>
+              </entry>
+              <entry key="94187374">
+                <value>
+                  <list>
+                    <Term value="IDE" definition="Integrated Development Environment; a software application for writing, testing, and debugging code in one place." />
+                    <Term value="prompts" definition="A user instruction or input given to an AI or program to generate a response or action." />
+                  </list>
+                </value>
+              </entry>
+              <entry key="235342822">
+                <value>
+                  <list>
+                    <Term value="canvas" definition="An HTML element used for drawing graphics, animations, or games using JavaScript code." />
+                  </list>
+                </value>
+              </entry>
+              <entry key="290703596">
+                <value>
+                  <list>
+                    <Term value="bounding box" definition="An invisible box that encloses a 3D object, used for collision and placement calculations." />
+                    <Term value="scene" definition="The container for all objects, lights, and cameras in a 3D graphics environment." />
+                    <Term value="scale" definition="A property that changes the size of a 3D object along its axes." />
+                  </list>
+                </value>
+              </entry>
+              <entry key="600447671">
+                <value>
+                  <list>
+                    <Term value="overlay" definition="A visual layer displayed over the game, often for messages or menus, without altering the underlying game state." />
+                    <Term value="UI" definition="Short for User Interface; refers to on-screen elements that allow user interaction with the game." />
+                    <Term value="game loop" definition="A continuous cycle that updates game state and renders graphics, driving real-time gameplay." />
+                  </list>
+                </value>
+              </entry>
+              <entry key="757641874">
+                <value>
+                  <list>
+                    <Term value="Three.js" definition="A popular JavaScript 3D graphics library for rendering and animating 3D objects in the browser." />
+                    <Term value="Box3" definition="A Three.js class representing an axis-aligned 3D bounding box, often used for collision detection." />
+                  </list>
+                </value>
+              </entry>
+              <entry key="922654121">
+                <value>
+                  <list>
+                    <Term value="cooldown" definition="A period after an action during which it cannot be performed again." />
+                    <Term value="Animation loop" definition="A continuous cycle that updates game visuals and logic, typically tied to screen refresh rates." />
+                    <Term value="frame" definition="A single image in a sequence that, when shown rapidly, creates the illusion of motion in animations." />
+                  </list>
+                </value>
+              </entry>
+              <entry key="1298906033">
+                <value>
+                  <list>
+                    <Term value="component" definition="A reusable, self-contained piece of code that manages its own state and logic." />
+                    <Term value="spawn points" definition="Predefined locations in a game world where new entities, like enemies, appear." />
+                    <Term value="animation loop" definition="A continuous cycle that updates and renders the game state, usually once per frame." />
+                    <Term value="constants" definition="Fixed values in code that do not change during execution, often used for configuration." />
+                  </list>
+                </value>
+              </entry>
+              <entry key="1695375376">
+                <value>
+                  <list>
+                    <Term value="dependencies" definition="External libraries or modules required for your project to work properly." />
+                    <Term value="terminal" definition="A text-based interface to interact with your computer using commands." />
+                    <Term value="npm" definition="Node.js package manager used to install, update, and manage JavaScript packages." />
+                  </list>
+                </value>
+              </entry>
+              <entry key="2076590158">
+                <value>
+                  <list>
+                    <Term value="Three.js" definition="A popular JavaScript library for creating and displaying 3D graphics in the browser." />
+                    <Term value="renderer" definition="A component that converts 3D scene data into a 2D image for display." />
+                    <Term value="Math.PI" definition="A JavaScript property representing the mathematical constant π (pi), approximately 3.14159." />
+                  </list>
+                </value>
+              </entry>
+              <entry key="2082803343">
+                <value>
+                  <list>
+                    <Term value="queue" definition="A data structure that stores items in a first-in, first-out (FIFO) order." />
+                    <Term value="renderer" definition="A component that draws graphics or scenes onto the screen, often using hardware acceleration." />
+                  </list>
+                </value>
+              </entry>
+              <entry key="2096939229">
+                <value>
+                  <list>
+                    <Term value="Animation loop" definition="A recurring function that updates game state and renders frames, typically synced to the display refresh rate." />
+                    <Term value="frame" definition="A single image in a sequence that, when shown rapidly, creates the illusion of motion in animations or games." />
+                  </list>
+                </value>
+              </entry>
+            </map>
+          </value>
+        </entry>
+      </map>
+    </terms>
+    <termsVersions>
+      <map>
+        <entry key="en" value="169" />
+      </map>
+    </termsVersions>
+  </component>
+</project>

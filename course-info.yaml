@@ -1,0 +1,58 @@
+type: marketplace
+title: Build a Game with an AI Coding Agent
+language: English
+summary: "<p>Build a 3D browser game step by step – with the help of an AI coding\
+  \ agent.</p>\n<p>In this project-based course, you'll plan, build, and polish a\
+  \ complete game inside WebStorm or other JetBrains IDEs, using AI coding agents\
+  \ to turn ideas into working code. \nFollow the story of Tode the Frog, or customize\
+  \ the visuals and make the game your own. No grades – just hands-on building and\
+  \ your creativity.</p>"
+programming_language: JavaScript
+content:
+  - Introduction
+  - Skeleton
+  - Core_loop
+  - Visual
+  - Conclusion
+additional_files:
+  - name: package.json
+  - name: jsconfig.json
+  - name: README.md
+  - name: LICENSE
+  - name: run/Template Jest.run.xml
+  - name: jest.config.js
+  - name: babel.config.cjs
+  - name: __mocks__/three-esm.js
+  - name: game/package.json
+    visible: true
+  - name: game/index.html
+    visible: true
+  - name: game/src/main.js
+    visible: true
+  - name: game/src/style.css
+    visible: true
+  - name: utils.js
+  - name: game/public/models/tode.glb
+    visible: true
+    is_binary: true
+  - name: game/public/models/enemy.glb
+    visible: true
+    is_binary: true
+  - name: game/public/tode.svg
+    visible: true
+    is_binary: true
+  - name: game/public/models/small_house.glb
+    visible: true
+    is_binary: true
+  - name: .junie/guidelines.md
+    visible: true
+  - name: game/src/components/readme.md
+    visible: true
+  - name: AGENTS.md
+    visible: true
+mode: Study
+vendor:
+  name: JetBrains s.r.o.
+  url: https://plugins.jetbrains.com/vendor/JetBrains
+feedback_link: https://plugins.jetbrains.com/plugin/30327-build-a-game-with-an-ai-coding-agent/reviews
+yaml_version: 6

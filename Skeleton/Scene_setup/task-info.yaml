@@ -1,0 +1,21 @@
+type: theory
+custom_name: Scene setup
+files:
+  - name: spec.md
+    visible: true
+    learner_created: false
+  - name: images/scene.png
+    visible: false
+    is_binary: true
+    learner_created: false
+  - name: images/lights.png
+    visible: false
+    is_binary: true
+    learner_created: false
+  - name: images/cameras.png
+    visible: false
+    is_binary: true
+    learner_created: false
+status: Solved
+record: -1
+post_submission_on_open: true

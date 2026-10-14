@@ -1,0 +1,5 @@
+custom_name: Core loop
+content:
+  - Score
+  - Start_play_game_over
+  - Increasing_complexity

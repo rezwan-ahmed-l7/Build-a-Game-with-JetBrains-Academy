@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs node:*)",
+      "Bash(grep -n \"^//\" src/main.js)",
+      "Bash(for f:*)",
+      "Bash(do echo:*)",
+      "Bash(node --check \"$f\")",
+      "Bash(done)"
+    ]
+  }
+}
