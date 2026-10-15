@@ -55,12 +55,10 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup) {
   scene.add(sun, sunGlow, moon, moonGlow);
 
   const starPositions = new Float32Array(STAR_COUNT * 3);
-  const starOffsets = [];
   for (let i = 0; i < STAR_COUNT; i++) {
     starPositions[i * 3] = randomRange(-850, 850);
     starPositions[i * 3 + 1] = randomRange(-850, 850);
     starPositions[i * 3 + 2] = randomRange(260, 620);
-    starOffsets.push(Math.random() * Math.PI * 2);
   }
   const starGeometry = new THREE.BufferGeometry();
   starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
@@ -157,12 +155,7 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup) {
     stars.visible = dayFactor < 0.78;
     starMaterial.opacity = Math.max(0, (0.78 - dayFactor) / 0.78) * 0.9;
 
-    const starAttr = starGeometry.getAttribute('position');
-    for (let i = 0; i < STAR_COUNT; i++) {
-      starAttr.array[i * 3] += (px - stars.position.x);
-      starAttr.array[i * 3 + 1] += (py - stars.position.y);
-    }
-    starAttr.needsUpdate = true;
+    // Star coordinates are local offsets, so only move the Points object with the player.
     stars.position.set(px, py, 0);
 
     const fireflyAttr = fireflyGeometry.getAttribute('position');
