@@ -194,8 +194,12 @@ try {
 
   const modeBefore = await page.locator('.environment-mode').innerText();
   await page.locator('.cycle-button').click();
-  await page.waitForTimeout(100);
-  const modeAfter = await page.locator('.environment-mode').innerText();
+  let modeAfter = modeBefore;
+  for (let attempt = 0; attempt < 20; attempt++) {
+    await page.waitForTimeout(50);
+    modeAfter = await page.locator('.environment-mode').innerText();
+    if (modeAfter !== modeBefore) break;
+  }
   if (modeBefore === modeAfter) throw new Error('Day/night mode label did not change after cycling environment');
 
   await page.screenshot({ path: 'browser-smoke-playing.png' });
