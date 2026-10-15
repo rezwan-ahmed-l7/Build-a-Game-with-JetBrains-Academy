@@ -81,7 +81,21 @@ try {
       break;
     }
   }
-  if (!afterMove) throw new Error('Player did not move in any of the eight keyboard directions');
+  if (!afterMove) {
+    const diagnostics = await page.evaluate(() => ({
+      state: window.__game.currentState(),
+      queuedInput: window.__game.input.peek(),
+      heldDirection: window.__game.input.getHeldDirection(),
+      movementActive: window.__game.movement.isCurrentlyMoving(),
+      cameraBasis: window.__game.movement.getCameraBasis(),
+      playerPosition: {
+        x: window.__game.player.group.position.x,
+        y: window.__game.player.group.position.y
+      },
+      obstacleCount: window.__game.obstacles.getObstacles().length
+    }));
+    throw new Error(`Player did not move in any of the eight keyboard directions. Diagnostics: ${JSON.stringify(diagnostics)}`);
+  }
 
   await page.keyboard.down('w');
   await page.keyboard.press('Shift');
