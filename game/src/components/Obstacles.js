@@ -26,8 +26,8 @@ function seededRandom(seed) {
 
 function snapToGround(mesh) {
   const box = new THREE.Box3().setFromObject(mesh);
-  const height = box.max.z - box.min.z;
-  mesh.position.z = -box.min.z - height / 2;
+  // Put the lowest point on the Z=0 ground plane.
+  mesh.position.z -= box.min.z;
   return box;
 }
 
@@ -181,8 +181,7 @@ export function createObstacles(scene) {
 
     mesh.position.x = pos.x;
     mesh.position.y = pos.y;
-    mesh.rotation.y = rand() * Math.PI * 2;
-    mesh.rotation.x = Math.PI / 2;  // align with Z-up
+    mesh.rotation.z = rand() * Math.PI * 2; // yaw around the Z-up axis
     snapToGround(mesh);
 
     scene.add(mesh);
