@@ -32,6 +32,10 @@ jobs:
       - name: Run configured Jest tests (allow empty suite)
         run: npm test -- --passWithNoTests
 
+      - name: Report dependency vulnerabilities
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
   game-build:
     name: Build Three.js game
     runs-on: ubuntu-latest
