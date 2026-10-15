@@ -1,5 +1,8 @@
 import { createEnemy } from './Enemy.js';
 import { lerpAngle } from '../utils/math.js';
+import { easeOutBack } from '../utils/easings.js';
+import { getEnemyWeights, ENEMY_TYPES } from './EnemyTypes.js';
+import { pickWeighted } from '../utils/rng.js';
 
 const SPAWN_INTERVAL = 2.2;
 const MAX_ENEMIES = 12;
@@ -7,7 +10,8 @@ const ENEMY_SPEED = 18;
 const SPAWN_RADIUS = 480;
 const SPAWN_RANDOMIZE = 60;
 const SPAWN_IN_DURATION = 0.3;
-const HOVER_AMPLITUDE = 4;
+const HOVER_AMPLITUDE = 2.5;
+const HOVER_BASE_Z = 4;
 const TURN_SPEED = 6;
 const DEATH_DURATION = 0.6;
 const PLAYER_SAFE_RADIUS = 120;   // enemies don't spawn right on top of the player
@@ -23,6 +27,7 @@ export function createEnemyManager(scene, playerGroup) {
   const enemies = [];
   let spawnTimer = 0;
   let elapsed = 0;
+  let difficultyLevel = 1;
   // Difficulty-controlled parameters, set externally each frame
   let dynamicSpawnInterval = SPAWN_INTERVAL;
   let dynamicSpeedMultiplier = 1;
@@ -35,6 +40,10 @@ export function createEnemyManager(scene, playerGroup) {
     dynamicSpeedMultiplier = value;
   }
 
+  function setDifficulty(d) {
+    difficultyLevel = d;
+  }
+
   function getSpawnInterval() {
     return dynamicSpawnInterval;
   }
@@ -42,7 +51,10 @@ export function createEnemyManager(scene, playerGroup) {
   function spawnEnemy() {
     if (enemies.length >= MAX_ENEMIES) return;
 
-    const enemy = createEnemy();
+    // Pick a type weighted by difficulty
+    const weights = getEnemyWeights(difficultyLevel);
+    const type = pickWeighted(Math.random, weights);
+    const enemy = createEnemy(type);
     const group = enemy.group;
 
     // Try a few candidate positions to keep enemies away from the player
@@ -59,12 +71,16 @@ export function createEnemyManager(scene, playerGroup) {
     group.position.y = y;
     group.position.z = 0;
 
+    const def = ENEMY_TYPES[type];
     enemies.push({
       group,
       yawGroup: enemy.getYawGroup,
       mixer: enemy.getMixer,
       rootBone: enemy.getRootBone,
-      baseSpeed: ENEMY_SPEED * (0.85 + Math.random() * 0.3),
+      type,
+      def,
+      hp: def.hp,
+      baseSpeed: ENEMY_SPEED * def.speedMul * (0.85 + Math.random() * 0.3),
       hoverPhase: Math.random() * Math.PI * 2,
       hoverSpeed: 2.2 + Math.random() * 1.4,
       currentYaw: Math.random() * Math.PI * 2,
@@ -142,7 +158,7 @@ export function createEnemyManager(scene, playerGroup) {
         if (yawGroup) yawGroup.rotation.z = enemy.currentYaw;
       }
 
-      group.position.z = Math.sin(time * enemy.hoverSpeed + enemy.hoverPhase) * HOVER_AMPLITUDE;
+      group.position.z = HOVER_BASE_Z + Math.sin(time * enemy.hoverSpeed + enemy.hoverPhase) * HOVER_AMPLITUDE;
     }
   }
 
@@ -186,12 +202,13 @@ export function createEnemyManager(scene, playerGroup) {
     removeAll,
     setSpawnInterval,
     setSpeedMultiplier,
+    setDifficulty,
+    damageEnemy(index, n = 1) {
+      const e = enemies[index];
+      if (!e) return null;
+      e.hp = Math.max(0, (e.hp || 0) - n);
+      return e;
+    },
     getEnemies: () => enemies
   };
-}
-
-function easeOutBack(t) {
-  const c1 = 1.70158;
-  const c3 = c1 + 1;
-  return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
 }

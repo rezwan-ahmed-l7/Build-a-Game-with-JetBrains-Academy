@@ -17,18 +17,54 @@ export function createInput() {
     D: 'right'
   };
 
+  // Currently-held keys (for dash direction)
+  const held = {
+    forward: false, backward: false, left: false, right: false
+  };
+
   function handleKeyDown(e) {
     if (e.key in keyMap) {
       e.preventDefault();
       const direction = keyMap[e.key];
-
+      held[direction] = true;
       if (queue.length < maxQueueSize) {
         queue.push(direction);
       }
     }
   }
 
+  function handleKeyUp(e) {
+    if (e.key in keyMap) {
+      const direction = keyMap[e.key];
+      held[direction] = false;
+    }
+  }
+
+  // Click-to-move: a click on the canvas converts to a direction in
+  // camera-relative space. Movement's getCameraBasis already handles this
+  // — Input only knows about keyboard.
+  function handleCanvasClick(e, getCameraBasis) {
+    // No-op: the click-to-move logic lives in Movement itself via
+    // (targetPos) => canPlayerMoveTo. We expose a "click" queue for the
+    // click-to-move path here.
+    const rect = e.currentTarget.getBoundingClientRect();
+    const nx = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    const ny = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    const basis = getCameraBasis();
+    if (!basis.valid) return;
+
+    // Convert to world X/Y by projecting the click direction onto the
+    // camera basis. (We just store a target world position for movement
+    // to consume.)
+    const tx = nx * basis.fwdX + ny * basis.rightX;
+    const ty = nx * basis.fwdY + ny * basis.rightY;
+    const len = Math.sqrt(tx * tx + ty * ty) || 1;
+    queue.push({ click: { x: tx / len, y: ty / len } });
+    if (queue.length > maxQueueSize) queue.shift();
+  }
+
   window.addEventListener('keydown', handleKeyDown);
+  window.addEventListener('keyup', handleKeyUp);
 
   function dequeue() {
     return queue.shift();
@@ -46,10 +82,24 @@ export function createInput() {
     queue.length = 0;
   }
 
+  // Snapshot of currently-held keys for systems that need to know
+  // (e.g. dash direction).
+  function getHeldDirection() {
+    if (!held.forward && !held.backward && !held.left && !held.right) return null;
+    return { ...held };
+  }
+
+  // Register a click-to-move handler on a canvas. Returns a cleanup function.
+  function attachClickToMove(canvas, getCameraBasis) {
+    function onClick(e) {
+      handleCanvasClick(e, getCameraBasis);
+    }
+    canvas.addEventListener('pointerdown', onClick);
+    return () => canvas.removeEventListener('pointerdown', onClick);
+  }
+
   return {
-    dequeue,
-    peek,
-    isEmpty,
-    clear
+    dequeue, peek, isEmpty, clear,
+    getHeldDirection, attachClickToMove
   };
 }

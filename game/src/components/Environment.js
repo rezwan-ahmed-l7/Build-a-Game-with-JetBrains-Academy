@@ -16,6 +16,9 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup) {
     rimLight
   } = lights;
 
+  // Optional hooks for audio/visual sync
+  const onCycle = []; // functions(dayFactor) called each update
+
   const dayBackground = new THREE.Color(0x91c9df);
   const duskBackground = new THREE.Color(0xf18b68);
   const nightBackground = new THREE.Color(0x071024);
@@ -26,33 +29,90 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup) {
   const nightGround = new THREE.Color(0x101d25);
   const workingColor = new THREE.Color();
 
+  // ----- Sun: multi-layer halo for a fat bloom feel -----
   const sun = new THREE.Mesh(
-    new THREE.SphereGeometry(34, 24, 16),
-    new THREE.MeshBasicMaterial({ color: 0xffe6a0 })
+    new THREE.SphereGeometry(40, 24, 16),
+    new THREE.MeshBasicMaterial({ color: 0xfff0b8 })
   );
-  const sunGlow = new THREE.Mesh(
-    new THREE.SphereGeometry(48, 20, 12),
+  const sunHaloInner = new THREE.Mesh(
+    new THREE.SphereGeometry(58, 20, 12),
     new THREE.MeshBasicMaterial({
-      color: 0xffb95e,
-      transparent: true,
-      opacity: 0.22,
-      depthWrite: false
+      color: 0xffd078, transparent: true, opacity: 0.45, depthWrite: false
     })
   );
+  const sunHaloMid = new THREE.Mesh(
+    new THREE.SphereGeometry(96, 18, 10),
+    new THREE.MeshBasicMaterial({
+      color: 0xffa54a, transparent: true, opacity: 0.22, depthWrite: false
+    })
+  );
+  const sunHaloOuter = new THREE.Mesh(
+    new THREE.SphereGeometry(150, 14, 8),
+    new THREE.MeshBasicMaterial({
+      color: 0xff7a3a, transparent: true, opacity: 0.10, depthWrite: false
+    })
+  );
+
+  // Sprite-based lens flare (a soft round disc using a radial-gradient texture).
+  function makeLensFlareTexture() {
+    const c = document.createElement('canvas');
+    c.width = c.height = 256;
+    const ctx = c.getContext('2d');
+    const g = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+    g.addColorStop(0, 'rgba(255,236,180,0.95)');
+    g.addColorStop(0.18, 'rgba(255,200,120,0.55)');
+    g.addColorStop(0.45, 'rgba(255,150,80,0.18)');
+    g.addColorStop(1, 'rgba(255,120,60,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 256, 256);
+    const tex = new THREE.CanvasTexture(c);
+    tex.needsUpdate = true;
+    return tex;
+  }
+  const flareTex = makeLensFlareTexture();
+  const sunFlareMat = new THREE.SpriteMaterial({
+    map: flareTex, transparent: true, opacity: 0.55,
+    blending: THREE.AdditiveBlending, depthWrite: false
+  });
+  const sunFlare = new THREE.Sprite(sunFlareMat);
+  sunFlare.scale.set(360, 360, 1);
+
+  // ----- Moon: cool blue gradient + soft halo -----
   const moon = new THREE.Mesh(
-    new THREE.SphereGeometry(25, 24, 16),
-    new THREE.MeshBasicMaterial({ color: 0xd8e7ff })
+    new THREE.SphereGeometry(30, 24, 16),
+    new THREE.MeshBasicMaterial({ color: 0xeaf0ff })
   );
-  const moonGlow = new THREE.Mesh(
-    new THREE.SphereGeometry(38, 20, 12),
+  const moonHaloInner = new THREE.Mesh(
+    new THREE.SphereGeometry(46, 20, 12),
     new THREE.MeshBasicMaterial({
-      color: 0x8eb8ff,
-      transparent: true,
-      opacity: 0.18,
-      depthWrite: false
+      color: 0xb4d4ff, transparent: true, opacity: 0.40, depthWrite: false
     })
   );
-  scene.add(sun, sunGlow, moon, moonGlow);
+  const moonHaloOuter = new THREE.Mesh(
+    new THREE.SphereGeometry(80, 16, 10),
+    new THREE.MeshBasicMaterial({
+      color: 0x7ea8ff, transparent: true, opacity: 0.15, depthWrite: false
+    })
+  );
+  const moonFlareMat = new THREE.SpriteMaterial({
+    map: flareTex, transparent: true, opacity: 0.35,
+    blending: THREE.AdditiveBlending, depthWrite: false,
+    color: 0xb8d4ff
+  });
+  const moonFlare = new THREE.Sprite(moonFlareMat);
+  moonFlare.scale.set(220, 220, 1);
+
+  // A subtle dark "spot" on the moon surface for character
+  const moonSpotMat = new THREE.MeshBasicMaterial({ color: 0xa8bcd8, transparent: true, opacity: 0.55 });
+  const moonSpot = new THREE.Mesh(
+    new THREE.CircleGeometry(6, 14),
+    moonSpotMat
+  );
+  moonSpot.position.set(-8, 6, 28);
+  moon.add(moonSpot);
+
+  scene.add(sun, sunHaloInner, sunHaloMid, sunHaloOuter, sunFlare,
+            moon, moonHaloInner, moonHaloOuter, moonFlare);
 
   const starPositions = new Float32Array(STAR_COUNT * 3);
   for (let i = 0; i < STAR_COUNT; i++) {
@@ -154,12 +214,34 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup) {
       sun.position.set(px + Math.cos(orbit) * 650, py + 200, pz + 220 + Math.sin(orbit) * 480);
       moon.position.set(px - Math.cos(orbit) * 620, py + 180, pz + 220 - Math.sin(orbit) * 460);
     }
-    sunGlow.position.copy(sun.position);
-    moonGlow.position.copy(moon.position);
+    // Move all halo layers + flares to follow the sun/moon
+    sunHaloInner.position.copy(sun.position);
+    sunHaloMid.position.copy(sun.position);
+    sunHaloOuter.position.copy(sun.position);
+    sunFlare.position.copy(sun.position);
+    moonHaloInner.position.copy(moon.position);
+    moonHaloOuter.position.copy(moon.position);
+    moonFlare.position.copy(moon.position);
     sun.visible = dayFactor > 0.08 && mode !== 'night';
-    sunGlow.visible = sun.visible;
+    sunHaloInner.visible = sun.visible;
+    sunHaloMid.visible = sun.visible;
+    sunHaloOuter.visible = sun.visible;
+    sunFlare.visible = sun.visible;
+    // Halos intensify near the horizon (dusk)
+    const sunHorizonGlow = 1 - Math.abs(dayFactor - 0.5) * 1.4;
+    sunHaloInner.material.opacity = 0.45 * Math.max(0, sunHorizonGlow);
+    sunHaloMid.material.opacity = 0.22 * Math.max(0, sunHorizonGlow);
+    sunHaloOuter.material.opacity = 0.10 * Math.max(0, sunHorizonGlow);
+    sunFlare.material.opacity = 0.55 * Math.max(0, sunHorizonGlow);
     moon.visible = dayFactor < 0.76 && mode !== 'day';
-    moonGlow.visible = moon.visible;
+    moonHaloInner.visible = moon.visible;
+    moonHaloOuter.visible = moon.visible;
+    moonFlare.visible = moon.visible;
+    const moonHorizonGlow = 1 - Math.abs(dayFactor - 0.0) * 0.6;
+    moonHaloInner.material.opacity = 0.40 * Math.max(0.2, moonHorizonGlow);
+    moonHaloOuter.material.opacity = 0.15 * Math.max(0.2, moonHorizonGlow);
+    moonFlare.material.opacity = 0.30 * Math.max(0.2, moonHorizonGlow);
+
     stars.visible = dayFactor < 0.78;
     starMaterial.opacity = Math.max(0, (0.78 - dayFactor) / 0.78) * 0.9;
 
@@ -177,17 +259,42 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup) {
     fireflies.visible = dayFactor < 0.48;
     fireflyMaterial.opacity = Math.max(0, (0.48 - dayFactor) / 0.48) * (0.55 + Math.sin(elapsed * 3) * 0.2);
 
-    return { dayFactor, label: mode === 'auto' ? 'AUTO CYCLE' : mode === 'day' ? 'DAYLIGHT' : 'NIGHT' };
+    // External listeners (e.g. audio ambient brightness) — called after
+    // all visual state is settled.
+    for (const fn of onCycle) fn(dayFactor);
+
+    return {
+      dayFactor,
+      label: mode === 'auto' ? 'AUTO CYCLE' : mode === 'day' ? 'DAYLIGHT' : 'NIGHT',
+      // HSL lightness values for the sky-dome shader (top / horizon).
+      skyTop: 0.05 + dayFactor * 0.55,
+      skyBottom: 0.15 + dayFactor * 0.55
+    };
+  }
+
+  function onUpdate(fn) {
+    onCycle.push(fn);
   }
 
   function dispose() {
-    for (const object of [sun, sunGlow, moon, moonGlow, stars, fireflies]) {
+    const allObjects = [
+      sun, sunHaloInner, sunHaloMid, sunHaloOuter, sunFlare,
+      moon, moonHaloInner, moonHaloOuter, moonFlare,
+      stars, fireflies
+    ];
+    for (const object of allObjects) {
       scene.remove(object);
-      object.geometry.dispose();
-      if (Array.isArray(object.material)) object.material.forEach((material) => material.dispose());
-      else object.material.dispose();
+      if (object.geometry) object.geometry.dispose();
+      if (object.material) {
+        if (Array.isArray(object.material)) {
+          object.material.forEach((m) => m.dispose());
+        } else {
+          object.material.dispose();
+        }
+      }
     }
+    if (flareTex) flareTex.dispose();
   }
 
-  return { update, cycleMode, getMode, dispose };
+  return { update, cycleMode, getMode, dispose, onUpdate };
 }

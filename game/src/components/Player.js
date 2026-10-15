@@ -17,6 +17,13 @@ export function createPlayer() {
     idlePhase: Math.random() * Math.PI * 2
   };
 
+  // Hurt-flash state: tints the model emissive red for a brief moment.
+  let flashTime = 0;
+  const FLASH_DURATION = 0.25;
+
+  // Saved base material colors so we can restore after flash.
+  const baseEmissives = [];
+
   const loader = new GLTFLoader();
   loader.load(
     '/models/tode.glb',
@@ -35,6 +42,18 @@ export function createPlayer() {
         if (child.isMesh) {
           child.castShadow = true;
           child.receiveShadow = true;
+          // Remember original emissive so we can flash and restore
+          if (child.material) {
+            if (Array.isArray(child.material)) {
+              child.material.forEach((m) => {
+                if (!m.emissive) m.emissive = new THREE.Color(0x000000);
+                baseEmissives.push(m);
+              });
+            } else {
+              if (!child.material.emissive) child.material.emissive = new THREE.Color(0x000000);
+              baseEmissives.push(child.material);
+            }
+          }
         }
       });
 
@@ -48,6 +67,10 @@ export function createPlayer() {
 
   function setMoving(isMoving) {
     anim.isMoving = isMoving;
+  }
+
+  function flash() {
+    flashTime = FLASH_DURATION;
   }
 
   function updateAnim(delta) {
@@ -72,11 +95,44 @@ export function createPlayer() {
   function update(delta) {
     if (mixer) mixer.update(delta);
     updateAnim(delta);
+    updateFlash(delta);
+  }
+
+  function updateFlash(delta) {
+    if (flashTime <= 0) {
+      // Make sure emissives are back to base
+      for (const m of baseEmissives) {
+        if (m.emissive && m.userData?.todeBaseEmissiveR !== undefined) {
+          m.emissive.setRGB(
+            m.userData.todeBaseEmissiveR,
+            m.userData.todeBaseEmissiveG,
+            m.userData.todeBaseEmissiveB
+          );
+        }
+      }
+      return;
+    }
+    flashTime = Math.max(0, flashTime - delta);
+    const t = flashTime / FLASH_DURATION;
+    // Cache the base emissive on first flash
+    for (const m of baseEmissives) {
+      if (m.userData?.todeBaseEmissiveR === undefined) {
+        m.userData.todeBaseEmissiveR = m.emissive.r;
+        m.userData.todeBaseEmissiveG = m.emissive.g;
+        m.userData.todeBaseEmissiveB = m.emissive.b;
+      }
+      m.emissive.setRGB(1, 0.1, 0.1).multiplyScalar(t);
+    }
   }
 
   function getModel() {
     return model;
   }
 
-  return { group, getModel, mixer, update, setMoving };
+  // Briefly hide/restore model visibility (used during dash i-frames blink).
+  function setVisible(v) {
+    group.visible = v;
+  }
+
+  return { group, getModel, mixer, update, setMoving, flash, setVisible };
 }

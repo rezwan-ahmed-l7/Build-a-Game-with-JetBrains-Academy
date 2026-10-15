@@ -1,13 +1,15 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { ENEMY_TYPES } from './EnemyTypes.js';
 
 const _baseColor = new THREE.Color();
 const _mixed = new THREE.Color();
 
-export function createEnemy() {
+// createEnemy(type='chaser') → { group, getYawGroup, getModel, getMixer, getRootBone, getType, getStats }
+export function createEnemy(type = 'chaser') {
+  const def = ENEMY_TYPES[type] || ENEMY_TYPES.chaser;
+
   const group = new THREE.Group();
-  // Inner "yaw" group handles facing the player. The loaded model sits inside
-  // it so we can keep the model's intrinsic Math.PI/2 X-rotation untouched.
   const yawGroup = new THREE.Group();
   group.add(yawGroup);
 
@@ -15,6 +17,7 @@ export function createEnemy() {
   let mixer = null;
   let flyAction = null;
   let rootBone = null;
+  let hp = def.hp;
 
   const loader = new GLTFLoader();
   loader.load(
@@ -26,21 +29,18 @@ export function createEnemy() {
 
       // ±10% scale variation so the pack looks natural
       const scaleVariation = 0.9 + Math.random() * 0.2;
-      model.scale.setScalar(5 * scaleVariation);
+      model.scale.setScalar(def.scale * scaleVariation);
 
       // World is Z-up; recenter along Z so the base sits on the ground plane
       const box = new THREE.Box3().setFromObject(model);
-      // Put the lowest point on the Z=0 ground plane.
       model.position.z -= box.min.z;
 
-      // Bright HSL tint in the red-orange band; keep luminance high so the
-      // multiply-onto-base blend never produces a black enemy.
+      // HSL tint per type
       const tint = new THREE.Color();
-      tint.setHSL(
-        Math.random() * 0.1,
-        0.4 + Math.random() * 0.3,
-        0.6 + Math.random() * 0.2
-      );
+      const t = def.tint;
+      tint.setHSL(t.h + (Math.random() - 0.5) * 0.04,
+                  t.s + (Math.random() - 0.5) * 0.1,
+                  t.l + (Math.random() - 0.5) * 0.1);
 
       model.traverse((child) => {
         if (!child.isMesh) return;
@@ -50,21 +50,17 @@ export function createEnemy() {
 
         const newMaterial = child.material.clone();
         _baseColor.copy(newMaterial.color);
-        _mixed.lerpColors(_baseColor, tint, 0.4);
+        _mixed.lerpColors(_baseColor, tint, 0.45);  // moderate tint mix
         newMaterial.color.copy(_mixed);
         if ('emissive' in newMaterial) {
-          newMaterial.emissive.copy(tint).multiplyScalar(0.16);
-          newMaterial.emissiveIntensity = 0.7;
+          newMaterial.emissive.copy(tint).multiplyScalar(def.emissive);
+          newMaterial.emissiveIntensity = 0.9;
         }
         child.material = newMaterial;
       });
 
       yawGroup.add(model);
 
-      // Setup flying animation. The model has these clips:
-      //   CharacterArmature|Fast_Flying   - continuous flapping
-      //   CharacterArmature|Flying_Idle   - hover in place
-      // Pick Fast_Flying for chasers, falling back to Flying_Idle.
       mixer = new THREE.AnimationMixer(model);
       const clips = gltf.animations || [];
       const flyClip =
@@ -74,10 +70,12 @@ export function createEnemy() {
 
       if (flyClip) {
         flyAction = mixer.clipAction(flyClip);
+        // Sprinters flap faster; brutes flap slowly (heavy)
+        if (def.name === 'sprinter') flyAction.setEffectiveTimeScale(1.8);
+        if (def.name === 'brute') flyAction.setEffectiveTimeScale(0.6);
         flyAction.play();
       }
 
-      // Find the Root bone (if any) for body tilt
       model.traverse((c) => {
         if (c.name === 'Root' && !rootBone) rootBone = c;
       });
@@ -88,21 +86,15 @@ export function createEnemy() {
     }
   );
 
-  function getYawGroup() {
-    return yawGroup;
-  }
+  function getYawGroup() { return yawGroup; }
+  function getModel() { return model; }
+  function getMixer() { return mixer; }
+  function getRootBone() { return rootBone; }
+  function getType() { return def.name; }
+  function getStats() { return def; }
+  function getHp() { return hp; }
+  function damageHp(n = 1) { hp = Math.max(0, hp - n); return hp; }
 
-  function getModel() {
-    return model;
-  }
-
-  function getMixer() {
-    return mixer;
-  }
-
-  function getRootBone() {
-    return rootBone;
-  }
-
-  return { group, getYawGroup, getModel, getMixer, getRootBone };
+  return { group, getYawGroup, getModel, getMixer, getRootBone,
+           getType, getStats, getHp, damageHp };
 }

@@ -5,12 +5,22 @@ const BASE_ATTACK_RADIUS = 38;
 const ATTACK_VISUAL_LIFETIME = 0.32;
 const HITSTOP_DURATION = 0.05;
 
-export function createAttack(scene, playerGroup, enemyManager, onKill) {
+// createAttack returns the attack pipeline. Optional hooks:
+//  onHit(enemy, position): called for every enemy that took damage (even if
+//    it didn't die yet — used for spawning damage numbers / sparks)
+//  onKill(count, position): called for each enemy that actually died
+//  onScreenShake(amount): called on hit (used to drive ScreenShake)
+//  onParticles(kind, x, y, z, color): particle burst hook
+export function createAttack(scene, playerGroup, enemyManager, callbacks = {}) {
+  const onHit = callbacks.onHit || (() => {});
+  const onKill = callbacks.onKill || (() => {});
+  const onShake = callbacks.onShake || (() => {});
+  const onParticles = callbacks.onParticles || (() => {});
+
   let lastAttackTime = 0;
   let attackVisual = null;
   let hitStopRemaining = 0;
 
-  // Difficulty-controlled parameters
   let cooldown = BASE_ATTACK_COOLDOWN;
   let radius = BASE_ATTACK_RADIUS;
 
@@ -20,7 +30,6 @@ export function createAttack(scene, playerGroup, enemyManager, onKill) {
 
   function setRadius(value) {
     radius = value;
-    // Update an in-flight visual so the ring tracks the new radius
     if (attackVisual) {
       attackVisual.geometry.dispose();
       attackVisual.geometry = new THREE.RingGeometry(radius * 0.8, radius, 32);
@@ -34,7 +43,6 @@ export function createAttack(scene, playerGroup, enemyManager, onKill) {
       attackVisual.material.dispose();
       attackVisual = null;
     }
-
     const geometry = new THREE.RingGeometry(radius * 0.8, radius, 32);
     const material = new THREE.MeshBasicMaterial({
       color: 0xffee44,
@@ -43,20 +51,25 @@ export function createAttack(scene, playerGroup, enemyManager, onKill) {
       depthWrite: false,
       side: THREE.DoubleSide
     });
-
     attackVisual = new THREE.Mesh(geometry, material);
     attackVisual.position.copy(playerGroup.position);
     attackVisual.position.z = 0.3;
     attackVisual.userData.life = 0;
     scene.add(attackVisual);
+
+    // Spark burst at the player's feet
+    onParticles('sparks',
+      playerGroup.position.x,
+      playerGroup.position.y,
+      playerGroup.position.z,
+      0xffd166
+    );
   }
 
   function updateVisual(delta) {
     if (!attackVisual) return;
-
     attackVisual.userData.life += delta;
     const progress = attackVisual.userData.life / ATTACK_VISUAL_LIFETIME;
-
     if (progress >= 1) {
       scene.remove(attackVisual);
       attackVisual.geometry.dispose();
@@ -64,7 +77,6 @@ export function createAttack(scene, playerGroup, enemyManager, onKill) {
       attackVisual = null;
       return;
     }
-
     if (progress < 0.2) {
       const t = progress / 0.2;
       attackVisual.scale.setScalar(0.5 + t * 0.5);
@@ -83,26 +95,39 @@ export function createAttack(scene, playerGroup, enemyManager, onKill) {
 
     const enemies = enemyManager.getEnemies();
     const playerPos = playerGroup.position;
-    let hitCount = 0;
+    let killCount = 0;
 
     for (let i = enemies.length - 1; i >= 0; i--) {
       const enemy = enemies[i];
       if (enemy.isSpawning || enemy.isDying) continue;
-
       const enemyPos = enemy.group.position;
       const dx = playerPos.x - enemyPos.x;
       const dy = playerPos.y - enemyPos.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
-
       if (dist < radius) {
-        enemyManager.killEnemy(i); // plays death anim before removal
-        hitCount++;
+        // Damage; if HP drops to 0, kill (plays death anim).
+        if (typeof enemy.damageHp === 'function') {
+          enemy.damageHp(1);
+          onHit(enemy, enemyPos);
+          if (enemy.hp <= 0) {
+            enemyManager.killEnemy(i);
+            killCount++;
+            onKill(enemy, enemyPos);
+            onParticles('death', enemyPos.x, enemyPos.y, enemyPos.z, 0xff5577);
+          }
+        } else {
+          // Fallback for old enemies without hp
+          enemyManager.killEnemy(i);
+          killCount++;
+        }
       }
     }
 
-    if (hitCount > 0) {
+    if (killCount > 0) {
       hitStopRemaining = HITSTOP_DURATION;
-      if (onKill) onKill(hitCount);
+      onShake(2 + killCount * 0.6);
+    } else {
+      onShake(0.6);
     }
   }
 

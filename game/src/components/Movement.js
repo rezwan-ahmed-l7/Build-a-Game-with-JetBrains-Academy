@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { lerpAngle } from '../utils/math.js';
+import { easeInOutCubic, easeInOutQuart, easeOutQuad, easeInQuad } from '../utils/easings.js';
 
 const MOVE_DISTANCE = 40;
 const JUMP_HEIGHT = 28;
@@ -77,9 +78,41 @@ export function createMovement(playerGroup, getModel, input, camera, canMoveCall
   function tryStartNextMove() {
     if (input.isEmpty()) return;
     const next = input.peek();
-
     const basis = getCameraBasis();
-    const dirInfo = getDeltaForDirection(next, basis);
+
+    let direction = next;
+    let dirInfo;
+    if (next && typeof next === 'object' && next.click) {
+      // Click-to-move: target = player + click * MOVE_DISTANCE in world X/Y
+      dirInfo = {
+        x: next.click.x * MOVE_DISTANCE,
+        y: next.click.y * MOVE_DISTANCE
+      };
+      // Pick the best "directional" hint for facing the click target.
+      // Use the angle of the click vector.
+      const ang = Math.atan2(next.click.y, next.click.x);
+      // Map to nearest of forward/back/left/right relative to camera.
+      if (basis.valid) {
+        // fwd is camera-forward projected on XY. We want the camera-space
+        // angle of the click to determine the visual facing direction.
+        // Compute click in camera space:
+        const camFwdX = basis.fwdX, camFwdY = basis.fwdY;
+        const camRightX = basis.rightX, camRightY = basis.rightY;
+        const fwdDot = next.click.x * camFwdX + next.click.y * camFwdY;
+        const rightDot = next.click.x * camRightX + next.click.y * camRightY;
+        if (Math.abs(fwdDot) >= Math.abs(rightDot)) {
+          direction = fwdDot >= 0 ? 'forward' : 'backward';
+        } else {
+          direction = rightDot >= 0 ? 'right' : 'left';
+        }
+        // unused: ang
+        void ang;
+      } else {
+        direction = 'forward';
+      }
+    } else {
+      dirInfo = getDeltaForDirection(next, basis);
+    }
 
     _proposedPos.x = playerGroup.position.x + dirInfo.x;
     _proposedPos.y = playerGroup.position.y + dirInfo.y;
@@ -93,7 +126,7 @@ export function createMovement(playerGroup, getModel, input, camera, canMoveCall
     }
 
     input.dequeue();
-    startMove(next, basis, dirInfo);
+    startMove(direction, basis, dirInfo);
   }
 
   function startMove(direction, basis, dirInfo) {
@@ -241,22 +274,7 @@ export function createMovement(playerGroup, getModel, input, camera, canMoveCall
     update,
     applySquashStretch,
     isCurrentlyMoving,
-    reset
+    reset,
+    getCameraBasis
   };
-}
-
-function easeInOutCubic(t) {
-  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-}
-
-function easeInOutQuart(t) {
-  return t < 0.5 ? 8 * t * t * t * t : 1 - Math.pow(-2 * t + 2, 4) / 2;
-}
-
-function easeOutQuad(t) {
-  return 1 - (1 - t) * (1 - t);
-}
-
-function easeInQuad(t) {
-  return t * t;
 }
