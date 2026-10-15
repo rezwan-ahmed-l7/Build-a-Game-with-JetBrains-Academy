@@ -116,6 +116,8 @@ export function createMovement(playerGroup, getModel, input, camera, canMoveCall
 
     targetRotation = getRotationForDirection(direction, basis);
     rotationProgress = 0;
+    const model = getModel();
+    if (model) model.rotation.z = 0;
 
     squashStretch = 0.15;
     squashStretchSpeed = 1;
@@ -150,7 +152,7 @@ export function createMovement(playerGroup, getModel, input, camera, canMoveCall
       currentRotation = targetRotation;
       rotationProgress = 1;
       if (model) {
-        model.rotation.y = currentRotation;
+        if (model.parent) model.parent.rotation.z = currentRotation;
         model.rotation.x = Math.PI / 2;
       }
 
@@ -186,7 +188,7 @@ export function createMovement(playerGroup, getModel, input, camera, canMoveCall
 
     currentRotation = lerpAngle(startRotation, targetRotation, rotFactor);
     if (model) {
-      model.rotation.y = currentRotation;
+      if (model.parent) model.parent.rotation.z = currentRotation;
 
       let tiltAngle = 0;
       if (progress < 0.25) {
@@ -200,13 +202,35 @@ export function createMovement(playerGroup, getModel, input, camera, canMoveCall
 
   function applySquashStretch() {
     const model = getModel();
-    if (!model || Math.abs(squashStretch) < 0.001) return;
+    if (!model) return;
 
-    const scaleZ = 1 + squashStretch;
-    const scaleXY = 1 - squashStretch * 0.5;
+    const amount = Math.abs(squashStretch) < 0.001 ? 0 : squashStretch;
+    const scaleZ = 1 + amount;
+    const scaleXY = 1 - amount * 0.5;
     model.scale.x = 20 * scaleXY;
     model.scale.y = 20 * scaleXY;
     model.scale.z = 20 * scaleZ;
+  }
+
+  function reset() {
+    isMoving = false;
+    progress = 0;
+    startPos = { x: playerGroup.position.x, y: playerGroup.position.y, z: 0 };
+    targetPos = { x: startPos.x, y: startPos.y, z: 0 };
+    targetRotation = 0;
+    currentRotation = 0;
+    startRotation = 0;
+    moveDelta = { x: 0, y: 0 };
+    rotationProgress = 0;
+    squashStretch = 0;
+    squashStretchSpeed = 0;
+
+    const model = getModel();
+    if (model) {
+      model.rotation.set(Math.PI / 2, 0, 0);
+      model.scale.setScalar(20);
+      if (model.parent) model.parent.rotation.set(0, 0, 0);
+    }
   }
 
   function isCurrentlyMoving() {
@@ -216,7 +240,8 @@ export function createMovement(playerGroup, getModel, input, camera, canMoveCall
   return {
     update,
     applySquashStretch,
-    isCurrentlyMoving
+    isCurrentlyMoving,
+    reset
   };
 }
 
