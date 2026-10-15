@@ -106,7 +106,17 @@ try {
   }));
   const earlyDashDistance = Math.hypot(earlyDashPosition.x - afterMove.x, earlyDashPosition.y - afterMove.y);
   if (earlyDashDistance < 5) {
-    throw new Error(`Dash did not produce its expected quick burst; moved only ${earlyDashDistance.toFixed(2)} units`);
+    const diagnostics = await page.evaluate(() => ({
+      state: window.__game.currentState(),
+      heldDirection: window.__game.input.getHeldDirection(),
+      dashing: window.__game.dash.isDashing(),
+      invulnerable: window.__game.dash.isInvulnerable(),
+      position: {
+        x: window.__game.player.group.position.x,
+        y: window.__game.player.group.position.y
+      }
+    }));
+    throw new Error(`Dash did not produce its expected quick burst; moved only ${earlyDashDistance.toFixed(2)} units. Diagnostics: ${JSON.stringify(diagnostics)}`);
   }
   await page.waitForTimeout(200);
   await page.keyboard.up('w');
