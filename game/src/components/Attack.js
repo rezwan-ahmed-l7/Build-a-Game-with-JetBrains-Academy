@@ -87,7 +87,7 @@ export function createAttack(scene, playerGroup, enemyManager, onKill) {
 
     for (let i = enemies.length - 1; i >= 0; i--) {
       const enemy = enemies[i];
-      if (enemy.isSpawning) continue;
+      if (enemy.isSpawning || enemy.isDying) continue;
 
       const enemyPos = enemy.group.position;
       const dx = playerPos.x - enemyPos.x;
