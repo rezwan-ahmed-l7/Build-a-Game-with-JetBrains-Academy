@@ -3,6 +3,9 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 export function createPlayer() {
   const group = new THREE.Group();
+  // Keep world-Z yaw separate from the model's intrinsic orientation and idle sway.
+  const facingGroup = new THREE.Group();
+  group.add(facingGroup);
   let model = null;
   let mixer = null;
 
@@ -35,7 +38,7 @@ export function createPlayer() {
         }
       });
 
-      group.add(model);
+      facingGroup.add(model);
     },
     undefined,
     (error) => {
