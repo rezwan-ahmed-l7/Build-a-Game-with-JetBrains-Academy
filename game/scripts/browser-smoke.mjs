@@ -150,6 +150,22 @@ try {
     throw new Error(`Attack should reduce enemy HP by 1; expected ${damageCheck.before - 1}, got ${hpAfterAttack}`);
   }
 
+  // Exercise both power-up effects through the same pickup handler used in play.
+  const powerupPosition = await page.evaluate(() => ({
+    x: window.__game.player.group.position.x,
+    y: window.__game.player.group.position.y,
+    z: window.__game.player.group.position.z
+  }));
+  const baseAttackRadius = await page.evaluate(() => window.__game.attack.getRadius());
+  await page.evaluate((position) => window.__game.onPowerUpPickup('attack', position), powerupPosition);
+  const boostedAttackRadius = await page.evaluate(() => window.__game.attack.getRadius());
+  if (boostedAttackRadius <= baseAttackRadius * 1.8) {
+    throw new Error(`Attack power-up failed to expand radius: ${baseAttackRadius} -> ${boostedAttackRadius}`);
+  }
+  await page.evaluate((position) => window.__game.onPowerUpPickup('speed', position), powerupPosition);
+  const speedMultiplier = await page.evaluate(() => window.__game.movement.getSpeedMultiplier());
+  if (speedMultiplier <= 1) throw new Error(`Speed power-up did not increase movement speed: ${speedMultiplier}`);
+
   await page.keyboard.press('Escape');
   await page.locator('#menu-pause').waitFor({ state: 'visible' });
   await page.locator('#btn-resume').click();
@@ -176,6 +192,13 @@ try {
   if (pauseDashDistance < 5) throw new Error('Could not observe dash movement before pause');
   await page.keyboard.press('Escape');
   await page.locator('#menu-pause').waitFor({ state: 'visible' });
+  const pausedInput = await page.evaluate(() => ({
+    held: window.__game.input.getHeldDirection(),
+    queued: window.__game.input.peek()
+  }));
+  if (pausedInput.held !== null || pausedInput.queued !== undefined) {
+    throw new Error(`Movement input was not cleared on pause: ${JSON.stringify(pausedInput)}`);
+  }
   const pausedPosition = await page.evaluate(() => ({
     x: window.__game.player.group.position.x,
     y: window.__game.player.group.position.y
@@ -207,7 +230,7 @@ try {
 
   console.log(JSON.stringify({
     result: 'PASS',
-    checks: ['canvas boot', 'start game', 'keyboard movement', 'dash input', 'enemy attack reduces HP', 'pause/resume', 'dash stops while paused', 'day-night mode toggle', 'no browser console/runtime/request errors'],
+    checks: ['canvas boot', 'start game', 'keyboard movement', 'dash input', 'enemy attack reduces HP', 'attack-radius power-up', 'speed power-up', 'pause/resume', 'dash stops while paused', 'paused input lock', 'day-night mode toggle', 'no browser console/runtime/request errors'],
     initialPosition: before,
     successfulMovementKey: successfulDirection,
     movedPosition: afterMove,
