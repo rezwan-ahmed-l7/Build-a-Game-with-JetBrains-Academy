@@ -471,7 +471,10 @@ function animate(currentTime) {
   health.update(delta);
   particles.update(delta);
   damageNumbers.update(delta, camera);
-  dash.update(delta);
+  // Dash movement must stop with gameplay when paused or game over. Its
+  // wall-clock duration still expires naturally, so resuming cannot continue
+  // a dash that was interrupted by the pause.
+  if (currentState === GameState.PLAYING) dash.update(delta);
   audio.update && audio.update(delta);
   if (flashTimer > 0) {
     flashTimer = Math.max(0, flashTimer - delta);
