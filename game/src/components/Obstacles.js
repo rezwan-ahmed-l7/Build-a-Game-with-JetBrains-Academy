@@ -49,6 +49,8 @@ function makeFoliage(rand, colorHex) {
         flatShading: true
       })
     );
+    // ConeGeometry is Y-up by default; rotate its axis into world Z-up.
+    cone.rotation.x = Math.PI / 2;
     cone.position.z = z + h / 2;
     z += h * 0.7;
     cone.castShadow = true;
@@ -73,6 +75,8 @@ function makeTree(rand) {
       flatShading: true
     })
   );
+  // CylinderGeometry is Y-up by default; rotate its axis into world Z-up.
+  trunk.rotation.x = Math.PI / 2;
   trunk.position.z = trunkHeight / 2;
   trunk.castShadow = true;
   trunk.receiveShadow = true;
@@ -159,8 +163,7 @@ export function createObstacles(scene) {
 
     group.position.x = pos.x;
     group.position.y = pos.y;
-    group.rotation.y = rand() * Math.PI * 2;
-    group.rotation.x = Math.PI / 2;  // align with Z-up coordinate system
+    group.rotation.z = rand() * Math.PI * 2; // yaw around the Z-up axis
     snapToGround(group);
 
     scene.add(group);
