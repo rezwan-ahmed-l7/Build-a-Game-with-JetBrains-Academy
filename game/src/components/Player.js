@@ -28,8 +28,8 @@ export function createPlayer() {
 
       // World is Z-up; recenter along Z so the base sits on the ground plane
       const box = new THREE.Box3().setFromObject(model);
-      const height = box.max.z - box.min.z;
-      model.position.z = -box.min.z - height / 2;
+      // Put the lowest point on the Z=0 ground plane.
+      model.position.z -= box.min.z;
 
       model.traverse((child) => {
         if (child.isMesh) {
