@@ -3,6 +3,7 @@ import { createScore } from '../game/src/components/Score.js';
 describe('score component', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
+    window.localStorage.clear();
   });
 
   test('starts at zero and creates score UI', () => {

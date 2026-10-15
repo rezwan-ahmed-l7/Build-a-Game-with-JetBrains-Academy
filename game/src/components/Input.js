@@ -1,6 +1,7 @@
 export function createInput() {
   const queue = [];
   const maxQueueSize = 1;
+  let enabled = true;
 
   const keyMap = {
     ArrowUp: 'forward',
@@ -23,6 +24,7 @@ export function createInput() {
   };
 
   function handleKeyDown(e) {
+    if (!enabled) return;
     if (e.key in keyMap) {
       e.preventDefault();
       const direction = keyMap[e.key];
@@ -44,6 +46,7 @@ export function createInput() {
   // camera-relative space. Movement's getCameraBasis already handles this
   // — Input only knows about keyboard.
   function handleCanvasClick(e, getCameraBasis) {
+    if (!enabled) return;
     // No-op: the click-to-move logic lives in Movement itself via
     // (targetPos) => canPlayerMoveTo. We expose a "click" queue for the
     // click-to-move path here.
@@ -82,6 +85,12 @@ export function createInput() {
     queue.length = 0;
   }
 
+  function setEnabled(value) {
+    enabled = Boolean(value);
+    clear();
+    for (const direction of Object.keys(held)) held[direction] = false;
+  }
+
   // Snapshot of currently-held keys for systems that need to know
   // (e.g. dash direction).
   function getHeldDirection() {
@@ -99,7 +108,7 @@ export function createInput() {
   }
 
   return {
-    dequeue, peek, isEmpty, clear,
+    dequeue, peek, isEmpty, clear, setEnabled,
     getHeldDirection, attachClickToMove
   };
 }

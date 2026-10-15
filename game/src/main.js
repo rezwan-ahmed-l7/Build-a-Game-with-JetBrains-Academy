@@ -1,33 +1,6 @@
 import * as THREE from 'three';
 import './style.css';
 
-// ----- Debug: surface errors visibly + boot step banner -----
-// MUST be defined before ANY system creation calls — used to debug
-// blank-screen issues by showing which step blew up.
-const bootBanner = document.createElement('div');
-bootBanner.id = 'boot-banner';
-bootBanner.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:rgba(0,0,0,0.85);color:#0f0;font:12px monospace;padding:6px 10px;z-index:99998;pointer-events:none;white-space:pre;';
-document.body.appendChild(bootBanner);
-let _bootStep = 0;
-function bootStep(msg) {
-  _bootStep++;
-  bootBanner.textContent = `boot #${_bootStep}: ${msg}`;
-  console.log(`[boot #${_bootStep}] ${msg}`);
-}
-bootStep('main.js loaded');
-window.addEventListener('error', (e) => {
-  const div = document.createElement('div');
-  div.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#f00;color:#fff;padding:8px;z-index:99999;font:14px monospace;white-space:pre-wrap;max-height:60vh;overflow:auto;border:3px solid #ff0;';
-  div.textContent = '[ERROR] ' + (e.error?.stack || e.message || e);
-  document.body.appendChild(div);
-});
-window.addEventListener('unhandledrejection', (e) => {
-  const div = document.createElement('div');
-  div.style.cssText = 'position:fixed;top:60vh;left:0;right:0;background:#a00;color:#fff;padding:8px;z-index:99999;font:14px monospace;white-space:pre-wrap;';
-  div.textContent = '[REJECT] ' + (e.reason?.stack || e.reason || 'unknown');
-  document.body.appendChild(div);
-});
-
 import { createRenderer } from './components/Renderer.js';
 import { createCamera } from './components/Camera.js';
 import { createPlayer } from './components/Player.js';
@@ -152,41 +125,27 @@ vignette.position.z = -0.3;
 scene.add(vignette);
 
 // Player
-bootStep('before player');
 const player = createPlayer();
 scene.add(player.group);
-bootStep('player ok');
-
 // Environment (depends on lights + player)
-bootStep('before environment');
 const environment = createEnvironment(scene, {
   ambientLight, directionalLight, fillLight, rimLight
 }, groundMaterial, player.group);
-bootStep('environment ok');
-
 // Camera
-bootStep('before camera');
 const camera = createCamera();
 scene.add(camera);
 
 const canvas = document.querySelector('canvas.game');
 const cameraFollow = createCameraFollow(camera, player.group, canvas);
-bootStep('camera ok');
-
 // Input + Movement
-bootStep('before obstacles');
 const input = createInput();
+input.setEnabled(false); // menu accepts menu shortcuts, not queued movement
 const obstacles = createObstacles(scene);  // create BEFORE movement
-bootStep(`obstacles ok (${obstacles.getObstacles().length} colliding)`);
 const enemyManager = createEnemyManager(scene, player.group);
-bootStep('enemyManager ok');
-
 const movement = createMovement(
   player.group, player.getModel, input, camera,
   (targetPos) => canPlayerMoveTo(targetPos, enemyManager.getEnemies(), obstacles.getObstacles())
 );
-bootStep('movement ok');
-
 // Score / Health / Combo / Difficulty
 const score = createScore();
 const health = createHealth(3);
@@ -209,7 +168,7 @@ const dash = createDash(player.group, camera, () => {
   if (fromKeys) return fromKeys;
   if (touch && touch.getDirection) return touch.getDirection();
   return null;
-});
+}, (dx, dy) => movement.translate(dx, dy));
 
 // Power-ups
 const powerUps = createPowerUpManager(scene, player.group);
@@ -288,14 +247,14 @@ function tickComboHud() {
 const ATTACK_BOOST_DURATION = 10;   // seconds the long-attack power-up lasts
 const ATTACK_BOOST_MULT = 1.85;     // 85% bigger radius
 let attackBoostRemaining = 0;
-// The "real" base radius the attack system resets to when the boost ends.
-// We capture it once at startup, but every frame the Difficulty system
-// updates the radius — we re-derive it from `attack.radius / currentBoost`
-// so the boost never desyncs from difficulty changes.
+const SPEED_BOOST_DURATION = 8;
+const SPEED_BOOST_MULT = 1.7;
+let speedBoostRemaining = 0;
+
+// Difficulty drives attack.setRadius(d.attackRadius) each frame. The boost
+// scales on top of that base radius without relying on an undefined field.
 function getBoostedAttackRadius() {
-  // Difficulty drives attack.setRadius(d.attackRadius) each frame from the
-  // main loop. Our boost scales on top of whatever that value is.
-  return attack.radius * ATTACK_BOOST_MULT;
+  return attack.getRadius() * ATTACK_BOOST_MULT;
 }
 
 function onPowerUpPickup(type, pos) {
@@ -308,9 +267,8 @@ function onPowerUpPickup(type, pos) {
     damageNumbers.spawn('x2 BONUS', pos.x, pos.y, pos.z + 6, '#ffd166');
     particles.spawnBurst(pos.x, pos.y, pos.z, { count: 24, color: 0xffd166, speed: 90, life: 0.7, size: 7 });
   } else if (type === 'speed') {
-    // Visual feedback only — there's no movement speed scaling wired in,
-    // but the power-up still rewards the player with bonus score and a
-    // visual cue so the type stays useful.
+    speedBoostRemaining = SPEED_BOOST_DURATION;
+    movement.setSpeedMultiplier(SPEED_BOOST_MULT);
     score.addKillBonus(2);
     damageNumbers.spawn('SPEED!', pos.x, pos.y, pos.z + 6, '#4cc9f0');
     particles.spawnBurst(pos.x, pos.y, pos.z, { count: 22, color: 0x4cc9f0, speed: 80, life: 0.7, size: 6 });
@@ -328,6 +286,8 @@ function onPowerUpPickup(type, pos) {
 function triggerGameOver() {
   if (currentState === GameState.GAMEOVER) return;
   currentState = GameState.GAMEOVER;
+  input.setEnabled(false);
+  dash.cancel();
   player.group.visible = false;
   audio.stopAmbient();
   audio.playGameOver();
@@ -335,7 +295,7 @@ function triggerGameOver() {
 }
 
 function resetGame() {
-  input.clear();
+  input.setEnabled(true);
   player.group.position.set(0, 0, 0);
   movement.reset();
   player.group.visible = true;
@@ -347,6 +307,8 @@ function resetGame() {
   score.reset();
   score.setHearts(3, 3);
   attackBoostRemaining = 0;
+  speedBoostRemaining = 0;
+  movement.setSpeedMultiplier(1);
   currentState = GameState.PLAYING;
   score.hideGameOver();
 }
@@ -368,9 +330,12 @@ function startGame() {
 function togglePause() {
   if (currentState === GameState.PLAYING) {
     currentState = GameState.PAUSED;
+    input.setEnabled(false);
+    dash.cancel();
     menus.showPause();
   } else if (currentState === GameState.PAUSED) {
     currentState = GameState.PLAYING;
+    input.setEnabled(true);
     menus.hidePause();
   }
 }
@@ -497,8 +462,15 @@ function checkPlayerEnemyContact() {
   return false;
 }
 
-// Expose for debugging (useful for testing in DevTools console).
-window.__game = { scene, player, enemyManager, obstacles, health, score, currentState: () => currentState };
+// Development-only debug hooks support browser QA without exposing the
+// full game object on production builds.
+if (import.meta.env.DEV) {
+  window.__game = {
+    scene, player, enemyManager, obstacles, health, score,
+    input, movement, dash, attack, onPowerUpPickup,
+    currentState: () => currentState
+  };
+}
 
 // ----- Main loop -----
 let previousTime = performance.now();
@@ -513,7 +485,6 @@ function animate(currentTime) {
   health.update(delta);
   particles.update(delta);
   damageNumbers.update(delta, camera);
-  dash.update(delta);
   audio.update && audio.update(delta);
   if (flashTimer > 0) {
     flashTimer = Math.max(0, flashTimer - delta);
@@ -531,6 +502,11 @@ function animate(currentTime) {
     attack.setCooldown(d.attackCooldown);
     attack.setRadius(d.attackRadius);
 
+    if (speedBoostRemaining > 0) {
+      speedBoostRemaining = Math.max(0, speedBoostRemaining - delta);
+      movement.setSpeedMultiplier(speedBoostRemaining > 0 ? SPEED_BOOST_MULT : 1);
+    }
+
     // Long-attack boost: tick down the timer and re-apply the boosted
     // radius AFTER the difficulty set so it never desyncs.
     if (attackBoostRemaining > 0) {
@@ -541,6 +517,9 @@ function animate(currentTime) {
     }
 
     movement.update(effectiveDelta);
+    // Apply dash after normal movement for this frame, while Movement's
+    // translate() shifts the active interpolation anchors to preserve it.
+    dash.update(delta);
     movement.applySquashStretch();
     player.setMoving(movement.isCurrentlyMoving());
 

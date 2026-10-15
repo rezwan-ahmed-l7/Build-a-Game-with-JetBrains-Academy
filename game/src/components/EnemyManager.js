@@ -197,6 +197,7 @@ export function createEnemyManager(scene, playerGroup) {
 
   return {
     update,
+    spawnEnemy,
     killEnemy,
     removeEnemy,
     removeAll,
