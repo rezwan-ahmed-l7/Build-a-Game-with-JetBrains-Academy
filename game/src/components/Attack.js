@@ -106,19 +106,22 @@ export function createAttack(scene, playerGroup, enemyManager, callbacks = {}) {
       const dist = Math.sqrt(dx * dx + dy * dy);
       if (dist < radius) {
         // Damage; if HP drops to 0, kill (plays death anim).
-        if (typeof enemy.damageHp === 'function') {
-          enemy.damageHp(1);
-          onHit(enemy, enemyPos);
-          if (enemy.hp <= 0) {
-            enemyManager.killEnemy(i);
-            killCount++;
-            onKill(enemy, enemyPos);
-            onParticles('death', enemyPos.x, enemyPos.y, enemyPos.z, 0xff5577);
-          }
-        } else {
-          // Fallback for old enemies without hp
+        // EnemyManager exposes wrapper records, so apply damage through its API.
+        const damagedEnemy = typeof enemyManager.damageEnemy === 'function'
+          ? enemyManager.damageEnemy(i, 1)
+          : enemy;
+        if (!damagedEnemy) continue;
+
+        // Legacy direct enemy objects expose damageHp; manager records have hp.
+        if (typeof damagedEnemy.damageHp === 'function') {
+          damagedEnemy.damageHp(1);
+        }
+        onHit(damagedEnemy, enemyPos);
+        if (damagedEnemy.hp <= 0 || (typeof damagedEnemy.damageHp === 'function' && damagedEnemy.getHp?.() <= 0)) {
           enemyManager.killEnemy(i);
           killCount++;
+          onKill(damagedEnemy, enemyPos);
+          onParticles('death', enemyPos.x, enemyPos.y, enemyPos.z, 0xff5577);
         }
       }
     }
