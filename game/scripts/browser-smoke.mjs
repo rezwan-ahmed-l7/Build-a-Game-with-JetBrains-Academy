@@ -1,0 +1,113 @@
+import { spawn } from 'node:child_process';
+import { chromium } from 'playwright';
+
+const baseUrl = 'http://127.0.0.1:5173';
+const browserErrors = [];
+const server = spawn('npm', ['run', 'dev', '--', '--host', '127.0.0.1'], {
+  cwd: process.cwd(),
+  stdio: ['ignore', 'pipe', 'pipe'],
+  shell: process.platform === 'win32'
+});
+
+let serverOutput = '';
+server.stdout.on('data', (chunk) => { serverOutput += chunk.toString(); });
+server.stderr.on('data', (chunk) => { serverOutput += chunk.toString(); });
+
+async function waitForServer() {
+  const deadline = Date.now() + 30000;
+  while (Date.now() < deadline) {
+    if (server.exitCode !== null) throw new Error(`Vite exited early:\n${serverOutput}`);
+    try {
+      const response = await fetch(baseUrl);
+      if (response.ok) return;
+    } catch {}
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  throw new Error(`Vite did not start in time:\n${serverOutput}`);
+}
+
+let browser;
+try {
+  await waitForServer();
+  browser = await chromium.launch({
+    headless: true,
+    args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-webgl', '--ignore-gpu-blocklist']
+  });
+  const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  page.on('pageerror', (error) => browserErrors.push(error.message));
+  page.on('console', (message) => {
+    if (message.type() === 'error') browserErrors.push(message.text());
+  });
+  page.on('requestfailed', (request) => {
+    if (!request.url().startsWith('data:')) browserErrors.push(`Request failed: ${request.url()} — ${request.failure()?.errorText}`);
+  });
+
+  await page.goto(baseUrl, { waitUntil: 'networkidle', timeout: 30000 });
+  await page.locator('#menu-start').waitFor({ state: 'visible', timeout: 10000 });
+  await page.locator('canvas.game').waitFor({ state: 'visible' });
+  if (await page.locator('#boot-banner').count()) throw new Error('Temporary boot debug banner is still visible');
+  await page.screenshot({ path: 'browser-smoke-start.png' });
+
+  await page.locator('#btn-start').click();
+  await page.locator('#menu-start').waitFor({ state: 'hidden' });
+  await page.waitForTimeout(700);
+
+  const before = await page.evaluate(() => ({
+    x: window.__game.player.group.position.x,
+    y: window.__game.player.group.position.y,
+    state: window.__game.currentState()
+  }));
+  if (before.state !== 'playing') throw new Error(`Expected playing state after Play; got ${before.state}`);
+
+  await page.keyboard.down('w');
+  await page.waitForTimeout(350);
+  await page.keyboard.up('w');
+  const afterMove = await page.evaluate(() => ({
+    x: window.__game.player.group.position.x,
+    y: window.__game.player.group.position.y
+  }));
+  if (Math.hypot(afterMove.x - before.x, afterMove.y - before.y) < 1) {
+    throw new Error('Player did not move after holding W');
+  }
+
+  await page.keyboard.down('w');
+  await page.keyboard.press('Shift');
+  await page.waitForTimeout(260);
+  await page.keyboard.up('w');
+  const afterDash = await page.evaluate(() => ({
+    x: window.__game.player.group.position.x,
+    y: window.__game.player.group.position.y
+  }));
+  if (Math.hypot(afterDash.x - afterMove.x, afterDash.y - afterMove.y) < 1) {
+    throw new Error('Player did not move during the dash input');
+  }
+
+  await page.keyboard.press('Escape');
+  await page.locator('#menu-pause').waitFor({ state: 'visible' });
+  await page.locator('#btn-resume').click();
+  await page.locator('#menu-pause').waitFor({ state: 'hidden' });
+
+  const modeBefore = await page.locator('.environment-mode').innerText();
+  await page.locator('.cycle-button').click();
+  await page.waitForTimeout(100);
+  const modeAfter = await page.locator('.environment-mode').innerText();
+  if (modeBefore === modeAfter) throw new Error('Day/night mode label did not change after cycling environment');
+
+  await page.screenshot({ path: 'browser-smoke-playing.png' });
+  if (browserErrors.length) throw new Error(`Browser console/runtime issues:\n- ${browserErrors.join('\n- ')}`);
+
+  console.log(JSON.stringify({
+    result: 'PASS',
+    checks: ['canvas boot', 'start game', 'keyboard movement', 'dash input', 'pause/resume', 'day-night mode toggle', 'no browser console/runtime/request errors'],
+    initialPosition: before,
+    movedPosition: afterMove,
+    dashPosition: afterDash,
+    environmentMode: { before: modeBefore, after: modeAfter }
+  }, null, 2));
+} catch (error) {
+  console.error(error);
+  process.exitCode = 1;
+} finally {
+  if (browser) await browser.close();
+  server.kill('SIGTERM');
+}
