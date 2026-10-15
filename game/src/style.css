@@ -101,3 +101,12 @@ canvas.game {
   color: #ffe27a;
   margin: 0 2px;
 }
+
+.environment-hud{position:fixed;top:18px;right:20px;z-index:6;display:flex;flex-direction:column;align-items:flex-end;gap:8px;max-width:calc(100vw - 32px);color:#e9f2ff;font-size:12px;letter-spacing:1.3px;text-shadow:0 2px 8px rgba(0,0,0,.8);pointer-events:none}
+.environment-mode{padding:7px 11px;border:1px solid rgba(183,214,255,.28);border-radius:999px;background:rgba(7,16,36,.58);backdrop-filter:blur(10px);font-weight:800}
+.cycle-button{pointer-events:auto;cursor:pointer;padding:9px 12px;border:1px solid rgba(195,221,255,.3);border-radius:10px;color:#edf5ff;background:linear-gradient(135deg,rgba(32,56,91,.88),rgba(12,22,44,.88));box-shadow:0 8px 24px rgba(0,0,0,.2);font:inherit;letter-spacing:.2px;transition:transform 140ms ease,border-color 140ms ease}
+.cycle-button:hover{transform:translateY(-1px);border-color:rgba(255,226,155,.75)}
+.cycle-button:focus-visible{outline:2px solid #ffe29b;outline-offset:3px}
+.controls-hint{max-width:310px;color:rgba(232,241,255,.76);text-align:right;line-height:1.5;letter-spacing:.3px}
+@media(max-width:640px){.environment-hud{top:66px;right:12px;font-size:10px}.cycle-button{padding:8px 10px}.controls-hint{max-width:220px}.score{top:16px;font-size:24px}.game-over-panel{min-width:0;width:calc(100vw - 72px);padding:32px 20px}.game-over-panel h1{font-size:40px}}
+@media(prefers-reduced-motion:reduce){.cycle-button,.score{transition:none}}

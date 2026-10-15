@@ -191,6 +191,45 @@ export function createObstacles(scene) {
     });
   }
 
+  // Small bioluminescent mushroom clusters add detail and guide the eye at night.
+  const mushroomCount = 24;
+  const mushroomColors = [0x70e7bb, 0x79b7ff, 0xf6a6e8, 0xffd27a];
+  for (let i = 0; i < mushroomCount; i++) {
+    const pos = placeRandomly(rand, placed, 12);
+    placed.push(pos);
+    const cluster = new THREE.Group();
+    const count = 2 + Math.floor(rand() * 2);
+    for (let j = 0; j < count; j++) {
+      const radius = 0.9 + rand() * 0.8;
+      const height = 2.2 + rand() * 1.6;
+      const stem = new THREE.Mesh(
+        new THREE.CylinderGeometry(radius * 0.25, radius * 0.35, height, 6),
+        new THREE.MeshStandardMaterial({ color: 0xc8c1a4, roughness: 0.9 })
+      );
+      stem.rotation.x = Math.PI / 2;
+      stem.position.set((j - 1) * 2.1, rand() * 1.8 - 0.9, height * 0.5);
+      const color = mushroomColors[Math.floor(rand() * mushroomColors.length)];
+      const cap = new THREE.Mesh(
+        new THREE.SphereGeometry(radius, 8, 6),
+        new THREE.MeshStandardMaterial({
+          color,
+          emissive: color,
+          emissiveIntensity: 0.55,
+          roughness: 0.65,
+          flatShading: true
+        })
+      );
+      cap.scale.z = 0.55;
+      cap.position.set(stem.position.x, stem.position.y, height + 0.25);
+      stem.castShadow = true;
+      cap.castShadow = true;
+      cluster.add(stem, cap);
+    }
+    cluster.position.set(pos.x, pos.y, 0);
+    cluster.rotation.z = rand() * Math.PI * 2;
+    scene.add(cluster);
+  }
+
   function getObstacles() {
     return obstacles;
   }

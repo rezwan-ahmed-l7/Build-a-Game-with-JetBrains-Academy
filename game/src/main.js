@@ -22,11 +22,12 @@ import { createAttack } from './components/Attack.js';
 import { createScore, GameState } from './components/Score.js';
 import { createDifficulty } from './components/Difficulty.js';
 import { createObstacles } from './components/Obstacles.js';
+import { createEnvironment } from './components/Environment.js';
 
 // Scene
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0f0f1a);
-scene.fog = new THREE.Fog(0x0f0f1a, 600, 2800);
+scene.background = new THREE.Color(0x071024);
+scene.fog = new THREE.Fog(0x101b38, 600, 2800);
 
 // Lighting
 const ambientLight = new THREE.AmbientLight(0xa0b0d0, 1.3);
@@ -49,10 +50,15 @@ const rimLight = new THREE.PointLight(0x00e6b8, 1.0, 700);
 rimLight.position.set(0, -40, 160);
 scene.add(rimLight);
 
+// A visible target keeps the directional light's shadow camera stable.
+const lightTarget = new THREE.Object3D();
+scene.add(lightTarget);
+directionalLight.target = lightTarget;
+
 // Ground — forest floor with a soft radial gradient
 const groundGeometry = new THREE.CircleGeometry(1200, 64);
 const groundMaterial = new THREE.MeshStandardMaterial({
-  color: 0x1a261a,
+  color: 0x344b2b,
   roughness: 1.0,
   metalness: 0
 });
@@ -77,6 +83,13 @@ scene.add(vignette);
 // Player
 const player = createPlayer();
 scene.add(player.group);
+
+const environment = createEnvironment(scene, {
+  ambientLight,
+  directionalLight,
+  fillLight,
+  rimLight
+}, groundMaterial, player.group);
 
 const STARTING_POSITION = { x: 0, y: 0, z: 0 };
 
@@ -103,6 +116,17 @@ const obstacles = createObstacles(scene);
 
 const score = createScore();
 const difficulty = createDifficulty();
+
+// Compact HUD for the environment mode and basic controls.
+const environmentHud = document.createElement('div');
+environmentHud.className = 'environment-hud';
+environmentHud.innerHTML = '<span class="environment-mode">AUTO CYCLE</span><button type="button" class="cycle-button">Cycle: Auto / Day / Night</button><span class="controls-hint">WASD / Arrows: Move · Space: Attack / Restart</span>';
+document.body.appendChild(environmentHud);
+const environmentModeEl = environmentHud.querySelector('.environment-mode');
+const cycleButton = environmentHud.querySelector('.cycle-button');
+cycleButton.addEventListener('click', () => {
+  environment.cycleMode();
+});
 
 const attack = createAttack(scene, player.group, enemyManager, (killCount) => {
   // Award score per kill; bump the score chip for visual feedback
@@ -218,14 +242,18 @@ function animate(currentTime) {
     score.tick(delta);
   }
 
+  // Day/night keeps changing while the game is paused at game-over.
+  const environmentState = environment.update(delta);
+  environmentModeEl.textContent = environmentState.label;
+
   // Player visual update always runs (idle breathing continues during game over)
   player.update(delta);
   score.render();
   attack.updateVisual(delta);
 
   // Anchor directional light to player
-  directionalLight.target.position.copy(player.group.position);
-  directionalLight.target.position.z = 0;
+  lightTarget.position.copy(player.group.position);
+  lightTarget.position.z = 0;
   directionalLight.position.set(
     player.group.position.x - 140,
     player.group.position.y - 160,
