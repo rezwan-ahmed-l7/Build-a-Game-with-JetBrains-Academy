@@ -105,6 +105,29 @@ try {
   await page.locator('#btn-resume').click();
   await page.locator('#menu-pause').waitFor({ state: 'hidden' });
 
+  // Pause during an active dash and ensure the player stays still.
+  await page.waitForTimeout(900);
+  await page.keyboard.down('w');
+  await page.keyboard.press('Shift');
+  await page.waitForTimeout(50);
+  await page.keyboard.press('Escape');
+  await page.locator('#menu-pause').waitFor({ state: 'visible' });
+  const pausedPosition = await page.evaluate(() => ({
+    x: window.__game.player.group.position.x,
+    y: window.__game.player.group.position.y
+  }));
+  await page.waitForTimeout(350);
+  const stillPausedPosition = await page.evaluate(() => ({
+    x: window.__game.player.group.position.x,
+    y: window.__game.player.group.position.y
+  }));
+  await page.keyboard.up('w');
+  if (Math.hypot(stillPausedPosition.x - pausedPosition.x, stillPausedPosition.y - pausedPosition.y) > 0.5) {
+    throw new Error('Player continued moving while paused during a dash');
+  }
+  await page.locator('#btn-resume').click();
+  await page.locator('#menu-pause').waitFor({ state: 'hidden' });
+
   const modeBefore = await page.locator('.environment-mode').innerText();
   await page.locator('.cycle-button').click();
   await page.waitForTimeout(100);
@@ -116,7 +139,7 @@ try {
 
   console.log(JSON.stringify({
     result: 'PASS',
-    checks: ['canvas boot', 'start game', 'keyboard movement', 'dash input', 'enemy attack reduces HP', 'pause/resume', 'day-night mode toggle', 'no browser console/runtime/request errors'],
+    checks: ['canvas boot', 'start game', 'keyboard movement', 'dash input', 'enemy attack reduces HP', 'pause/resume', 'dash stops while paused', 'day-night mode toggle', 'no browser console/runtime/request errors'],
     initialPosition: before,
     movedPosition: afterMove,
     dashPosition: afterDash,
