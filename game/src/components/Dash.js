@@ -30,6 +30,8 @@ export function createDash(playerGroup, camera, getInputDirection) {
 
   function tryStart() {
     if (now() < cooldownUntilMs) return false;
+    dirX = 0;
+    dirY = 0;
     const inputDir = getInputDirection();
     if (!inputDir) return false;
 
