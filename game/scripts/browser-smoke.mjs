@@ -73,15 +73,21 @@ try {
 
   await page.keyboard.down('w');
   await page.keyboard.press('Shift');
-  await page.waitForTimeout(260);
+  await page.waitForTimeout(60);
+  const earlyDashPosition = await page.evaluate(() => ({
+    x: window.__game.player.group.position.x,
+    y: window.__game.player.group.position.y
+  }));
+  const earlyDashDistance = Math.hypot(earlyDashPosition.x - afterMove.x, earlyDashPosition.y - afterMove.y);
+  if (earlyDashDistance < 5) {
+    throw new Error(`Dash did not produce its expected quick burst; moved only ${earlyDashDistance.toFixed(2)} units`);
+  }
+  await page.waitForTimeout(200);
   await page.keyboard.up('w');
   const afterDash = await page.evaluate(() => ({
     x: window.__game.player.group.position.x,
     y: window.__game.player.group.position.y
   }));
-  if (Math.hypot(afterDash.x - afterMove.x, afterDash.y - afterMove.y) < 1) {
-    throw new Error('Player did not move during the dash input');
-  }
 
   // Verify a real attack reduces HP, not merely that its animation plays.
   await page.waitForFunction(() => window.__game.enemyManager.getEnemies().some((enemy) => !enemy.isSpawning && !enemy.isDying), null, { timeout: 8000 });
