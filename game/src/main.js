@@ -57,8 +57,8 @@ const groundMaterial = new THREE.MeshStandardMaterial({
   metalness: 0
 });
 const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-ground.rotation.x = -Math.PI / 2;
-ground.position.y = -0.5;
+// The world uses Z-up, so CircleGeometry already lies on the ground plane.
+ground.position.z = -0.5;
 ground.receiveShadow = true;
 scene.add(ground);
 
@@ -71,7 +71,6 @@ const vignetteMaterial = new THREE.MeshBasicMaterial({
   opacity: 0.85
 });
 const vignette = new THREE.Mesh(vignetteGeometry, vignetteMaterial);
-vignette.rotation.x = -Math.PI / 2;
 vignette.position.z = -0.3;
 scene.add(vignette);
 
