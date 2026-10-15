@@ -144,9 +144,17 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup) {
     const px = playerGroup.position.x;
     const py = playerGroup.position.y;
     const pz = playerGroup.position.z;
-    sun.position.set(px + Math.cos(orbit) * 650, py + 200, pz + 220 + Math.sin(orbit) * 480);
+    if (mode === 'day') {
+      sun.position.set(px + 180, py + 220, pz + 520);
+      moon.position.set(px - 180, py + 180, pz + 460);
+    } else if (mode === 'night') {
+      sun.position.set(px + 180, py + 220, pz + 420);
+      moon.position.set(px - 180, py + 180, pz + 520);
+    } else {
+      sun.position.set(px + Math.cos(orbit) * 650, py + 200, pz + 220 + Math.sin(orbit) * 480);
+      moon.position.set(px - Math.cos(orbit) * 620, py + 180, pz + 220 - Math.sin(orbit) * 460);
+    }
     sunGlow.position.copy(sun.position);
-    moon.position.set(px - Math.cos(orbit) * 620, py + 180, pz + 220 - Math.sin(orbit) * 460);
     moonGlow.position.copy(moon.position);
     sun.visible = dayFactor > 0.08 && mode !== 'night';
     sunGlow.visible = sun.visible;
