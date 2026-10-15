@@ -152,6 +152,15 @@ try {
   if (hpAfterAttack !== damageCheck.before - 1) {
     throw new Error(`Attack should reduce enemy HP by 1; expected ${damageCheck.before - 1}, got ${hpAfterAttack}`);
   }
+  // Avoid letting the deliberately close test enemy interfere with later
+  // pause/menu checks through normal player-contact damage.
+  await page.evaluate((index) => {
+    const enemy = window.__game.enemyManager.getEnemies()[index];
+    if (enemy) {
+      enemy.isDying = true;
+      enemy.deathProgress = 0;
+    }
+  }, damageCheck.index);
 
   // Exercise both power-up effects through the same pickup handler used in play.
   const powerupPosition = await page.evaluate(() => ({
