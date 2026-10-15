@@ -286,6 +286,7 @@ function onPowerUpPickup(type, pos) {
 function triggerGameOver() {
   if (currentState === GameState.GAMEOVER) return;
   currentState = GameState.GAMEOVER;
+  dash.cancel();
   player.group.visible = false;
   audio.stopAmbient();
   audio.playGameOver();
@@ -326,6 +327,7 @@ function startGame() {
 function togglePause() {
   if (currentState === GameState.PLAYING) {
     currentState = GameState.PAUSED;
+    dash.cancel();
     menus.showPause();
   } else if (currentState === GameState.PAUSED) {
     currentState = GameState.PLAYING;
