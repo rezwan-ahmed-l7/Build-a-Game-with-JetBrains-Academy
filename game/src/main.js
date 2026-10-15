@@ -167,7 +167,7 @@ const dash = createDash(player.group, camera, () => {
   if (fromKeys) return fromKeys;
   if (touch && touch.getDirection) return touch.getDirection();
   return null;
-});
+}, (dx, dy) => movement.translate(dx, dy));
 
 // Power-ups
 const powerUps = createPowerUpManager(scene, player.group);
