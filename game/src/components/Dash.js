@@ -43,8 +43,11 @@ export function createDash(playerGroup, camera, getInputDirection) {
     const rightX = -fwdY;
     const rightY = fwdX;
 
-    if (inputDir.fwd) { dirX += fwdX; dirY += fwdY; }
-    if (inputDir.back) { dirX -= fwdX; dirY -= fwdY; }
+    // Input.getHeldDirection() uses "forward"/"backward", while touch
+    // controls use "fwd"/"back". Accept both shapes so keyboard and touch
+    // dash directions work consistently.
+    if (inputDir.fwd || inputDir.forward) { dirX += fwdX; dirY += fwdY; }
+    if (inputDir.back || inputDir.backward) { dirX -= fwdX; dirY -= fwdY; }
     if (inputDir.right) { dirX -= rightX; dirY -= rightY; }
     if (inputDir.left) { dirX += rightX; dirY += rightY; }
     const dlen = Math.sqrt(dirX * dirX + dirY * dirY);
