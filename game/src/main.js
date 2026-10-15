@@ -478,10 +478,6 @@ function animate(currentTime) {
   health.update(delta);
   particles.update(delta);
   damageNumbers.update(delta, camera);
-  // Dash movement must stop with gameplay when paused or game over. Its
-  // wall-clock duration still expires naturally, so resuming cannot continue
-  // a dash that was interrupted by the pause.
-  if (currentState === GameState.PLAYING) dash.update(delta);
   audio.update && audio.update(delta);
   if (flashTimer > 0) {
     flashTimer = Math.max(0, flashTimer - delta);
@@ -509,6 +505,9 @@ function animate(currentTime) {
     }
 
     movement.update(effectiveDelta);
+    // Apply dash after normal movement for this frame, while Movement's
+    // translate() shifts the active interpolation anchors to preserve it.
+    dash.update(delta);
     movement.applySquashStretch();
     player.setMoving(movement.isCurrentlyMoving());
 
