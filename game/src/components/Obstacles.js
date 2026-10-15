@@ -3,19 +3,19 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { mulberry32 } from '../utils/rng.js';
 
 // Layout counts. Tuned for a dense-but-readable fantasy meadow.
-const TREE_COUNT = 22;           // mixed pine + broadleaf
-const BUSH_COUNT = 36;           // low foliage clumps (no collision)
-const BIG_ROCK_COUNT = 18;       // large boulders with moss
-const SMALL_ROCK_COUNT = 38;     // pebbles / shards
-const STUMP_COUNT = 8;           // old cut stumps
-const GRASS_TUFT_COUNT = 220;    // scattered blades, non-colliding
-const MUSHROOM_COUNT = 28;       // bioluminescent clusters
+const TREE_COUNT = 32;           // mixed pine + broadleaf
+const BUSH_COUNT = 48;           // low foliage clumps (no collision)
+const BIG_ROCK_COUNT = 22;       // large boulders with moss
+const SMALL_ROCK_COUNT = 48;     // pebbles / shards
+const STUMP_COUNT = 10;          // old cut stumps
+const GRASS_TUFT_COUNT = 320;    // scattered blades, non-colliding
+const MUSHROOM_COUNT = 36;       // bioluminescent clusters
 const LILY_PAD_COUNT = 9;        // around the pond
 const POND_COUNT = 1;            // single calm pond
-const HOUSE_COUNT = 2;
+const HOUSE_COUNT = 3;
 
-const WORLD_RADIUS = 600;
-const CLEARING_RADIUS = 80;
+const WORLD_RADIUS = 520;
+const CLEARING_RADIUS = 76;
 const POND_EXCLUSION_RADIUS = 60;  // keep other obstacles away from pond
 
 const TREE_COLLISION_RADIUS = 8;
@@ -529,7 +529,7 @@ export function createObstacles(scene) {
   const pondCenter = (() => {
     for (let attempt = 0; attempt < 30; attempt++) {
       const angle = rand() * Math.PI * 2;
-      const r = 200 + rand() * 280;     // place pond 200-480 from origin
+      const r = 170 + rand() * 230;     // keep the pond in the visible meadow
       const x = Math.cos(angle) * r;
       const y = Math.sin(angle) * r;
       if (r < CLEARING_RADIUS + POND_EXCLUSION_RADIUS) continue;
