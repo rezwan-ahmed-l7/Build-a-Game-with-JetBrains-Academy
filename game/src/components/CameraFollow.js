@@ -10,12 +10,12 @@ const _targetPos = new THREE.Vector3();
 // - Azimuth 4.0 rad ≈ 229° — camera behind/left of the player so the
 //   frog is in the lower-left third of the screen and you can see far
 //   ahead of it.
-const BASE_DISTANCE = 500;
-const MIN_DISTANCE = 280;
-const MAX_DISTANCE = 760;
-const BASE_ELEVATION = 0.55;   // ~31 deg above the ground plane
-const MIN_ELEVATION = 0.22;    // ~13 deg — almost level
-const MAX_ELEVATION = 0.92;    // ~52 deg — pulled in for a tactical view
+const BASE_DISTANCE = 320;
+const MIN_DISTANCE = 200;
+const MAX_DISTANCE = 600;
+const BASE_ELEVATION = 0.43;   // ~25 deg: a readable action-adventure view
+const MIN_ELEVATION = 0.18;    // ~10 deg — low cinematic angle
+const MAX_ELEVATION = 0.86;    // ~49 deg — tactical overview
 
 const AZIMUTH_SENSITIVITY = 0.012;   // a bit higher so trackpad micro-moves count
 const PITCH_SENSITIVITY   = 0.010;
