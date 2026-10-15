@@ -105,20 +105,57 @@ const lightTarget = new THREE.Object3D();
 scene.add(lightTarget);
 directionalLight.target = lightTarget;
 
-// Ground
-const groundGeometry = new THREE.CircleGeometry(1200, 64);
+// Ground — a subtle procedural meadow texture prevents the arena from
+// reading as a single flat green sheet, without adding external assets.
+function createMeadowTexture() {
+  const size = 1024;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, size, size);
+
+  // Deterministic noise so the meadow looks consistent between runs.
+  let seed = 0x51a7e;
+  const random = () => {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    return seed / 4294967296;
+  };
+  for (let i = 0; i < 22000; i++) {
+    const x = random() * size;
+    const y = random() * size;
+    const radius = 0.45 + random() * 1.6;
+    const shade = random();
+    ctx.fillStyle = shade > 0.5
+      ? `rgba(72, 112, 48, ${0.025 + random() * 0.09})`
+      : `rgba(180, 198, 126, ${0.025 + random() * 0.07})`;
+    ctx.beginPath();
+    ctx.ellipse(x, y, radius * 1.7, radius, random() * Math.PI, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
+  texture.anisotropy = 4;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+const groundGeometry = new THREE.CircleGeometry(2400, 96);
 const groundMaterial = new THREE.MeshStandardMaterial({
-  color: 0x344b2b, roughness: 1.0, metalness: 0
+  color: 0x344b2b, map: createMeadowTexture(), roughness: 1.0, metalness: 0
 });
 const ground = new THREE.Mesh(groundGeometry, groundMaterial);
 ground.position.z = -0.5;
 ground.receiveShadow = true;
 scene.add(ground);
 
-const vignetteGeometry = new THREE.RingGeometry(800, 1200, 64);
+// The dark edge falloff now starts well beyond the active arena, so the
+// camera cannot reveal a distracting black wedge at the edge of the ground.
+const vignetteGeometry = new THREE.RingGeometry(1850, 2400, 96);
 const vignetteMaterial = new THREE.MeshBasicMaterial({
   color: 0x05080d, side: THREE.DoubleSide,
-  transparent: true, opacity: 0.85
+  transparent: true, opacity: 0.72, depthWrite: false
 });
 const vignette = new THREE.Mesh(vignetteGeometry, vignetteMaterial);
 vignette.position.z = -0.3;
