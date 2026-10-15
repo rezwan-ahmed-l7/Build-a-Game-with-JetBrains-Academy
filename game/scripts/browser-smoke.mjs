@@ -43,7 +43,7 @@ try {
     if (!request.url().startsWith('data:')) browserErrors.push(`Request failed: ${request.url()} — ${request.failure()?.errorText}`);
   });
 
-  await page.goto(baseUrl, { waitUntil: 'networkidle', timeout: 30000 });
+  await page.goto(baseUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
   await page.locator('#menu-start').waitFor({ state: 'visible', timeout: 10000 });
   await page.locator('canvas.game').waitFor({ state: 'visible' });
   if (await page.locator('#boot-banner').count()) throw new Error('Temporary boot debug banner is still visible');
