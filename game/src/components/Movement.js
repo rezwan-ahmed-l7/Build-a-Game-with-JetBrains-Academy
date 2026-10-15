@@ -233,6 +233,18 @@ export function createMovement(playerGroup, getModel, input, camera, canMoveCall
     }
   }
 
+  // Translate both the visible player and any active movement path.
+  // Without shifting startPos/targetPos, the next movement frame overwrites
+  // dash displacement and makes the dash appear to do nothing.
+  function translate(dx, dy) {
+    playerGroup.position.x += dx;
+    playerGroup.position.y += dy;
+    startPos.x += dx;
+    startPos.y += dy;
+    targetPos.x += dx;
+    targetPos.y += dy;
+  }
+
   function applySquashStretch() {
     const model = getModel();
     if (!model) return;
@@ -275,6 +287,7 @@ export function createMovement(playerGroup, getModel, input, camera, canMoveCall
     applySquashStretch,
     isCurrentlyMoving,
     reset,
+    translate,
     getCameraBasis
   };
 }
