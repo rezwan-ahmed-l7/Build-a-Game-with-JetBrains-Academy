@@ -52,6 +52,10 @@ export function createEnemy() {
         _baseColor.copy(newMaterial.color);
         _mixed.lerpColors(_baseColor, tint, 0.4);
         newMaterial.color.copy(_mixed);
+        if ('emissive' in newMaterial) {
+          newMaterial.emissive.copy(tint).multiplyScalar(0.16);
+          newMaterial.emissiveIntensity = 0.7;
+        }
         child.material = newMaterial;
       });
 
