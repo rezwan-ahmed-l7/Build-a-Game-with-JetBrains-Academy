@@ -132,16 +132,19 @@ try {
     y: window.__game.player.group.position.y
   }));
 
-  // Verify a real attack reduces HP, not merely that its animation plays.
-  await page.waitForFunction(() => window.__game.enemyManager.getEnemies().some((enemy) => !enemy.isSpawning && !enemy.isDying), null, { timeout: 8000 });
+  // Spawn a controlled enemy so combat can be tested even on a slow
+  // software-rendered browser where the automatic spawn timer advances slowly.
   const damageCheck = await page.evaluate(() => {
+    const manager = window.__game.enemyManager;
+    manager.spawnEnemy();
+    const enemies = manager.getEnemies();
+    const enemy = enemies[enemies.length - 1];
     const player = window.__game.player.group;
-    const enemy = window.__game.enemyManager.getEnemies().find((item) => !item.isSpawning && !item.isDying);
     enemy.group.position.set(player.position.x + 12, player.position.y, player.position.z);
     enemy.isSpawning = false;
     enemy.isDying = false;
     enemy.hp = 5;
-    return { before: enemy.hp, index: window.__game.enemyManager.getEnemies().indexOf(enemy) };
+    return { before: enemy.hp, index: enemies.length - 1 };
   });
   await page.keyboard.press('Space');
   await page.waitForTimeout(100);
