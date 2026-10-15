@@ -1,33 +1,6 @@
 import * as THREE from 'three';
 import './style.css';
 
-// ----- Debug: surface errors visibly + boot step banner -----
-// MUST be defined before ANY system creation calls — used to debug
-// blank-screen issues by showing which step blew up.
-const bootBanner = document.createElement('div');
-bootBanner.id = 'boot-banner';
-bootBanner.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:rgba(0,0,0,0.85);color:#0f0;font:12px monospace;padding:6px 10px;z-index:99998;pointer-events:none;white-space:pre;';
-document.body.appendChild(bootBanner);
-let _bootStep = 0;
-function bootStep(msg) {
-  _bootStep++;
-  bootBanner.textContent = `boot #${_bootStep}: ${msg}`;
-  console.log(`[boot #${_bootStep}] ${msg}`);
-}
-bootStep('main.js loaded');
-window.addEventListener('error', (e) => {
-  const div = document.createElement('div');
-  div.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#f00;color:#fff;padding:8px;z-index:99999;font:14px monospace;white-space:pre-wrap;max-height:60vh;overflow:auto;border:3px solid #ff0;';
-  div.textContent = '[ERROR] ' + (e.error?.stack || e.message || e);
-  document.body.appendChild(div);
-});
-window.addEventListener('unhandledrejection', (e) => {
-  const div = document.createElement('div');
-  div.style.cssText = 'position:fixed;top:60vh;left:0;right:0;background:#a00;color:#fff;padding:8px;z-index:99999;font:14px monospace;white-space:pre-wrap;';
-  div.textContent = '[REJECT] ' + (e.reason?.stack || e.reason || 'unknown');
-  document.body.appendChild(div);
-});
-
 import { createRenderer } from './components/Renderer.js';
 import { createCamera } from './components/Camera.js';
 import { createPlayer } from './components/Player.js';
@@ -152,41 +125,26 @@ vignette.position.z = -0.3;
 scene.add(vignette);
 
 // Player
-bootStep('before player');
 const player = createPlayer();
 scene.add(player.group);
-bootStep('player ok');
-
 // Environment (depends on lights + player)
-bootStep('before environment');
 const environment = createEnvironment(scene, {
   ambientLight, directionalLight, fillLight, rimLight
 }, groundMaterial, player.group);
-bootStep('environment ok');
-
 // Camera
-bootStep('before camera');
 const camera = createCamera();
 scene.add(camera);
 
 const canvas = document.querySelector('canvas.game');
 const cameraFollow = createCameraFollow(camera, player.group, canvas);
-bootStep('camera ok');
-
 // Input + Movement
-bootStep('before obstacles');
 const input = createInput();
 const obstacles = createObstacles(scene);  // create BEFORE movement
-bootStep(`obstacles ok (${obstacles.getObstacles().length} colliding)`);
 const enemyManager = createEnemyManager(scene, player.group);
-bootStep('enemyManager ok');
-
 const movement = createMovement(
   player.group, player.getModel, input, camera,
   (targetPos) => canPlayerMoveTo(targetPos, enemyManager.getEnemies(), obstacles.getObstacles())
 );
-bootStep('movement ok');
-
 // Score / Health / Combo / Difficulty
 const score = createScore();
 const health = createHealth(3);
