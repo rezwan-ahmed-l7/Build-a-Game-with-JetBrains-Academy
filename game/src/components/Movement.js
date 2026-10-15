@@ -28,6 +28,7 @@ export function createMovement(playerGroup, getModel, input, camera, canMoveCall
   const ROTATION_DURATION = 0.3;
 
   let moveDelta = { x: 0, y: 0 };
+  let speedMultiplier = 1;
 
   // Returns { x, y, fwdX, fwdY, rightX, rightY, camAngle, valid }
   // - valid=false if camera forward is degenerate
@@ -174,7 +175,7 @@ export function createMovement(playerGroup, getModel, input, camera, canMoveCall
       return;
     }
 
-    progress += delta / JUMP_DURATION;
+    progress += (delta * speedMultiplier) / JUMP_DURATION;
 
     if (progress >= 1) {
       progress = 1;
@@ -278,6 +279,14 @@ export function createMovement(playerGroup, getModel, input, camera, canMoveCall
     }
   }
 
+  function setSpeedMultiplier(value) {
+    speedMultiplier = Number.isFinite(value) ? Math.max(0.5, Math.min(value, 2.5)) : 1;
+  }
+
+  function getSpeedMultiplier() {
+    return speedMultiplier;
+  }
+
   function isCurrentlyMoving() {
     return isMoving;
   }
@@ -286,6 +295,8 @@ export function createMovement(playerGroup, getModel, input, camera, canMoveCall
     update,
     applySquashStretch,
     isCurrentlyMoving,
+    setSpeedMultiplier,
+    getSpeedMultiplier,
     reset,
     translate,
     getCameraBasis
