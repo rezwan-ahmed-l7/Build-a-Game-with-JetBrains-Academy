@@ -3,10 +3,11 @@ import { chromium } from 'playwright';
 
 const baseUrl = 'http://127.0.0.1:5173';
 const browserErrors = [];
-const server = spawn('npm', ['run', 'dev', '--', '--host', '127.0.0.1'], {
+// Spawn Vite directly rather than through npm so cleanup terminates the
+// actual server process instead of leaving an orphaned child in CI.
+const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', '5173'], {
   cwd: process.cwd(),
-  stdio: ['ignore', 'pipe', 'pipe'],
-  shell: process.platform === 'win32'
+  stdio: ['ignore', 'pipe', 'pipe']
 });
 
 let serverOutput = '';
@@ -150,5 +151,12 @@ try {
   process.exitCode = 1;
 } finally {
   if (browser) await browser.close();
-  server.kill('SIGTERM');
+  if (server.exitCode === null) {
+    server.kill('SIGTERM');
+    await Promise.race([
+      new Promise((resolve) => server.once('exit', resolve)),
+      new Promise((resolve) => setTimeout(resolve, 2000))
+    ]);
+    if (server.exitCode === null) server.kill('SIGKILL');
+  }
 }
