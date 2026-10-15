@@ -14,11 +14,19 @@ export function isColliding(posA, radiusA, posB, radiusB) {
 export function getSeparationVector(posA, posB, radiusA, radiusB) {
   const dx = posA.x - posB.x;
   const dy = posA.y - posB.y;
-  const dist = Math.sqrt(dx * dx + dy * dy) || 0.01;
+  const dist = Math.sqrt(dx * dx + dy * dy);
   const overlap = (radiusA + radiusB) - dist;
 
   if (overlap <= 0) {
     _sep.x = 0;
+    _sep.y = 0;
+    return _sep;
+  }
+
+  // Coincident centers have no natural separation direction. Pick a stable
+  // direction so collision resolution can still move one object out.
+  if (dist < 0.0001) {
+    _sep.x = overlap;
     _sep.y = 0;
     return _sep;
   }
