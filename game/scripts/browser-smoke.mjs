@@ -75,7 +75,7 @@ try {
       x: window.__game.player.group.position.x,
       y: window.__game.player.group.position.y
     }));
-    if (Math.hypot(attemptEnd.x - attemptStart.x, attemptEnd.y - attemptStart.y) > 1) {
+    if (Math.hypot(attemptEnd.x - attemptStart.x, attemptEnd.y - attemptStart.y) > 10) {
       afterMove = attemptEnd;
       successfulDirection = key;
       break;
@@ -99,12 +99,19 @@ try {
 
   await page.keyboard.down('w');
   await page.keyboard.press('Shift');
-  await page.waitForTimeout(60);
-  const earlyDashPosition = await page.evaluate(() => ({
-    x: window.__game.player.group.position.x,
-    y: window.__game.player.group.position.y
-  }));
-  const earlyDashDistance = Math.hypot(earlyDashPosition.x - afterMove.x, earlyDashPosition.y - afterMove.y);
+  let earlyDashPosition = afterMove;
+  let earlyDashDistance = 0;
+  // Headless software rendering may produce fewer frames than a desktop GPU.
+  // Wait for an actual movement frame rather than assuming 60 ms guarantees one.
+  for (let attempt = 0; attempt < 20; attempt++) {
+    await page.waitForTimeout(50);
+    earlyDashPosition = await page.evaluate(() => ({
+      x: window.__game.player.group.position.x,
+      y: window.__game.player.group.position.y
+    }));
+    earlyDashDistance = Math.hypot(earlyDashPosition.x - afterMove.x, earlyDashPosition.y - afterMove.y);
+    if (earlyDashDistance >= 5) break;
+  }
   if (earlyDashDistance < 5) {
     const diagnostics = await page.evaluate(() => ({
       state: window.__game.currentState(),
@@ -150,9 +157,23 @@ try {
 
   // Pause during an active dash and ensure the player stays still.
   await page.waitForTimeout(900);
+  const beforePauseDash = await page.evaluate(() => ({
+    x: window.__game.player.group.position.x,
+    y: window.__game.player.group.position.y
+  }));
   await page.keyboard.down('w');
   await page.keyboard.press('Shift');
-  await page.waitForTimeout(50);
+  let pauseDashDistance = 0;
+  for (let attempt = 0; attempt < 20; attempt++) {
+    await page.waitForTimeout(50);
+    const position = await page.evaluate(() => ({
+      x: window.__game.player.group.position.x,
+      y: window.__game.player.group.position.y
+    }));
+    pauseDashDistance = Math.hypot(position.x - beforePauseDash.x, position.y - beforePauseDash.y);
+    if (pauseDashDistance >= 5) break;
+  }
+  if (pauseDashDistance < 5) throw new Error('Could not observe dash movement before pause');
   await page.keyboard.press('Escape');
   await page.locator('#menu-pause').waitFor({ state: 'visible' });
   const pausedPosition = await page.evaluate(() => ({
