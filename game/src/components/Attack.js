@@ -45,7 +45,6 @@ export function createAttack(scene, playerGroup, enemyManager, onKill) {
     });
 
     attackVisual = new THREE.Mesh(geometry, material);
-    attackVisual.rotation.x = -Math.PI / 2;
     attackVisual.position.copy(playerGroup.position);
     attackVisual.position.z = 0.3;
     attackVisual.userData.life = 0;
