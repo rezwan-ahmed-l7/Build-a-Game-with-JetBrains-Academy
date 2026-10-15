@@ -27,10 +27,8 @@ jobs:
       - name: Install course dependencies
         run: npm ci
 
-      # The repository currently has no test/*.js or test/*.jsx files.
-      # Keep CI usable while making Jest's "No tests found" output visible.
-      - name: Run configured Jest tests (allow empty suite)
-        run: npm test -- --passWithNoTests
+      - name: Run unit tests
+        run: npm test
 
       - name: Report dependency vulnerabilities
         run: npm audit --audit-level=high
