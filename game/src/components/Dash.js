@@ -18,8 +18,8 @@ const DASH_BLINK_INTERVAL_MS = 50;
 const _camDir = new THREE.Vector3();
 
 export function createDash(playerGroup, camera, getInputDirection, applyDisplacement = null) {
-  let activeUntilMs = 0;
-  let dashStartMs = 0;
+  let dashElapsedMs = 0;
+  let dashRemainingMs = 0;
   let cooldownUntilMs = 0;
   let iFramesUntilMs = 0;
   let lastBlinkMs = 0;
@@ -56,8 +56,8 @@ export function createDash(playerGroup, camera, getInputDirection, applyDisplace
     dirY /= dlen;
 
     const t = now();
-    dashStartMs = t;
-    activeUntilMs = t + DASH_DURATION_MS;
+    dashElapsedMs = 0;
+    dashRemainingMs = DASH_DURATION_MS;
     iFramesUntilMs = t + I_FRAME_DURATION_MS;
     cooldownUntilMs = t + DASH_COOLDOWN_MS;
     return true;
@@ -79,12 +79,13 @@ export function createDash(playerGroup, camera, getInputDirection, applyDisplace
       playerGroup.visible = true;
     }
 
-    // Active dash burst — apply slide.
-    if (t < activeUntilMs) {
-      const elapsed = t - dashStartMs;
-      const progress = elapsed / DASH_DURATION_MS;
+    // Advance dash duration by simulation delta, not wall-clock time.
+    // Under low FPS, a wall-clock deadline can expire between frames before
+    // a single movement update runs, making the dash appear to do nothing.
+    if (dashRemainingMs > 0) {
+      const progress = dashElapsedMs / DASH_DURATION_MS;
       const speed = DASH_SPEED * (1 - progress * 0.4);
-      // Clamp delta so a single big frame doesn't yeet the player across the map
+      // Clamp delta so a single big frame doesn't yeet the player across the map.
       const stepDt = Math.min(delta, 0.05);
       const dx = dirX * speed * stepDt;
       const dy = dirY * speed * stepDt;
@@ -94,10 +95,12 @@ export function createDash(playerGroup, camera, getInputDirection, applyDisplace
         playerGroup.position.x += dx;
         playerGroup.position.y += dy;
       }
+      dashElapsedMs = Math.min(DASH_DURATION_MS, dashElapsedMs + delta * 1000);
+      dashRemainingMs = Math.max(0, DASH_DURATION_MS - dashElapsedMs);
     }
   }
 
-  function isDashing() { return now() < activeUntilMs; }
+  function isDashing() { return dashRemainingMs > 0; }
   function isInvulnerable() { return now() < iFramesUntilMs; }
   function getCooldown() {
     const left = cooldownUntilMs - now();
@@ -105,9 +108,13 @@ export function createDash(playerGroup, camera, getInputDirection, applyDisplace
   }
   function getCooldownMax() { return DASH_COOLDOWN_MS / 1000; }
 
+  function cancel() {
+    dashElapsedMs = 0;
+    dashRemainingMs = 0;
+  }
+
   function reset() {
-    activeUntilMs = 0;
-    dashStartMs = 0;
+    cancel();
     cooldownUntilMs = 0;
     iFramesUntilMs = 0;
     lastBlinkMs = 0;
@@ -116,5 +123,5 @@ export function createDash(playerGroup, camera, getInputDirection, applyDisplace
   }
 
   return { tryStart, update, isDashing, isInvulnerable,
-           getCooldown, getCooldownMax, reset };
+           getCooldown, getCooldownMax, cancel, reset };
 }
