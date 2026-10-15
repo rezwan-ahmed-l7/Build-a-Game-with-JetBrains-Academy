@@ -455,8 +455,15 @@ function checkPlayerEnemyContact() {
   return false;
 }
 
-// Expose for debugging (useful for testing in DevTools console).
-window.__game = { scene, player, enemyManager, obstacles, health, score, currentState: () => currentState };
+// Development-only debug hooks support browser QA without exposing the
+// full game object on production builds.
+if (import.meta.env.DEV) {
+  window.__game = {
+    scene, player, enemyManager, obstacles, health, score,
+    input, movement, dash, attack,
+    currentState: () => currentState
+  };
+}
 
 // ----- Main loop -----
 let previousTime = performance.now();
