@@ -17,7 +17,7 @@ const DASH_BLINK_INTERVAL_MS = 50;
 
 const _camDir = new THREE.Vector3();
 
-export function createDash(playerGroup, camera, getInputDirection) {
+export function createDash(playerGroup, camera, getInputDirection, applyDisplacement = null) {
   let activeUntilMs = 0;
   let dashStartMs = 0;
   let cooldownUntilMs = 0;
@@ -86,8 +86,14 @@ export function createDash(playerGroup, camera, getInputDirection) {
       const speed = DASH_SPEED * (1 - progress * 0.4);
       // Clamp delta so a single big frame doesn't yeet the player across the map
       const stepDt = Math.min(delta, 0.05);
-      playerGroup.position.x += dirX * speed * stepDt;
-      playerGroup.position.y += dirY * speed * stepDt;
+      const dx = dirX * speed * stepDt;
+      const dy = dirY * speed * stepDt;
+      if (typeof applyDisplacement === 'function') {
+        applyDisplacement(dx, dy);
+      } else {
+        playerGroup.position.x += dx;
+        playerGroup.position.y += dy;
+      }
     }
   }
 
