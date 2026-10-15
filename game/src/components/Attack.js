@@ -17,7 +17,7 @@ export function createAttack(scene, playerGroup, enemyManager, callbacks = {}) {
   const onShake = callbacks.onShake || (() => {});
   const onParticles = callbacks.onParticles || (() => {});
 
-  let lastAttackTime = 0;
+  let lastAttackTime = -Infinity;
   let attackVisual = null;
   let hitStopRemaining = 0;
 
@@ -29,11 +29,16 @@ export function createAttack(scene, playerGroup, enemyManager, callbacks = {}) {
   }
 
   function setRadius(value) {
+    if (!Number.isFinite(value) || value <= 0) return;
     radius = value;
     if (attackVisual) {
       attackVisual.geometry.dispose();
       attackVisual.geometry = new THREE.RingGeometry(radius * 0.8, radius, 32);
     }
+  }
+
+  function getRadius() {
+    return radius;
   }
 
   function createAttackVisual() {
@@ -152,6 +157,7 @@ export function createAttack(scene, playerGroup, enemyManager, callbacks = {}) {
     updateVisual,
     getHitStopDelta,
     setCooldown,
-    setRadius
+    setRadius,
+    getRadius
   };
 }
