@@ -1,8 +1,8 @@
 body {
   margin: 0;
   overflow: hidden;
-  font-family: 'Trebuchet MS', system-ui, sans-serif;
-  background: #0f0f1a;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #07111c;
   color: #fff;
 }
 
@@ -18,10 +18,16 @@ canvas.game {
   top: 18px;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 28px;
-  font-weight: 700;
-  letter-spacing: 1px;
-  color: #ffe27a;
+  font-size: 25px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #ffe9a1;
+  padding: 10px 22px;
+  border: 1px solid rgba(255, 226, 155, 0.24);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(8, 20, 34, 0.78), rgba(8, 20, 34, 0.52));
+  backdrop-filter: blur(14px);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255,255,255,0.08);
   text-shadow: 0 0 12px rgba(255, 226, 122, 0.5),
                0 2px 6px rgba(0, 0, 0, 0.6);
   pointer-events: none;
@@ -64,10 +70,16 @@ canvas.game {
 /* ---------- Hearts ---------- */
 .hearts {
   position: fixed;
-  top: 16px;
-  left: 16px;
+  top: 18px;
+  left: 18px;
   display: flex;
-  gap: 4px;
+  gap: 5px;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: rgba(7, 17, 28, 0.56);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
   z-index: 5;
   pointer-events: none;
   user-select: none;
@@ -170,24 +182,51 @@ canvas.game {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(ellipse at center, rgba(7,16,36,0.85) 0%, rgba(3,6,14,0.97) 100%);
-  backdrop-filter: blur(6px);
+  background:
+    radial-gradient(ellipse at 50% 38%, rgba(30, 68, 93, 0.48) 0%, rgba(7, 18, 32, 0.90) 48%, rgba(3, 7, 15, 0.98) 100%);
+  backdrop-filter: blur(10px);
+  isolation: isolate;
+  overflow: hidden;
   pointer-events: auto;
-  gap: 18px;
+  gap: 16px;
   text-align: center;
 }
-.menu-title {
-  font-size: 64px;
+.menu::before {
+  content: '';
+  position: absolute;
+  width: min(76vw, 760px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 1px solid rgba(139, 201, 223, 0.10);
+  box-shadow: 0 0 0 42px rgba(139, 201, 223, 0.025), 0 0 0 96px rgba(139, 201, 223, 0.018), inset 0 0 100px rgba(72, 201, 176, 0.035);
+  pointer-events: none;
+  z-index: -1;
+}
+.menu-kicker {
+  margin: 0 0 -6px;
+  color: #86d9c4;
+  font-size: 11px;
   font-weight: 800;
-  letter-spacing: 4px;
-  color: #ffe27a;
-  text-shadow: 0 0 24px rgba(255, 226, 122, 0.5);
+  letter-spacing: 0.28em;
+}
+.menu-objective {
+  margin: -4px 0 0;
+  color: rgba(224, 235, 247, 0.76);
+  font-size: 13px;
+  letter-spacing: 0.035em;
+}
+.menu-title {
+  font-size: clamp(44px, 5.4vw, 68px);
+  font-weight: 850;
+  letter-spacing: -0.035em;
+  color: #ffe39a;
+  text-shadow: 0 8px 40px rgba(255, 190, 89, 0.24), 0 0 24px rgba(255, 226, 122, 0.24);
   margin: 0;
 }
 .menu-subtitle {
-  font-size: 18px;
-  color: #b6c2dd;
-  letter-spacing: 2px;
+  font-size: 16px;
+  color: #c2d2e4;
+  letter-spacing: 0.12em;
   margin: 0;
 }
 .menu-buttons {
@@ -200,15 +239,18 @@ canvas.game {
   font-size: 18px;
   font-weight: 700;
   letter-spacing: 1px;
-  padding: 12px 28px;
-  border-radius: 10px;
-  border: 1px solid rgba(195, 221, 255, 0.3);
+  padding: 13px 30px;
+  border-radius: 12px;
+  border: 1px solid rgba(195, 221, 255, 0.24);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255,255,255,0.08);
   background: linear-gradient(135deg, rgba(32,56,91,0.88), rgba(12,22,44,0.88));
   color: #edf5ff;
   cursor: pointer;
   transition: transform 0.15s, border-color 0.15s;
 }
-.menu-button:hover { transform: translateY(-2px); border-color: rgba(255, 226, 155, 0.85); }
+.menu-button:hover { transform: translateY(-2px); border-color: rgba(255, 226, 155, 0.85); box-shadow: 0 14px 34px rgba(0, 0, 0, 0.28), 0 0 24px rgba(255, 190, 89, 0.10); }
+.menu-button:active { transform: translateY(0) scale(0.985); }
+.menu-button:focus-visible, .icon-button:focus-visible, .touch-button:focus-visible { outline: 2px solid #ffe39a; outline-offset: 3px; }
 .menu-button.primary {
   background: linear-gradient(135deg, #ffe27a, #ff9a3c);
   color: #1a0f0f;
@@ -237,11 +279,13 @@ canvas.game {
   pointer-events: auto;
 }
 .icon-button {
-  width: 38px;
-  height: 38px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
-  border: 1px solid rgba(195, 221, 255, 0.3);
-  background: rgba(7, 16, 36, 0.6);
+  border: 1px solid rgba(195, 221, 255, 0.22);
+  background: rgba(7, 16, 36, 0.68);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255,255,255,0.06);
   color: #edf5ff;
   font-size: 16px;
   font-weight: 800;
@@ -379,7 +423,16 @@ canvas.game {
   .score { top: 16px; font-size: 24px; }
   .game-over-panel { min-width: 0; width: calc(100vw - 72px); padding: 32px 20px; }
   .game-over-panel h1 { font-size: 40px; }
-  .menu-title { font-size: 44px; }
+  .menu-title { font-size: clamp(38px, 10vw, 46px); }
+  .menu-kicker { font-size: 9px; letter-spacing: 0.2em; }
+  .menu-objective { max-width: calc(100vw - 36px); font-size: 11px; line-height: 1.6; }
+  .menu-subtitle { font-size: 13px; letter-spacing: 0.08em; }
+  .menu-buttons { width: calc(100vw - 48px); justify-content: center; }
+  .menu-button.primary { min-width: 168px; }
+  .score { top: 12px; padding: 8px 14px; font-size: 19px; }
+  .hearts { top: 12px; left: 10px; padding: 6px 8px; gap: 2px; }
+  .menu-hud { top: 12px; right: 10px; gap: 6px; }
+  .icon-button { width: 36px; height: 36px; }
   .hearts { top: 12px; left: 12px; }
   .heart { font-size: 24px; }
 }
