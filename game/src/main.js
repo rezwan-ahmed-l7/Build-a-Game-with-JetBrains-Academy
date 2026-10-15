@@ -141,8 +141,10 @@ function triggerGameOver() {
 }
 
 function resetGame() {
-  // Move player back to origin
+  // Clear queued input and reset in-flight movement/animation before restarting.
+  input.clear();
   player.group.position.set(STARTING_POSITION.x, STARTING_POSITION.y, STARTING_POSITION.z);
+  movement.reset();
   player.group.visible = true;
   // Clear all enemies
   enemyManager.removeAll();
