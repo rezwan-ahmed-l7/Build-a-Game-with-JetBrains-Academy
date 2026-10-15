@@ -139,6 +139,7 @@ const canvas = document.querySelector('canvas.game');
 const cameraFollow = createCameraFollow(camera, player.group, canvas);
 // Input + Movement
 const input = createInput();
+input.setEnabled(false); // menu accepts menu shortcuts, not queued movement
 const obstacles = createObstacles(scene);  // create BEFORE movement
 const enemyManager = createEnemyManager(scene, player.group);
 const movement = createMovement(
@@ -246,14 +247,14 @@ function tickComboHud() {
 const ATTACK_BOOST_DURATION = 10;   // seconds the long-attack power-up lasts
 const ATTACK_BOOST_MULT = 1.85;     // 85% bigger radius
 let attackBoostRemaining = 0;
-// The "real" base radius the attack system resets to when the boost ends.
-// We capture it once at startup, but every frame the Difficulty system
-// updates the radius — we re-derive it from `attack.radius / currentBoost`
-// so the boost never desyncs from difficulty changes.
+const SPEED_BOOST_DURATION = 8;
+const SPEED_BOOST_MULT = 1.7;
+let speedBoostRemaining = 0;
+
+// Difficulty drives attack.setRadius(d.attackRadius) each frame. The boost
+// scales on top of that base radius without relying on an undefined field.
 function getBoostedAttackRadius() {
-  // Difficulty drives attack.setRadius(d.attackRadius) each frame from the
-  // main loop. Our boost scales on top of whatever that value is.
-  return attack.radius * ATTACK_BOOST_MULT;
+  return attack.getRadius() * ATTACK_BOOST_MULT;
 }
 
 function onPowerUpPickup(type, pos) {
@@ -266,9 +267,8 @@ function onPowerUpPickup(type, pos) {
     damageNumbers.spawn('x2 BONUS', pos.x, pos.y, pos.z + 6, '#ffd166');
     particles.spawnBurst(pos.x, pos.y, pos.z, { count: 24, color: 0xffd166, speed: 90, life: 0.7, size: 7 });
   } else if (type === 'speed') {
-    // Visual feedback only — there's no movement speed scaling wired in,
-    // but the power-up still rewards the player with bonus score and a
-    // visual cue so the type stays useful.
+    speedBoostRemaining = SPEED_BOOST_DURATION;
+    movement.setSpeedMultiplier(SPEED_BOOST_MULT);
     score.addKillBonus(2);
     damageNumbers.spawn('SPEED!', pos.x, pos.y, pos.z + 6, '#4cc9f0');
     particles.spawnBurst(pos.x, pos.y, pos.z, { count: 22, color: 0x4cc9f0, speed: 80, life: 0.7, size: 6 });
@@ -286,6 +286,7 @@ function onPowerUpPickup(type, pos) {
 function triggerGameOver() {
   if (currentState === GameState.GAMEOVER) return;
   currentState = GameState.GAMEOVER;
+  input.setEnabled(false);
   dash.cancel();
   player.group.visible = false;
   audio.stopAmbient();
@@ -294,7 +295,7 @@ function triggerGameOver() {
 }
 
 function resetGame() {
-  input.clear();
+  input.setEnabled(true);
   player.group.position.set(0, 0, 0);
   movement.reset();
   player.group.visible = true;
@@ -306,6 +307,8 @@ function resetGame() {
   score.reset();
   score.setHearts(3, 3);
   attackBoostRemaining = 0;
+  speedBoostRemaining = 0;
+  movement.setSpeedMultiplier(1);
   currentState = GameState.PLAYING;
   score.hideGameOver();
 }
@@ -327,10 +330,12 @@ function startGame() {
 function togglePause() {
   if (currentState === GameState.PLAYING) {
     currentState = GameState.PAUSED;
+    input.setEnabled(false);
     dash.cancel();
     menus.showPause();
   } else if (currentState === GameState.PAUSED) {
     currentState = GameState.PLAYING;
+    input.setEnabled(true);
     menus.hidePause();
   }
 }
@@ -462,7 +467,7 @@ function checkPlayerEnemyContact() {
 if (import.meta.env.DEV) {
   window.__game = {
     scene, player, enemyManager, obstacles, health, score,
-    input, movement, dash, attack,
+    input, movement, dash, attack, onPowerUpPickup,
     currentState: () => currentState
   };
 }
@@ -496,6 +501,11 @@ function animate(currentTime) {
     enemyManager.setDifficulty(d.difficulty);
     attack.setCooldown(d.attackCooldown);
     attack.setRadius(d.attackRadius);
+
+    if (speedBoostRemaining > 0) {
+      speedBoostRemaining = Math.max(0, speedBoostRemaining - delta);
+      movement.setSpeedMultiplier(speedBoostRemaining > 0 ? SPEED_BOOST_MULT : 1);
+    }
 
     // Long-attack boost: tick down the timer and re-apply the boosted
     // radius AFTER the difficulty set so it never desyncs.
