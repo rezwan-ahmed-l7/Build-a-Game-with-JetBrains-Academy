@@ -60,16 +60,28 @@ try {
   }));
   if (before.state !== 'playing') throw new Error(`Expected playing state after Play; got ${before.state}`);
 
-  await page.keyboard.down('w');
-  await page.waitForTimeout(350);
-  await page.keyboard.up('w');
-  const afterMove = await page.evaluate(() => ({
-    x: window.__game.player.group.position.x,
-    y: window.__game.player.group.position.y
-  }));
-  if (Math.hypot(afterMove.x - before.x, afterMove.y - before.y) < 1) {
-    throw new Error('Player did not move after holding W');
+  // The spawn point can be near an obstacle, so try available directions
+  // rather than mistaking a correctly blocked step for broken input.
+  let afterMove = null;
+  let successfulDirection = null;
+  for (const key of ['w', 's', 'a', 'd', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']) {
+    const attemptStart = await page.evaluate(() => ({
+      x: window.__game.player.group.position.x,
+      y: window.__game.player.group.position.y
+    }));
+    await page.keyboard.press(key);
+    await page.waitForTimeout(430);
+    const attemptEnd = await page.evaluate(() => ({
+      x: window.__game.player.group.position.x,
+      y: window.__game.player.group.position.y
+    }));
+    if (Math.hypot(attemptEnd.x - attemptStart.x, attemptEnd.y - attemptStart.y) > 1) {
+      afterMove = attemptEnd;
+      successfulDirection = key;
+      break;
+    }
   }
+  if (!afterMove) throw new Error('Player did not move in any of the eight keyboard directions');
 
   await page.keyboard.down('w');
   await page.keyboard.press('Shift');
@@ -148,6 +160,7 @@ try {
     result: 'PASS',
     checks: ['canvas boot', 'start game', 'keyboard movement', 'dash input', 'enemy attack reduces HP', 'pause/resume', 'dash stops while paused', 'day-night mode toggle', 'no browser console/runtime/request errors'],
     initialPosition: before,
+    successfulMovementKey: successfulDirection,
     movedPosition: afterMove,
     dashPosition: afterDash,
     environmentMode: { before: modeBefore, after: modeAfter }
