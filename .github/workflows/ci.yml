@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   course-tests:
-    name: Course tests
+    name: Jest test discovery
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -27,8 +27,10 @@ jobs:
       - name: Install course dependencies
         run: npm ci
 
-      - name: Run course tests
-        run: npm test
+      # The repository currently has no test/*.js or test/*.jsx files.
+      # Keep CI usable while making Jest's "No tests found" output visible.
+      - name: Run configured Jest tests (allow empty suite)
+        run: npm test -- --passWithNoTests
 
   game-build:
     name: Build Three.js game
