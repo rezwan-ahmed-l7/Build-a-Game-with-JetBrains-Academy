@@ -135,13 +135,14 @@ function createMeadowTexture() {
   }
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
-  texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(18, 18);
   texture.anisotropy = 4;
   texture.needsUpdate = true;
   return texture;
 }
 
-const groundGeometry = new THREE.CircleGeometry(2400, 96);
+const groundGeometry = new THREE.CircleGeometry(12000, 128);
 const groundMaterial = new THREE.MeshStandardMaterial({
   color: 0x344b2b, map: createMeadowTexture(), roughness: 1.0, metalness: 0
 });
@@ -152,7 +153,7 @@ scene.add(ground);
 
 // The dark edge falloff now starts well beyond the active arena, so the
 // camera cannot reveal a distracting black wedge at the edge of the ground.
-const vignetteGeometry = new THREE.RingGeometry(1850, 2400, 96);
+const vignetteGeometry = new THREE.RingGeometry(10000, 12000, 128);
 const vignetteMaterial = new THREE.MeshBasicMaterial({
   color: 0x05080d, side: THREE.DoubleSide,
   transparent: true, opacity: 0.72, depthWrite: false
