@@ -82,6 +82,24 @@ try {
     throw new Error('Player did not move during the dash input');
   }
 
+  // Verify a real attack reduces HP, not merely that its animation plays.
+  await page.waitForFunction(() => window.__game.enemyManager.getEnemies().some((enemy) => !enemy.isSpawning && !enemy.isDying), null, { timeout: 8000 });
+  const damageCheck = await page.evaluate(() => {
+    const player = window.__game.player.group;
+    const enemy = window.__game.enemyManager.getEnemies().find((item) => !item.isSpawning && !item.isDying);
+    enemy.group.position.set(player.position.x + 12, player.position.y, player.position.z);
+    enemy.isSpawning = false;
+    enemy.isDying = false;
+    enemy.hp = 5;
+    return { before: enemy.hp, index: window.__game.enemyManager.getEnemies().indexOf(enemy) };
+  });
+  await page.keyboard.press('Space');
+  await page.waitForTimeout(100);
+  const hpAfterAttack = await page.evaluate((index) => window.__game.enemyManager.getEnemies()[index]?.hp ?? null, damageCheck.index);
+  if (hpAfterAttack !== damageCheck.before - 1) {
+    throw new Error(`Attack should reduce enemy HP by 1; expected ${damageCheck.before - 1}, got ${hpAfterAttack}`);
+  }
+
   await page.keyboard.press('Escape');
   await page.locator('#menu-pause').waitFor({ state: 'visible' });
   await page.locator('#btn-resume').click();
@@ -98,7 +116,7 @@ try {
 
   console.log(JSON.stringify({
     result: 'PASS',
-    checks: ['canvas boot', 'start game', 'keyboard movement', 'dash input', 'pause/resume', 'day-night mode toggle', 'no browser console/runtime/request errors'],
+    checks: ['canvas boot', 'start game', 'keyboard movement', 'dash input', 'enemy attack reduces HP', 'pause/resume', 'day-night mode toggle', 'no browser console/runtime/request errors'],
     initialPosition: before,
     movedPosition: afterMove,
     dashPosition: afterDash,
