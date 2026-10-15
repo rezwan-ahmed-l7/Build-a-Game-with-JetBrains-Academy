@@ -42,9 +42,14 @@ export function createInput() {
     return queue.length === 0;
   }
 
+  function clear() {
+    queue.length = 0;
+  }
+
   return {
     dequeue,
     peek,
-    isEmpty
+    isEmpty,
+    clear
   };
 }
