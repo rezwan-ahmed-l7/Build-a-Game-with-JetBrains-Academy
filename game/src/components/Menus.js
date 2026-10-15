@@ -9,8 +9,10 @@ export function createMenus({ onStart, onResume, onRestart, onTogglePause, onTog
 
   // ----- Start menu -----
   const start = el('div', { class: 'menu menu-start', id: 'menu-start' }, [
+    el('p', { class: 'menu-kicker' }, ['MOONLIT MEADOW  /  SURVIVAL MODE']),
     el('h1', { class: 'menu-title' }, ['Tode the Frog']),
-    el('p', { class: 'menu-subtitle' }, ['A nighttime froggy adventure']),
+    el('p', { class: 'menu-subtitle' }, ['A little frog. A very long night.']),
+    el('p', { class: 'menu-objective' }, ['Defeat the shades · Chain your attacks · Survive the night']),
     el('div', { class: 'menu-buttons' }, [
       el('button', { class: 'menu-button primary', id: 'btn-start' }, ['Play'])
     ]),
