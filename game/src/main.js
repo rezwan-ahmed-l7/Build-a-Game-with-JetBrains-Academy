@@ -125,12 +125,12 @@ function createMeadowTexture() {
   for (let i = 0; i < 190; i++) {
     const x = random() * size;
     const y = random() * size;
-    const radius = 10 + random() * 34;
+    const radius = 6 + random() * 18;
     const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
     const warm = random() > 0.5;
     gradient.addColorStop(0, warm
-      ? `rgba(177, 190, 105, ${0.10 + random() * 0.10})`
-      : `rgba(42, 88, 43, ${0.10 + random() * 0.12})`);
+      ? `rgba(177, 190, 105, ${0.035 + random() * 0.045})`
+      : `rgba(42, 88, 43, ${0.04 + random() * 0.05})`);
     gradient.addColorStop(1, 'rgba(255,255,255,0)');
     ctx.fillStyle = gradient;
     ctx.fillRect(x - radius, y - radius, radius * 2, radius * 2);
@@ -139,11 +139,11 @@ function createMeadowTexture() {
   for (let i = 0; i < 22000; i++) {
     const x = random() * size;
     const y = random() * size;
-    const radius = 0.8 + random() * 3.2;
+    const radius = 0.55 + random() * 1.9;
     const shade = random();
     ctx.fillStyle = shade > 0.5
-      ? `rgba(48, 91, 38, ${0.07 + random() * 0.15})`
-      : `rgba(198, 211, 139, ${0.06 + random() * 0.13})`;
+      ? `rgba(72, 112, 48, ${0.035 + random() * 0.07})`
+      : `rgba(180, 198, 126, ${0.03 + random() * 0.06})`;
     ctx.beginPath();
     ctx.ellipse(x, y, radius * 1.7, radius, random() * Math.PI, 0, Math.PI * 2);
     ctx.fill();
