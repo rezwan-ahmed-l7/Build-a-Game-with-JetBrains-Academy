@@ -33,6 +33,7 @@ import { createPowerUpManager } from './components/PowerUpManager.js';
 import { createAudio } from './components/Audio.js';
 import { createMenus } from './components/Menus.js';
 import { createTouchControls } from './components/TouchControls.js';
+import { createScreenShake } from './components/ScreenShake.js';
 import { createGameManager } from './components/GameManager.js';
 import { isTouchDevice } from './utils/dom.js';
 
