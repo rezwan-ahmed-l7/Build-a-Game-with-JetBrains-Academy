@@ -32,15 +32,19 @@ function snapToGround(mesh) {
   return box;
 }
 
-// Distort an IcosahedronGeometry's vertices for an organic rock shape.
+// Give each boulder an irregular footprint and a lower, grounded silhouette.
 function distortGeometry(geo, rand, flatness) {
   const pos = geo.attributes.position;
   for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i);
+    const y = pos.getY(i);
+    const z = pos.getZ(i);
+    const lower = z < 0 ? 0.72 : 1.0;
     pos.setXYZ(
       i,
-      pos.getX(i) * (0.7 + rand() * 0.6),
-      pos.getY(i) * (0.5 + rand() * 0.35) * flatness,
-      pos.getZ(i) * (0.7 + rand() * 0.6)
+      x * (0.82 + rand() * 0.34),
+      y * (0.82 + rand() * 0.34),
+      z * (0.62 + rand() * 0.22) * lower * (flatness / 0.55)
     );
   }
   geo.computeVertexNormals();
@@ -53,7 +57,7 @@ function makePineTree(rand) {
   const group = new THREE.Group();
   const height = 18 + rand() * 8;
 
-  const trunkHeight = height * 0.30;
+  const trunkHeight = height * 0.38;
   const trunk = new THREE.Mesh(
     new THREE.CylinderGeometry(1.0, 1.6, trunkHeight, 7),
     new THREE.MeshStandardMaterial({
@@ -78,11 +82,11 @@ function makePineTree(rand) {
   // 3-4 stacked cones, each smaller as we go up
   const layers = 3 + Math.floor(rand() * 2);
   let z = trunkHeight;
-  const baseRadius = 3.2 + rand() * 1.0;
+  const baseRadius = 4.2 + rand() * 1.0;
   for (let i = 0; i < layers; i++) {
     const t = i / Math.max(1, layers - 1);
-    const r = baseRadius * (1 - t * 0.55);
-    const h = 4.0 + rand() * 1.5;
+    const r = baseRadius * (1 - t * 0.48);
+    const h = 5.0 + rand() * 1.4;
     const cone = new THREE.Mesh(
       new THREE.ConeGeometry(r, h, 7),
       new THREE.MeshStandardMaterial({
@@ -93,7 +97,8 @@ function makePineTree(rand) {
       })
     );
     cone.rotation.x = Math.PI / 2;
-    cone.position.z = z + h / 2;
+    cone.position.z = z + h * 0.48;
+    cone.position.x = (rand() - 0.5) * 0.5;
     cone.castShadow = true;
     cone.receiveShadow = true;
     group.add(cone);
@@ -107,8 +112,8 @@ function makeBroadleafTree(rand) {
   const group = new THREE.Group();
   const height = 16 + rand() * 8;
 
-  const trunkHeight = height * 0.55;
-  const trunkR = 0.9 + rand() * 0.4;
+  const trunkHeight = height * 0.58;
+  const trunkR = 1.0 + rand() * 0.35;
   const trunk = new THREE.Mesh(
     new THREE.CylinderGeometry(trunkR * 0.55, trunkR, trunkHeight, 6),
     new THREE.MeshStandardMaterial({
@@ -130,11 +135,11 @@ function makeBroadleafTree(rand) {
                     0.28 + rand() * 0.08);
   const foliageColor = _greenTint.getHex();
 
-  // 2-3 overlapping icosphere "blobs" of foliage for a chunky canopy
-  const blobs = 2 + Math.floor(rand() * 2);
+  // Layered, asymmetrical canopy gives broadleaf trees a recognizable silhouette.
+  const blobs = 4 + Math.floor(rand() * 2);
   const canopy = new THREE.Group();
   for (let i = 0; i < blobs; i++) {
-    const r = 3.0 + rand() * 1.4;
+    const r = (i === 0 ? 3.4 : 2.4) + rand() * 1.2;
     const blob = new THREE.Mesh(
       new THREE.IcosahedronGeometry(r, 1),
       new THREE.MeshStandardMaterial({
@@ -149,7 +154,8 @@ function makeBroadleafTree(rand) {
     const dist = rand() * 1.4;
     blob.position.x = Math.cos(ang) * dist;
     blob.position.y = Math.sin(ang) * dist;
-    blob.position.z = (rand() - 0.5) * 1.0;
+    blob.position.z = (i === 0 ? 0.8 : 1.2 + rand() * 2.4);
+    blob.scale.set(1.0 + rand() * 0.35, 0.85 + rand() * 0.25, 0.85 + rand() * 0.3);
     blob.castShadow = true;
     blob.receiveShadow = true;
     canopy.add(blob);
@@ -195,8 +201,8 @@ function makeBush(rand) {
 function makeBigRock(rand) {
   const group = new THREE.Group();
   const size = 3.5 + rand() * 3.0;
-  const geo = new THREE.IcosahedronGeometry(size, 0);
-  distortGeometry(geo, rand, 0.55);
+  const geo = new THREE.IcosahedronGeometry(size, 1);
+  distortGeometry(geo, rand, 0.42);
   const baseGray = 0.32 + rand() * 0.10;
   const rockMat = new THREE.MeshStandardMaterial({
     color: new THREE.Color(baseGray - 0.02, baseGray, baseGray + 0.02),
@@ -210,8 +216,8 @@ function makeBigRock(rand) {
   group.add(rock);
 
   // Moss cap (top half): a slightly smaller copy in a mossy green
-  const mossGeo = new THREE.IcosahedronGeometry(size * 0.7, 0);
-  distortGeometry(mossGeo, rand, 0.4);
+  const mossGeo = new THREE.IcosahedronGeometry(size * 0.48, 1);
+  distortGeometry(mossGeo, rand, 0.28);
   // bias the cap upward
   const mossMat = new THREE.MeshStandardMaterial({
     color: new THREE.Color(0x2a4a26),
@@ -220,7 +226,8 @@ function makeBigRock(rand) {
     flatShading: true
   });
   const moss = new THREE.Mesh(mossGeo, mossMat);
-  moss.position.z = size * 0.45;
+  moss.position.z = size * 0.52;
+  moss.scale.set(1.0 + rand() * 0.25, 0.9 + rand() * 0.2, 0.48);
   moss.castShadow = false;
   moss.receiveShadow = true;
   group.add(moss);
@@ -230,8 +237,8 @@ function makeBigRock(rand) {
 
 function makeSmallRock(rand) {
   const size = 0.7 + rand() * 1.1;
-  const geo = new THREE.IcosahedronGeometry(size, 0);
-  distortGeometry(geo, rand, 0.6);
+  const geo = new THREE.IcosahedronGeometry(size, 1);
+  distortGeometry(geo, rand, 0.38);
   const baseGray = 0.42 + rand() * 0.16;
   const rock = new THREE.Mesh(
     geo,
