@@ -7,7 +7,7 @@ const _targetPos = new THREE.Vector3();
 const BASE_DISTANCE = 165;
 const MIN_DISTANCE = 125;
 const MAX_DISTANCE = 360;
-const BASE_ELEVATION = 0.36;   // ~21 deg above the ground plane
+const BASE_ELEVATION = 0.43;   // ~21 deg above the ground plane
 const MIN_ELEVATION = 0.16;    // low cinematic angle
 const MAX_ELEVATION = 0.78;    // tactical overview
 
@@ -20,10 +20,10 @@ const DRAG_THRESHOLD_PX = 4;
 
 export function createCameraFollow(camera, playerGroup, canvas) {
   const state = {
-    azimuth: 4.0,
+    azimuth: 5.45,
     elevation: BASE_ELEVATION,
     distance: BASE_DISTANCE,
-    targetAzimuth: 4.0,
+    targetAzimuth: 5.45,
     targetElevation: BASE_ELEVATION,
     targetDistance: BASE_DISTANCE
   };
