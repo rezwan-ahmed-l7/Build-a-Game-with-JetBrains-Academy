@@ -3,26 +3,20 @@ import * as THREE from 'three';
 const _targetPos = new THREE.Vector3();
 
 // Default camera setup: a classic 3rd-person action-adventure view.
-// - Elevation ~0.55 rad (~31°) — high enough to see the field ahead,
-//   low enough that the player, ground and horizon all read at a glance.
-// - Distance 500 — wide enough to see what's coming, close enough that
-//   the frog feels present in the scene, not a speck.
-// - Azimuth 4.0 rad ≈ 229° — camera behind/left of the player so the
-//   frog is in the lower-left third of the screen and you can see far
-//   ahead of it.
-const BASE_DISTANCE = 185;
-const MIN_DISTANCE = 135;
-const MAX_DISTANCE = 400;
-const BASE_ELEVATION = 0.36;   // ~25 deg: a readable action-adventure view
-const MIN_ELEVATION = 0.16;    // ~10 deg — low cinematic angle
-const MAX_ELEVATION = 0.78;    // ~49 deg — tactical overview
+// Keep the player prominent while leaving enough room to read nearby threats.
+const BASE_DISTANCE = 165;
+const MIN_DISTANCE = 125;
+const MAX_DISTANCE = 360;
+const BASE_ELEVATION = 0.36;   // ~21 deg above the ground plane
+const MIN_ELEVATION = 0.16;    // low cinematic angle
+const MAX_ELEVATION = 0.78;    // tactical overview
 
-const AZIMUTH_SENSITIVITY = 0.012;   // a bit higher so trackpad micro-moves count
+const AZIMUTH_SENSITIVITY = 0.012;
 const PITCH_SENSITIVITY   = 0.010;
-const KEY_ROT_SPEED = 1.8;            // radians/sec
+const KEY_ROT_SPEED = 1.8;
 const SMOOTH_SPEED = 10;
 const ZOOM_SENSITIVITY = 0.0015;
-const DRAG_THRESHOLD_PX = 4;          // ignore sub-pixel jitter
+const DRAG_THRESHOLD_PX = 4;
 
 export function createCameraFollow(camera, playerGroup, canvas) {
   const state = {
@@ -43,7 +37,6 @@ export function createCameraFollow(camera, playerGroup, canvas) {
   const keyRot = { left: false, right: false, up: false, down: false };
 
   function beginDrag(e) {
-    // Only primary button / primary touch / pen
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     pendingPointer = e;
     activePointerId = e.pointerId;
@@ -59,12 +52,7 @@ export function createCameraFollow(camera, playerGroup, canvas) {
     activePointerId = null;
   }
 
-  // Use WINDOW-level move/up so drag continues even when the cursor
-  // leaves the canvas (the canvas has small target — this prevents the
-  // "drag stops mid-air" problem on touchpads).
   function onPointerDown(e) {
-    // Skip if the click was on a UI overlay (menu/HUD). Only start drag
-    // when the click is over the canvas itself.
     if (canvas && e.target !== canvas) return;
     beginDrag(e);
   }
@@ -76,17 +64,12 @@ export function createCameraFollow(camera, playerGroup, canvas) {
     lastX = e.clientX;
     lastY = e.clientY;
     if (!dragging) {
-      // Wait until the user moves at least DRAG_THRESHOLD_PX before
-      // treating the gesture as a drag (otherwise it counts as a click).
       if (Math.abs(dx) + Math.abs(dy) < DRAG_THRESHOLD_PX) return;
       dragging = true;
-      // Capture the pointer so we keep getting events even if the
-      // touchpad cursor leaves the canvas region.
       try {
         if (pendingPointer) (canvas || window).setPointerCapture(pendingPointer.pointerId);
       } catch {}
     }
-    // Subtract so the world rotates the direction the user drags.
     state.targetAzimuth -= dx * AZIMUTH_SENSITIVITY;
     state.targetElevation -= dy * PITCH_SENSITIVITY;
     if (state.targetElevation < MIN_ELEVATION) state.targetElevation = MIN_ELEVATION;
@@ -114,10 +97,6 @@ export function createCameraFollow(camera, playerGroup, canvas) {
     else if (e.code === 'KeyF') keyRot.down = false;
   }
 
-  // Bind pointerdown/move/up/wheel to WINDOW — this is the key fix.
-  // Canvas-level listeners are flaky because the cursor leaves the
-  // canvas area easily. Window-level ensures the drag works no matter
-  // where the cursor is on the page.
   window.addEventListener('pointerdown', onPointerDown);
   window.addEventListener('pointermove', onPointerMove);
   window.addEventListener('pointerup', onPointerUp);
@@ -131,7 +110,6 @@ export function createCameraFollow(camera, playerGroup, canvas) {
   }
 
   function update(delta) {
-    // Keyboard rotation (Q/E azimuth, R/F pitch).
     if (keyRot.left)  state.targetAzimuth   -= KEY_ROT_SPEED * delta;
     if (keyRot.right) state.targetAzimuth   += KEY_ROT_SPEED * delta;
     if (keyRot.up)    state.targetElevation += KEY_ROT_SPEED * 0.7 * delta;
@@ -139,7 +117,6 @@ export function createCameraFollow(camera, playerGroup, canvas) {
     if (state.targetElevation < MIN_ELEVATION) state.targetElevation = MIN_ELEVATION;
     if (state.targetElevation > MAX_ELEVATION) state.targetElevation = MAX_ELEVATION;
 
-    // Smooth toward target spherical coords.
     const t = Math.min(SMOOTH_SPEED * delta, 1);
     state.azimuth  += (state.targetAzimuth  - state.azimuth)  * t;
     state.elevation += (state.targetElevation - state.elevation) * t;
@@ -157,8 +134,8 @@ export function createCameraFollow(camera, playerGroup, canvas) {
 
     camera.position.lerp(_targetPos, t);
     camera.up.set(0, 0, 1);
-    // Aim slightly below the frog so it sits higher in frame and less empty foreground dominates.
-    camera.lookAt(currentPos.x, currentPos.y, currentPos.z - 22);
+    // Lower the look target so the frog sits above center and more play space is visible ahead.
+    camera.lookAt(currentPos.x, currentPos.y, currentPos.z - 34);
   }
 
   return { update };
