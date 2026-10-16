@@ -7,8 +7,8 @@ import { pickWeighted } from '../utils/rng.js';
 const SPAWN_INTERVAL = 2.2;
 const MAX_ENEMIES = 12;
 const ENEMY_SPEED = 18;
-const SPAWN_RADIUS = 480;
-const SPAWN_RANDOMIZE = 60;
+const SPAWN_RADIUS = 230;
+const SPAWN_RANDOMIZE = 70;
 const SPAWN_IN_DURATION = 0.3;
 const HOVER_AMPLITUDE = 2.5;
 const HOVER_BASE_Z = 4;
@@ -17,10 +17,10 @@ const DEATH_DURATION = 0.6;
 const PLAYER_SAFE_RADIUS = 120;   // enemies don't spawn right on top of the player
 
 const spawnPoints = [
-  { x: -SPAWN_RADIUS, y: -SPAWN_RADIUS },
-  { x: SPAWN_RADIUS, y: -SPAWN_RADIUS },
-  { x: -SPAWN_RADIUS, y: SPAWN_RADIUS },
-  { x: SPAWN_RADIUS, y: SPAWN_RADIUS }
+  { x: -SPAWN_RADIUS, y: 0 },
+  { x: SPAWN_RADIUS, y: 0 },
+  { x: 0, y: -SPAWN_RADIUS },
+  { x: 0, y: SPAWN_RADIUS }
 ];
 
 export function createEnemyManager(scene, playerGroup) {
