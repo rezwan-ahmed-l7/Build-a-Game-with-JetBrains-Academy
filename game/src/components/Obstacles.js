@@ -3,8 +3,8 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { mulberry32 } from '../utils/rng.js';
 
 // Layout counts. Tuned for a dense-but-readable fantasy meadow.
-const TREE_COUNT = 92;           // fuller forest canopy around the playable area
-const BUSH_COUNT = 42;           // clustered foliage accents, kept off the main clearing
+const TREE_COUNT = 118;          // denser forest framing the playable area
+const BUSH_COUNT = 48;           // small foliage clusters between trees
 const BIG_ROCK_COUNT = 14;       // deliberate landmark boulders
 const SMALL_ROCK_COUNT = 18;     // sparse pebble groups
 const STUMP_COUNT = 7;           // occasional old cut stumps
@@ -14,8 +14,8 @@ const LILY_PAD_COUNT = 9;        // around the pond
 const POND_COUNT = 1;            // single calm pond
 const HOUSE_COUNT = 3;
 
-const WORLD_RADIUS = 260;
-const CLEARING_RADIUS = 44;
+const WORLD_RADIUS = 230;
+const CLEARING_RADIUS = 40;
 const POND_EXCLUSION_RADIUS = 48;  // keep other obstacles away from pond
 
 const TREE_COLLISION_RADIUS = 12;
@@ -201,14 +201,14 @@ function makeBush(rand) {
 function makeBigRock(rand) {
   const group = new THREE.Group();
   const size = 4.0 + rand() * 3.2;
-  const geo = new THREE.IcosahedronGeometry(size, 0);
+  const geo = new THREE.IcosahedronGeometry(size, 1);
   distortGeometry(geo, rand, 0.52);
   const baseGray = 0.25 + rand() * 0.07;
   const rockMat = new THREE.MeshStandardMaterial({
     color: new THREE.Color(baseGray - 0.02, baseGray, baseGray + 0.02),
     roughness: 0.95,
     metalness: 0,
-    flatShading: true
+    flatShading: false
   });
   const rock = new THREE.Mesh(geo, rockMat);
   rock.castShadow = true;
@@ -216,7 +216,7 @@ function makeBigRock(rand) {
   group.add(rock);
 
   // Moss cap (top half): a slightly smaller copy in a mossy green
-  const mossGeo = new THREE.SphereGeometry(size * 0.62, 8, 5);
+  const mossGeo = new THREE.SphereGeometry(size * 0.60, 10, 7);
   // bias the cap upward
   const mossMat = new THREE.MeshStandardMaterial({
     color: new THREE.Color(0x2a4a26),
@@ -225,8 +225,8 @@ function makeBigRock(rand) {
     flatShading: true
   });
   const moss = new THREE.Mesh(mossGeo, mossMat);
-  moss.position.z = size * 0.26;
-  moss.scale.set(1.0 + rand() * 0.15, 0.9 + rand() * 0.12, 0.28);
+  moss.position.z = size * 0.22;
+  moss.scale.set(1.0 + rand() * 0.12, 0.9 + rand() * 0.10, 0.24);
   moss.castShadow = false;
   moss.receiveShadow = true;
   group.add(moss);
@@ -236,7 +236,7 @@ function makeBigRock(rand) {
 
 function makeSmallRock(rand) {
   const size = 0.8 + rand() * 1.0;
-  const geo = new THREE.IcosahedronGeometry(size, 0);
+  const geo = new THREE.IcosahedronGeometry(size, 1);
   distortGeometry(geo, rand, 0.48);
   const baseGray = 0.42 + rand() * 0.16;
   const rock = new THREE.Mesh(
