@@ -195,7 +195,7 @@ const environment = createEnvironment(scene, {
 }, groundMaterial, player.group);
 // Camera — child of player group so it follows the player naturally
 const camera = createCamera();
-player.group.add(camera);
+scene.add(camera);
 
 const canvas = document.querySelector('canvas.game');
 const cameraFollow = createCameraFollow(camera, player.group, canvas);
