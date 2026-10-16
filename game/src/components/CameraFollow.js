@@ -10,10 +10,10 @@ const _targetPos = new THREE.Vector3();
 // - Azimuth 4.0 rad ≈ 229° — camera behind/left of the player so the
 //   frog is in the lower-left third of the screen and you can see far
 //   ahead of it.
-const BASE_DISTANCE = 220;
-const MIN_DISTANCE = 160;
-const MAX_DISTANCE = 460;
-const BASE_ELEVATION = 0.38;   // ~25 deg: a readable action-adventure view
+const BASE_DISTANCE = 185;
+const MIN_DISTANCE = 135;
+const MAX_DISTANCE = 400;
+const BASE_ELEVATION = 0.36;   // ~25 deg: a readable action-adventure view
 const MIN_ELEVATION = 0.16;    // ~10 deg — low cinematic angle
 const MAX_ELEVATION = 0.78;    // ~49 deg — tactical overview
 
@@ -157,7 +157,7 @@ export function createCameraFollow(camera, playerGroup, canvas) {
 
     camera.position.lerp(_targetPos, t);
     camera.up.set(0, 0, 1);
-    camera.lookAt(currentPos);
+    // Aim slightly below the frog so it sits higher in frame and less empty foreground dominates.\n    camera.lookAt(currentPos.x, currentPos.y, currentPos.z - 22);
   }
 
   return { update };
