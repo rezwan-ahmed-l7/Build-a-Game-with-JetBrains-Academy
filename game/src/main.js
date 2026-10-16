@@ -130,46 +130,32 @@ function createMeadowTexture() {
     seed = (seed * 1664525 + 1013904223) >>> 0;
     return seed / 4294967296;
   };
-  // Soft, broad color patches create visible meadow variation at gameplay distance.
-  for (let i = 0; i < 190; i++) {
+  // A restrained, softly mottled meadow: large quiet patches, almost no speckling.
+  for (let i = 0; i < 70; i++) {
     const x = random() * size;
     const y = random() * size;
-    const radius = 6 + random() * 18;
+    const radius = 18 + random() * 48;
     const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
-    const warm = random() > 0.5;
-    gradient.addColorStop(0, warm
-      ? `rgba(177, 190, 105, ${0.035 + random() * 0.045})`
-      : `rgba(42, 88, 43, ${0.04 + random() * 0.05})`);
+    const tint = random() > 0.5
+      ? 'rgba(190, 192, 126, 0.055)'
+      : 'rgba(45, 83, 45, 0.045)';
+    gradient.addColorStop(0, tint);
     gradient.addColorStop(1, 'rgba(255,255,255,0)');
     ctx.fillStyle = gradient;
     ctx.fillRect(x - radius, y - radius, radius * 2, radius * 2);
   }
 
-  for (let i = 0; i < 22000; i++) {
+  // A few subtle grass strokes add texture without making the floor look noisy.
+  for (let i = 0; i < 4200; i++) {
     const x = random() * size;
     const y = random() * size;
-    const radius = 0.55 + random() * 1.9;
-    const shade = random();
-    ctx.fillStyle = shade > 0.5
-      ? `rgba(72, 112, 48, ${0.035 + random() * 0.07})`
-      : `rgba(180, 198, 126, ${0.03 + random() * 0.06})`;
+    const radius = 0.45 + random() * 0.8;
+    ctx.fillStyle = random() > 0.5
+      ? 'rgba(72, 112, 48, 0.035)'
+      : 'rgba(180, 198, 126, 0.03)';
     ctx.beginPath();
-    ctx.ellipse(x, y, radius * 1.7, radius, random() * Math.PI, 0, Math.PI * 2);
+    ctx.ellipse(x, y, radius * 1.4, radius * 0.65, random() * Math.PI, 0, Math.PI * 2);
     ctx.fill();
-  }
-  // Broad, low-contrast meadow mottling remains visible at gameplay distance.
-  for (let i = 0; i < 260; i++) {
-    const x = random() * size;
-    const y = random() * size;
-    const radius = 5 + random() * 24;
-    const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
-    const tint = random() > 0.52
-      ? 'rgba(204, 205, 125, 0.11)'
-      : 'rgba(24, 72, 39, 0.13)';
-    gradient.addColorStop(0, tint);
-    gradient.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(x - radius, y - radius, radius * 2, radius * 2);
   }
 
   const texture = new THREE.CanvasTexture(canvas);
