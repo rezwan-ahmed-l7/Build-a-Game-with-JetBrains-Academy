@@ -121,14 +121,29 @@ function createMeadowTexture() {
     seed = (seed * 1664525 + 1013904223) >>> 0;
     return seed / 4294967296;
   };
+  // Soft, broad color patches create visible meadow variation at gameplay distance.
+  for (let i = 0; i < 190; i++) {
+    const x = random() * size;
+    const y = random() * size;
+    const radius = 6 + random() * 18;
+    const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
+    const warm = random() > 0.5;
+    gradient.addColorStop(0, warm
+      ? `rgba(177, 190, 105, ${0.035 + random() * 0.045})`
+      : `rgba(42, 88, 43, ${0.04 + random() * 0.05})`);
+    gradient.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(x - radius, y - radius, radius * 2, radius * 2);
+  }
+
   for (let i = 0; i < 22000; i++) {
     const x = random() * size;
     const y = random() * size;
-    const radius = 0.45 + random() * 1.6;
+    const radius = 0.55 + random() * 1.9;
     const shade = random();
     ctx.fillStyle = shade > 0.5
-      ? `rgba(72, 112, 48, ${0.025 + random() * 0.09})`
-      : `rgba(180, 198, 126, ${0.025 + random() * 0.07})`;
+      ? `rgba(72, 112, 48, ${0.035 + random() * 0.07})`
+      : `rgba(180, 198, 126, ${0.03 + random() * 0.06})`;
     ctx.beginPath();
     ctx.ellipse(x, y, radius * 1.7, radius, random() * Math.PI, 0, Math.PI * 2);
     ctx.fill();
@@ -142,7 +157,7 @@ function createMeadowTexture() {
   return texture;
 }
 
-const groundGeometry = new THREE.CircleGeometry(12000, 128);
+const groundGeometry = new THREE.CircleGeometry(14000, 128);
 const groundMaterial = new THREE.MeshStandardMaterial({
   color: 0x344b2b, map: createMeadowTexture(), roughness: 1.0, metalness: 0
 });
@@ -153,7 +168,7 @@ scene.add(ground);
 
 // The dark edge falloff now starts well beyond the active arena, so the
 // camera cannot reveal a distracting black wedge at the edge of the ground.
-const vignetteGeometry = new THREE.RingGeometry(10000, 12000, 128);
+const vignetteGeometry = new THREE.RingGeometry(13500, 14000, 128);
 const vignetteMaterial = new THREE.MeshBasicMaterial({
   color: 0x05080d, side: THREE.DoubleSide,
   transparent: true, opacity: 0.72, depthWrite: false
