@@ -1,4 +1,5 @@
 import { GameState } from './GameState.js';
+import { recordAttempt } from './PlayCounter.js';
 
 // Boost durations and multipliers
 const ATTACK_BOOST_DURATION = 10;
@@ -123,6 +124,11 @@ export function createGameManager({
   }
 
   function resetGame() {
+    // Bump the community play counter. This is the single funnel point
+    // for "player is starting a fresh run" (startGame + onRestart from
+    // game-over both route through here), so pause/resume won't double
+    // count and every Play press contributes exactly once.
+    recordAttempt();
     input.setEnabled(true);
     player.group.position.set(0, 0, 0);
     movement.reset();

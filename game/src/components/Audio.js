@@ -118,7 +118,13 @@ export function createAudio() {
     menuClick: build({ type: 'sine', freq: 880, freqEnd: 1320, dur: 0.08,
                        attack: 0.001, decay: 0.08, gain: 0.18 }),
     gameOver: build({ type: 'triangle', freq: 440, freqEnd: 60, dur: 1.2,
-                      attack: 0.01, decay: 1.2, gain: 0.28 })
+                      attack: 0.01, decay: 1.2, gain: 0.28 }),
+    // Wing-buzz / bee drone on enemy spawn — short noisy bandpass sweep
+    // that says "a flying thing just appeared" without being a long
+    // sustained note (which would overlap with the ambient pad).
+    enemySpawn: build({ type: 'sawtooth', freq: 180, freqEnd: 90, dur: 0.22,
+                        attack: 0.005, decay: 0.22, gain: 0.16,
+                        noise: 0.22, filterFreq: 600 })
   };
 
   function safePlay(snd) {
@@ -243,6 +249,7 @@ export function createAudio() {
     playDash: () => safePlay(sfx.dash),
     playMenuClick: () => safePlay(sfx.menuClick),
     playGameOver: () => safePlay(sfx.gameOver),
+    playEnemySpawn: () => safePlay(sfx.enemySpawn),
     startAmbient,
     stopAmbient,
     setAmbientNightness

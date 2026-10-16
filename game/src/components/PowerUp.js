@@ -1,92 +1,259 @@
-// PowerUp factory. Each pickup is a small floating/bobbing mesh with a
-// distinct color + glyph so the player can read it at a glance.
+// PowerUp factory. Each pickup is a small floating/bobbing mesh shaped
+// like the thing it represents (heart, star, lightning bolt, sword) so
+// the player can read it at a glance — no glyph memorization needed.
+//
+// Shapes are built with THREE.Shape + ExtrudeGeometry so they're real 3D
+// geometry, readable from the top-down 3rd-person camera angle.
 
 import * as THREE from 'three';
 
+// ---------------------------------------------------------------------------
+// Power-up definitions
+// ---------------------------------------------------------------------------
+// Each entry has a 3D shape (built by makeXxx), a primary color, an
+// accent (used for the ring + light tint), and a short desc string.
+// ---------------------------------------------------------------------------
 export const POWERUP_TYPES = {
-  heal:   { name: 'heal',   color: 0xff5577, label: '+',   desc: 'Heal' },
-  score:  { name: 'score',  color: 0xffd166, label: 'x2',  desc: 'Score x2' },
-  speed:  { name: 'speed',  color: 0x4cc9f0, label: '>>',  desc: 'Speed Boost' },
-  attack: { name: 'attack', color: 0x9ee7ff, label: '*',   desc: 'Long Attack' }
+  heal:   { name: 'heal',   color: 0xff4d77, accent: 0xff8aa8, label: 'HEAL',   desc: '+1 HP' },
+  score:  { name: 'score',  color: 0xffd166, accent: 0xffe39a, label: 'SCORE',  desc: '+8 Bonus' },
+  speed:  { name: 'speed',  color: 0x4cc9f0, accent: 0x9ee7ff, label: 'SPEED',  desc: 'Move x1.7 for 8s' },
+  attack: { name: 'attack', color: 0xb0e8ff, accent: 0x4cc9f0, label: 'ATTACK', desc: 'Radius x1.85 for 10s' }
 };
 
+// ---------------------------------------------------------------------------
+// Shape builders — each returns a THREE.BufferGeometry, scaled to roughly
+// fit inside a 12-unit radius (so they read well from a distance).
+// ---------------------------------------------------------------------------
+
+// Heart — two top lobes + bottom point. Classic Valentine shape.
+function makeHeartGeometry() {
+  const shape = new THREE.Shape();
+  const x = 0, y = 0;
+  shape.moveTo(x, y + 2);
+  shape.bezierCurveTo(x, y + 5, x - 6, y + 7, x - 6, y + 4);
+  shape.bezierCurveTo(x - 6, y + 1, x - 3, y - 1, x, y - 4);
+  shape.bezierCurveTo(x + 3, y - 1, x + 6, y + 1, x + 6, y + 4);
+  shape.bezierCurveTo(x + 6, y + 7, x, y + 5, x, y + 2);
+  const geom = new THREE.ExtrudeGeometry(shape, {
+    depth: 3,
+    bevelEnabled: true,
+    bevelThickness: 1.2,
+    bevelSize: 1.0,
+    bevelSegments: 4,
+    curveSegments: 16
+  });
+  geom.center();
+  // World is Z-up. ExtrudeGeometry puts the silhouette in the XY plane
+  // and extrudes depth along +Z — exactly what we want for a top-down
+  // camera that looks down the -Z axis. No rotation needed.
+  return geom;
+}
+
+// 5-pointed star — classic video-game shape.
+function makeStarGeometry() {
+  const shape = new THREE.Shape();
+  const points = 5;
+  const outer = 6.5;
+  const inner = 2.6;
+  for (let i = 0; i < points * 2; i++) {
+    const r = i % 2 === 0 ? outer : inner;
+    const a = (i / (points * 2)) * Math.PI * 2 - Math.PI / 2;
+    const x = Math.cos(a) * r;
+    const y = Math.sin(a) * r;
+    if (i === 0) shape.moveTo(x, y);
+    else shape.lineTo(x, y);
+  }
+  shape.closePath();
+  const geom = new THREE.ExtrudeGeometry(shape, {
+    depth: 2.2,
+    bevelEnabled: true,
+    bevelThickness: 1.0,
+    bevelSize: 0.9,
+    bevelSegments: 3,
+    curveSegments: 1
+  });
+  geom.center();
+  return geom;
+}
+
+// Lightning bolt — stylized Z shape.
+function makeLightningGeometry() {
+  const shape = new THREE.Shape();
+  shape.moveTo(-1.5, 6);
+  shape.lineTo(2.5, 6);
+  shape.lineTo(0.5, 0.5);
+  shape.lineTo(3, 0.5);
+  shape.lineTo(-2, -6);
+  shape.lineTo(-0.5, -0.5);
+  shape.lineTo(-3, -0.5);
+  shape.closePath();
+  const geom = new THREE.ExtrudeGeometry(shape, {
+    depth: 2.2,
+    bevelEnabled: true,
+    bevelThickness: 0.8,
+    bevelSize: 0.7,
+    bevelSegments: 3,
+    curveSegments: 1
+  });
+  geom.center();
+  return geom;
+}
+
+// Sword — diamond blade + crossguard + hilt. Built as a single Extrude.
+function makeSwordGeometry() {
+  const s = new THREE.Shape();
+  // Blade tip
+  s.moveTo(0, 7);
+  // Right side of blade
+  s.lineTo(1.6, 4);
+  s.lineTo(1.2, -1);
+  // Right side of crossguard
+  s.lineTo(4, -1.2);
+  s.lineTo(4, -2.8);
+  s.lineTo(1.2, -2.8);
+  // Right side of hilt
+  s.lineTo(0.9, -6);
+  s.lineTo(2.4, -6.5);
+  s.lineTo(2.4, -7.2);
+  s.lineTo(-2.4, -7.2);
+  s.lineTo(-2.4, -6.5);
+  s.lineTo(-0.9, -6);
+  s.lineTo(-1.2, -2.8);
+  // Left side of crossguard
+  s.lineTo(-4, -2.8);
+  s.lineTo(-4, -1.2);
+  s.lineTo(-1.2, -1);
+  // Left side of blade
+  s.lineTo(-1.6, 4);
+  s.closePath();
+  const geom = new THREE.ExtrudeGeometry(s, {
+    depth: 1.6,
+    bevelEnabled: true,
+    bevelThickness: 0.6,
+    bevelSize: 0.5,
+    bevelSegments: 2,
+    curveSegments: 1
+  });
+  geom.center();
+  return geom;
+}
+
+const SHAPE_BUILDERS = {
+  heal: makeHeartGeometry,
+  score: makeStarGeometry,
+  speed: makeLightningGeometry,
+  attack: makeSwordGeometry
+};
+
+// ---------------------------------------------------------------------------
+// PowerUp factory
+// ---------------------------------------------------------------------------
 export function createPowerUp(type, x, y) {
   const def = POWERUP_TYPES[type] || POWERUP_TYPES.heal;
+  const buildShape = SHAPE_BUILDERS[type] || SHAPE_BUILDERS.heal;
 
   const group = new THREE.Group();
   group.position.set(x, y, 8);
 
-  // Core sphere
-  const core = new THREE.Mesh(
-    new THREE.IcosahedronGeometry(6, 1),
-    new THREE.MeshStandardMaterial({
-      color: def.color,
-      emissive: def.color,
-      emissiveIntensity: 0.7,
-      roughness: 0.4,
-      metalness: 0.2
-    })
-  );
-  core.castShadow = true;
-  group.add(core);
+  // ----- The iconic shape -----
+  // Slightly oversized so it reads from the top-down camera.
+  const shapeGeom = buildShape();
+  const shapeMat = new THREE.MeshStandardMaterial({
+    color: def.color,
+    emissive: def.color,
+    emissiveIntensity: 0.95,
+    roughness: 0.25,
+    metalness: 0.4
+  });
+  const shapeMesh = new THREE.Mesh(shapeGeom, shapeMat);
+  shapeMesh.scale.setScalar(1.15);
+  shapeMesh.castShadow = true;
+  group.add(shapeMesh);
 
-  // Halo ring
+  // ----- Halo ring on the ground (sits under the floating icon) -----
   const halo = new THREE.Mesh(
-    new THREE.RingGeometry(8, 10, 24),
+    new THREE.RingGeometry(9, 12, 32),
     new THREE.MeshBasicMaterial({
-      color: def.color,
+      color: def.accent,
       transparent: true,
-      opacity: 0.4,
-      side: THREE.DoubleSide
+      opacity: 0.55,
+      side: THREE.DoubleSide,
+      depthWrite: false
     })
   );
   halo.rotation.x = Math.PI / 2;
+  halo.position.z = -7; // sit below the icon
   group.add(halo);
 
-  // Label sprite (canvas texture for the glyph)
-  const labelTex = makeLabel(def.label, def.color);
-  const labelMat = new THREE.SpriteMaterial({ map: labelTex, transparent: true });
-  const label = new THREE.Sprite(labelMat);
-  label.scale.set(10, 10, 1);
-  label.position.set(0, 0, 0);
-  group.add(label);
+  // ----- Small ground shadow disc (so it reads as floating) -----
+  const shadow = new THREE.Mesh(
+    new THREE.CircleGeometry(8, 24),
+    new THREE.MeshBasicMaterial({
+      color: 0x000000,
+      transparent: true,
+      opacity: 0.25,
+      depthWrite: false
+    })
+  );
+  shadow.rotation.x = Math.PI / 2;
+  shadow.position.z = -7.5;
+  group.add(shadow);
+
+  // ----- Point light so the icon glows in the scene -----
+  // (Player's directional light hits the meadow, this adds a soft local glow.)
+  const light = new THREE.PointLight(def.color, 0.6, 36, 2);
+  light.position.set(0, 0, 0);
+  group.add(light);
+
+  // (No ground text label — the shape itself communicates the power-up.
+  // Adding text would compete with the icon and clutter the field.)
 
   let life = 0;
   let lifetime = 14; // seconds before despawn
   let collected = false;
 
   function update(delta, time) {
-    if (collected) return;
+    if (collected) return false;
     life += delta;
     if (life >= lifetime) {
-      // Mark for removal (caller will dispose)
       collected = true;
       return false;
     }
-    // Bob + slow spin
-    group.position.z = 8 + Math.sin(time * 2.4) * 2;
-    group.rotation.z += delta * 0.8;
-    core.rotation.x += delta * 1.2;
-    core.rotation.y += delta * 1.5;
 
-    // Last 3 seconds: blink
+    // Bob + slow spin so the shape is always presenting its 3D-ness to the camera.
+    group.position.z = 8 + Math.sin(time * 2.4) * 2;
+    // Spin the shape on Y so different facets catch the light.
+    shapeMesh.rotation.y += delta * 1.2;
+    // Subtle tilt so the shape never looks pasted on flat.
+    shapeMesh.rotation.x = Math.sin(time * 1.4) * 0.08;
+
+    // Halo pulses softly.
+    const pulse = 0.45 + 0.25 * Math.sin(time * 3.2);
+    halo.material.opacity = pulse;
+
+    // Light pulse too, so the scene gets a soft tint cycle.
+    light.intensity = 0.5 + 0.3 * Math.sin(time * 3.2);
+
+    // Last 3 seconds: blink the icon (not the halo, so it's still findable).
     const remaining = lifetime - life;
     if (remaining < 3) {
       const blink = Math.sin(time * 12) > 0;
-      core.visible = blink;
+      shapeMesh.visible = blink;
+      halo.visible = blink;
     } else {
-      core.visible = true;
+      shapeMesh.visible = true;
+      halo.visible = true;
     }
     return true;
   }
 
   function dispose() {
-    core.geometry.dispose();
-    core.material.dispose();
+    shapeGeom.dispose();
+    shapeMat.dispose();
     halo.geometry.dispose();
     halo.material.dispose();
-    labelMat.dispose();
-    if (labelTex) labelTex.dispose();
+    shadow.geometry.dispose();
+    shadow.material.dispose();
   }
 
   function getType() { return def.name; }
@@ -97,26 +264,5 @@ export function createPowerUp(type, x, y) {
   return { group, update, dispose, getType, isCollected, markCollected, getPosition };
 }
 
-function makeLabel(text, color) {
-  const c = document.createElement('canvas');
-  c.width = c.height = 128;
-  const ctx = c.getContext('2d');
-  ctx.clearRect(0, 0, 128, 128);
-  ctx.font = 'bold 80px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  // White outline so glyphs read on any background
-  ctx.lineWidth = 8;
-  ctx.strokeStyle = 'rgba(0,0,0,0.9)';
-  ctx.strokeText(text, 64, 70);
-  ctx.fillStyle = '#ffffff';
-  ctx.fillText(text, 64, 70);
-  // small color dot in corner
-  ctx.fillStyle = '#' + color.toString(16).padStart(6, '0');
-  ctx.beginPath();
-  ctx.arc(64, 110, 8, 0, Math.PI * 2);
-  ctx.fill();
-  const tex = new THREE.CanvasTexture(c);
-  tex.needsUpdate = true;
-  return tex;
-}
+// (makeLabel and roundRect removed — power-ups no longer carry a ground
+// text label; the 3D shape itself communicates the buff.)

@@ -2,15 +2,70 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { ENEMY_TYPES } from './EnemyTypes.js';
 
-const _baseColor = new THREE.Color();
-const _mixed = new THREE.Color();
-
 // Shared loader so the enemy model is cached after the first load
 const enemyLoader = new GLTFLoader();
+
+// Per-archetype color palette. Each entry says exactly what color
+// the model's named materials should be, so we can hit the
+// "dark brown body + gold stripes" look without tinting the
+// teeth/tongue/eyes by accident.
+//
+// `_stripes` and `_body` use absolute colors. The other slots (teeth,
+// eyes, wings) get small per-instance jitter so packs don't look like
+// clones of each other, but the overall identity stays consistent.
+const ARCHETYPE_PALETTES = {
+  chaser: {
+    body:   0x6b3a1a,   // rich warm brown (clearly brown, not black)
+    stripes: 0xff8a1c,  // warm amber-orange
+    teeth:  0xf3e6c4,   // cream
+    tongue: 0x6b3037,   // dark wine
+    eyeWhite: 0xeef0f3,
+    eyeBlack: 0x2a1208,
+    wings: 0x4a2810,
+    stripeGlow: 0.95,   // emissive intensity for stripes
+    stripePulse: 0.10   // tiny flicker amplitude (kept low to avoid strobing)
+  },
+  sprinter: {
+    body:   0x7a4220,   // warmer reddish-brown
+    stripes: 0xff9a28,  // hot amber
+    teeth:  0xf5e8c8,
+    tongue: 0x7a353c,
+    eyeWhite: 0xf0f2f5,
+    eyeBlack: 0x281008,
+    wings: 0x552a14,
+    stripeGlow: 1.20,   // sprinters glow hotter
+    stripePulse: 0.18
+  },
+  brute: {
+    body:   0x5a3018,   // cocoa brown
+    stripes: 0xff7a14,  // deep amber
+    teeth:  0xe8d8b0,
+    tongue: 0x5e2a30,
+    eyeWhite: 0xc8cad0,
+    eyeBlack: 0x1f0c06,
+    wings: 0x3a2010,
+    stripeGlow: 0.70,   // brutes glow less
+    stripePulse: 0.06
+  }
+};
+
+// Lookup table from material name -> color slot. Anything not in this
+// map keeps the GLB's authored color (so we don't accidentally
+// recolor something we shouldn't).
+const MATERIAL_TO_SLOT = {
+  Armabee_Main: 'body',
+  Armabee_Secondary: 'stripes',
+  Teeth: 'teeth',
+  Tongue: 'tongue',
+  Eye_White: 'eyeWhite',
+  Eye_Black: 'eyeBlack',
+  Wings: 'wings'
+};
 
 // createEnemy(type='chaser') → { group, getYawGroup, getModel, getMixer, getRootBone, getType, getStats }
 export function createEnemy(type = 'chaser') {
   const def = ENEMY_TYPES[type] || ENEMY_TYPES.chaser;
+  const palette = ARCHETYPE_PALETTES[type] || ARCHETYPE_PALETTES.chaser;
 
   const group = new THREE.Group();
   const yawGroup = new THREE.Group();
@@ -20,7 +75,17 @@ export function createEnemy(type = 'chaser') {
   let mixer = null;
   let flyAction = null;
   let rootBone = null;
+  let stripeMaterials = []; // ref list so the animation loop can pulse them
   let hp = def.hp;
+
+  // Per-instance jitter for non-stripe, non-body parts so packs look
+  // varied without losing the "black + gold" identity.
+  const instanceJitter = {
+    teeth:  (Math.random() - 0.5) * 0.06,
+    tongue: (Math.random() - 0.5) * 0.08,
+    eyeWhite: (Math.random() - 0.5) * 0.04,
+    wings: (Math.random() - 0.5) * 0.05
+  };
 
   enemyLoader.load(
     '/models/enemy.glb',
@@ -37,13 +102,9 @@ export function createEnemy(type = 'chaser') {
       const box = new THREE.Box3().setFromObject(model);
       model.position.z -= box.min.z;
 
-      // HSL tint per type
-      const tint = new THREE.Color();
-      const t = def.tint;
-      tint.setHSL(t.h + (Math.random() - 0.5) * 0.04,
-                  t.s + (Math.random() - 0.5) * 0.1,
-                  t.l + (Math.random() - 0.5) * 0.1);
-
+      // Per-material recolor. We DO NOT use a global HSL tint — each named
+      // material gets its own absolute color so the gold stripes stay vivid
+      // and the body stays pitch black.
       model.traverse((child) => {
         if (!child.isMesh) return;
         child.castShadow = true;
@@ -51,13 +112,35 @@ export function createEnemy(type = 'chaser') {
         if (!child.material) return;
 
         const newMaterial = child.material.clone();
-        _baseColor.copy(newMaterial.color);
-        _mixed.lerpColors(_baseColor, tint, 0.45);  // moderate tint mix
-        newMaterial.color.copy(_mixed);
-        if ('emissive' in newMaterial) {
-          newMaterial.emissive.copy(tint).multiplyScalar(def.emissive);
-          newMaterial.emissiveIntensity = 0.9;
+        const slot = MATERIAL_TO_SLOT[newMaterial.name];
+        if (slot && palette[slot] !== undefined) {
+          const baseCol = new THREE.Color(palette[slot]);
+          // Apply small jitter to non-stripe parts only (body + stripes
+          // must stay consistent across the pack for readability).
+          if (instanceJitter[slot] !== undefined) {
+            const hsl = { h: 0, s: 0, l: 0 };
+            baseCol.getHSL(hsl);
+            hsl.l = Math.max(0, Math.min(1, hsl.l + instanceJitter[slot]));
+            baseCol.setHSL(hsl.h, hsl.s, hsl.l);
+          }
+          newMaterial.color.copy(baseCol);
         }
+
+        // Stripes get a vivid gold emissive so they read as glowing bands
+        // even in shadow. Other materials keep a tiny ambient self-light so
+        // they don't disappear in dark scenes.
+        if (newMaterial.name === 'Armabee_Secondary') {
+          const stripeColor = new THREE.Color(palette.stripes);
+          newMaterial.emissive.copy(stripeColor);
+          newMaterial.emissiveIntensity = palette.stripeGlow;
+          stripeMaterials.push(newMaterial);
+        } else if (newMaterial.name === 'Eye_White') {
+          newMaterial.emissive.setHex(0xffffff);
+          newMaterial.emissiveIntensity = 0.18;
+        } else {
+          newMaterial.emissiveIntensity = 0;
+        }
+
         child.material = newMaterial;
       });
 
@@ -88,6 +171,24 @@ export function createEnemy(type = 'chaser') {
     }
   );
 
+  // Subtle gold-stripe pulse — slowly varies emissive intensity so the
+  // enemies feel alive without strobing. Keeps the same value for the
+  // entire frame so the appearance is stable (no flicker).
+  const baseGlow = palette.stripeGlow;
+  const pulseAmp = palette.stripePulse;
+  function pulseStripes(elapsed) {
+    if (stripeMaterials.length === 0) return;
+    // Two slow sines on different frequencies so the pulse never lines up
+    // with the camera or animation frames — perceived as smooth glow, not
+    // as a flicker.
+    const t = elapsed;
+    const k = baseGlow + Math.sin(t * 1.7) * pulseAmp * 0.6
+                     + Math.sin(t * 0.6 + 1.1) * pulseAmp * 0.4;
+    for (const m of stripeMaterials) {
+      m.emissiveIntensity = k;
+    }
+  }
+
   function getModel() { return model; }
   function getType() { return def.name; }
   function getStats() { return def; }
@@ -104,6 +205,7 @@ export function createEnemy(type = 'chaser') {
     getStats,
     getHp,
     damageHp,
+    pulseStripes,
     get mixer() { return mixer; },
     get rootBone() { return rootBone; }
   };

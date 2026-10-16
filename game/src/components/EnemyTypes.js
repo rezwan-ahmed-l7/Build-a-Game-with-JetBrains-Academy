@@ -1,10 +1,12 @@
 // Enemy archetypes. Each one defines a small data block the spawner reads.
 // `getStats(difficulty)` lets HP/speed/scale adjust with difficulty.
 //
-// tints are picked so the three types are unmistakably distinct at a glance:
-//  - chaser: classic crimson red
-//  - sprinter: blazing orange/yellow
-//  - brute: deep purple/magenta, heavier feel
+// Color palette is taken from the reference image in
+// Skeleton/Adding_enemies/images/enemies.gif — a dark horned creature
+// with bright yellow/gold body stripes. We keep a tiny hue/saturation
+// jitter per enemy for visual variety, but the overall identity stays
+// "dark body + gold accent" across all three archetypes. Players read
+// the type from behavior (speed, HP, size) rather than color.
 
 export const ENEMY_TYPES = {
   chaser: {
@@ -12,8 +14,10 @@ export const ENEMY_TYPES = {
     hp: 1,
     scale: 6,
     speedMul: 1.0,
-    tint: { h: 0.0,  s: 0.85, l: 0.55 },  // crimson red
-    emissive: 0.28,
+    // Cool dark body with a warm gold emissive (the stripes on the GLB
+    // are a separate gold material; we tint the body material here).
+    tint: { h: 0.08, s: 0.10, l: 0.10 },  // near-black charcoal
+    emissive: 0.55,                        // gold emissive glow
     attackContact: 1
   },
   sprinter: {
@@ -21,8 +25,8 @@ export const ENEMY_TYPES = {
     hp: 1,
     scale: 5,
     speedMul: 1.9,
-    tint: { h: 0.10, s: 0.95, l: 0.55 },  // bright orange
-    emissive: 0.42,
+    tint: { h: 0.08, s: 0.10, l: 0.08 },  // slightly darker, leaner look
+    emissive: 0.70,                        // brighter gold (fast + hot)
     attackContact: 1
   },
   brute: {
@@ -30,8 +34,8 @@ export const ENEMY_TYPES = {
     hp: 3,
     scale: 9,
     speedMul: 0.6,
-    tint: { h: 0.78, s: 0.7, l: 0.40 },   // deep purple/magenta
-    emissive: 0.35,
+    tint: { h: 0.10, s: 0.15, l: 0.12 },  // warm-dark (brown-black)
+    emissive: 0.45,                        // softer gold (heavy)
     attackContact: 2
   }
 };

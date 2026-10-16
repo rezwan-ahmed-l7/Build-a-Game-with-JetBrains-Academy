@@ -19,6 +19,8 @@ import {
 } from './components/Collision.js';
 import { createAttack } from './components/Attack.js';
 import { createScore } from './components/Score.js';
+import { getEffectiveProfile } from './components/Profile.js';
+import { submitScore as leaderboardSubmit } from './components/Leaderboard.js';
 import { createDifficulty } from './components/Difficulty.js';
 import { createObstacles } from './components/Obstacles.js';
 import { createEnvironment } from './components/Environment.js';
@@ -204,13 +206,30 @@ const cameraFollow = createCameraFollow(camera, player.group, canvas);
 const input = createInput();
 input.setEnabled(false); // menu accepts menu shortcuts, not queued movement
 const obstacles = createObstacles(scene);  // create BEFORE movement
-const enemyManager = createEnemyManager(scene, player.group);
+
+// Audio (created BEFORE enemyManager so the spawn SFX can be wired in)
+const audio = createAudio();
+
+const enemyManager = createEnemyManager(scene, player.group, audio);
 const movement = createMovement(
   player.group, player.getModel, input, camera,
   (targetPos) => canPlayerMoveTo(targetPos, enemyManager.getEnemies(), obstacles.getObstacles())
 );
 // Score / Health / Combo / Difficulty
-const score = createScore();
+// `submitScore` is the single swap-point for a future backend. It reads
+// the current profile (or falls back to Anonymous + frog emoji) and
+// hands the entry to the Leaderboard. To go from local-only to a real
+// server, replace the body with a fetch() — nothing else changes.
+function submitScore({ score: s, ts }) {
+  const profile = getEffectiveProfile();
+  const entry = { name: profile.name, flag: profile.flag, score: s, ts: ts || Date.now() };
+  // v1: local-only leaderboard.
+  const rank = leaderboardSubmit(entry);
+  // v2 (ready to enable when a backend is stood up):
+  //   fetch('/api/scores', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(entry) })
+  return rank;
+}
+const score = createScore({ submitter: submitScore });
 const health = createHealth(3);
 const combo = createCombo();
 const difficulty = createDifficulty();
@@ -220,9 +239,6 @@ score.setHearts(health.getHp(), health.getMax());
 const particles = createParticles(scene);
 const damageNumbers = createDamageNumbers(scene);
 const screenShake = createScreenShake();
-
-// Audio
-const audio = createAudio();
 
 // Dash
 const dash = createDash(player.group, camera, () => {
@@ -257,6 +273,11 @@ const gameManager = createGameManager({
   damageFlash
 });
 
+// Wire the game-over panel's visible Restart button. Touch users tap
+// the button; keyboard users can still press Space (the existing
+// keydown handler in main.js also calls gameManager.resetGame()).
+score.setOnRestart(() => gameManager.resetGame());
+
 // ----- Attack (with hooks from game manager) -----
 const attack = createAttack(scene, player.group, enemyManager, gameManager.attackHooks);
 gameManager.setAttack(attack);
@@ -290,16 +311,6 @@ if (isTouchDevice()) {
 
 // Attach click-to-move on the canvas for non-touch
 input.attachClickToMove(canvas, () => movement.getCameraBasis());
-
-// Environment HUD (mode label + cycle button) — recreated here because the
-// original pehele-theke JS-created version was replaced.
-const environmentHud = document.createElement('div');
-environmentHud.className = 'environment-hud';
-environmentHud.innerHTML = '<span class="environment-mode">AUTO CYCLE</span><button type="button" class="cycle-button">Cycle: Auto / Day / Night</button><span class="controls-hint">WASD / Arrows: Move · Space: Attack / Restart</span>';
-document.body.appendChild(environmentHud);
-const environmentModeEl = environmentHud.querySelector('.environment-mode');
-const cycleButton = environmentHud.querySelector('.cycle-button');
-if (cycleButton) cycleButton.addEventListener('click', () => environment.cycleMode());
 
 // ----- Global keybinds -----
 window.addEventListener('keydown', (e) => {
@@ -351,9 +362,16 @@ const renderer = createRenderer(canvas);
 if (import.meta.env.DEV) {
   window.__game = {
     scene, player, enemyManager, obstacles, health, score,
-    input, movement, dash, attack,
+    environment,
+    input, movement, dash, attack, powerUps,
+    gameManager,
     onPowerUpPickup: gameManager.onPowerUpPickup,
-    currentState: gameManager.currentState
+    currentState: gameManager.currentState,
+    // Test-only: setting __testFreezeCamera to true short-circuits the
+    // camera-follow update so headless screenshot scripts can pose the
+    // camera without it snapping back. This block is dead in production.
+    __setFreezeCamera: (freeze) => { window.__testFreezeCamera = !!freeze; },
+    camera
   };
 }
 
@@ -438,7 +456,7 @@ function animate(currentTime) {
 
   // Environment always runs (day/night keeps cycling through pause/over)
   const environmentState = environment.update(delta);
-  environmentModeEl.textContent = environmentState.label;
+  menus.setEnvironmentMode(environmentState.label, environment.getMode());
 
   // Sky dome follows the player so the gradient is always centered.
   sky.position.set(
@@ -446,10 +464,12 @@ function animate(currentTime) {
     player.group.position.y,
     player.group.position.z
   );
-  // Tint sky by day factor if the environment exposes one
-  if (environmentState && typeof environmentState.skyTop === 'number') {
-    skyMaterial.uniforms.topColor.value.setHSL(0.60, 0.65, environmentState.skyTop);
-    skyMaterial.uniforms.bottomColor.value.setHSL(0.58, 0.55, environmentState.skyBottom);
+  // Tint sky by day/dusk factor if the environment exposes one.
+  // The Environment returns pre-blended hex colors for the dome top and
+  // horizon so the gradient is reliable (no HSL hue quirks).
+  if (environmentState && typeof environmentState.skyTopColor === 'number') {
+    skyMaterial.uniforms.topColor.value.setHex(environmentState.skyTopColor);
+    skyMaterial.uniforms.bottomColor.value.setHex(environmentState.skyBottomColor);
   }
 
   // Pond animation (ripple expands, lily pads bob). Always runs.
@@ -469,7 +489,11 @@ function animate(currentTime) {
   );
 
   // Camera follow + screen shake offset
-  cameraFollow.update(delta);
+  // Dev-only escape hatch so headless QA scripts can pose the camera
+  // without it snapping back. No-op unless explicitly toggled.
+  if (!(import.meta.env.DEV && window.__testFreezeCamera)) {
+    cameraFollow.update(delta);
+  }
   const shake = screenShake.getIntensity();
   if (shake > 0) {
     const off = screenShake.update(delta, camera.position);
@@ -478,8 +502,7 @@ function animate(currentTime) {
   renderer.render(scene, camera);
 }
 
-// Environment mode label DOM ref (already declared above)
-
+// Environment mode label is owned by Menus now (single mode pill in the HUD).
 // Debug: ?autoplay=1 jumps straight into the game (no menu).
 // Useful for screenshot/headless testing.
 if (new URLSearchParams(location.search).get('autoplay') === '1') {
