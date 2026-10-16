@@ -44,7 +44,18 @@ try {
   });
 
   await page.goto(baseUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
-  await page.locator('#menu-start').waitFor({ state: 'visible', timeout: 10000 });
+  try {
+    await page.locator('#menu-start').waitFor({ state: 'visible', timeout: 10000 });
+  } catch (error) {
+    await page.screenshot({ path: 'browser-smoke-start.png' }).catch(() => {});
+    const diagnostics = await page.evaluate(() => ({
+      title: document.title,
+      bodyText: document.body.innerText.slice(0, 1200),
+      menuCount: document.querySelectorAll('#menu-start').length,
+      canvasCount: document.querySelectorAll('canvas.game').length
+    })).catch(() => ({}));
+    throw new Error(`Start menu failed to render. Browser errors: ${browserErrors.join(' | ') || 'none captured'}. DOM: ${JSON.stringify(diagnostics)}. Original: ${error.message}`);
+  }
   await page.locator('canvas.game').waitFor({ state: 'visible' });
   if (await page.locator('#boot-banner').count()) throw new Error('Temporary boot debug banner is still visible');
   await page.screenshot({ path: 'browser-smoke-start.png' });

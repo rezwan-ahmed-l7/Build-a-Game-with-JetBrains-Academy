@@ -2,7 +2,8 @@ import * as THREE from 'three';
 
 const CYCLE_SECONDS = 180;
 const STAR_COUNT = 260;
-const FIREFLY_COUNT = 70;
+const FIREFLY_COUNT = 46;
+const CLOUD_COUNT = 18;
 
 function randomRange(min, max) {
   return min + Math.random() * (max - min);
@@ -21,12 +22,12 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup) {
 
   const dayBackground = new THREE.Color(0x91c9df);
   const duskBackground = new THREE.Color(0xf18b68);
-  const nightBackground = new THREE.Color(0x071024);
+  const nightBackground = new THREE.Color(0x172b49);
   const dayFog = new THREE.Color(0x91c9df);
   const duskFog = new THREE.Color(0x6e405f);
-  const nightFog = new THREE.Color(0x101b38);
+  const nightFog = new THREE.Color(0x263b55);
   const dayGround = new THREE.Color(0x344b2b);
-  const nightGround = new THREE.Color(0x101d25);
+  const nightGround = new THREE.Color(0x293b39);
   const workingColor = new THREE.Color();
 
   // ----- Sun: multi-layer halo for a fat bloom feel -----
@@ -155,6 +156,40 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup) {
   const fireflies = new THREE.Points(fireflyGeometry, fireflyMaterial);
   scene.add(fireflies);
 
+  // Soft, layered low-poly clouds float above the horizon and follow the player.
+  const clouds = [];
+  for (let i = 0; i < CLOUD_COUNT; i++) {
+    const cloud = new THREE.Group();
+    const puffCount = 4 + Math.floor(Math.random() * 4);
+    const cloudMaterial = new THREE.MeshBasicMaterial({
+      color: 0xeaf4ff, transparent: true, opacity: 0.62,
+      depthWrite: false, fog: false
+    });
+    for (let j = 0; j < puffCount; j++) {
+      const radius = randomRange(9, 19);
+      const puff = new THREE.Mesh(
+        new THREE.SphereGeometry(radius, 9, 6),
+        cloudMaterial
+      );
+      puff.position.set(
+        (j - (puffCount - 1) / 2) * randomRange(12, 20),
+        randomRange(-8, 8),
+        randomRange(-4, 5)
+      );
+      puff.scale.set(1.35, 0.72, 0.52);
+      cloud.add(puff);
+    }
+    cloud.userData = {
+      offsetX: randomRange(-760, 760),
+      offsetY: randomRange(260, 900),
+      height: randomRange(155, 300),
+      drift: randomRange(1.2, 3.8),
+      material: cloudMaterial
+    };
+    scene.add(cloud);
+    clouds.push(cloud);
+  }
+
   let mode = 'auto';
   let phase = 0.08;
   let elapsed = 0;
@@ -189,16 +224,16 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup) {
     workingColor.copy(nightGround).lerp(dayGround, dayFactor);
     groundMaterial.color.copy(workingColor);
 
-    ambientLight.intensity = 0.24 + dayFactor * 1.05;
+    ambientLight.intensity = 0.48 + dayFactor * 0.92;
     ambientLight.color.setRGB(
       0.48 + dayFactor * 0.42,
       0.58 + dayFactor * 0.34,
       0.95 - dayFactor * 0.12
     );
-    directionalLight.intensity = 0.18 + dayFactor * 1.55;
+    directionalLight.intensity = 0.34 + dayFactor * 1.36;
     directionalLight.color.set(0xffd6a0).lerp(new THREE.Color(0xfff2dc), dayFactor);
-    fillLight.intensity = 0.12 + dayFactor * 0.4;
-    rimLight.intensity = 0.12 + dayFactor * 0.58;
+    fillLight.intensity = 0.30 + dayFactor * 0.34;
+    rimLight.intensity = 0.34 + dayFactor * 0.42;
 
     const orbit = phase * Math.PI * 2;
     const px = playerGroup.position.x;
@@ -256,8 +291,21 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup) {
       fireflyAttr.array[i * 3 + 2] = 8 + (Math.sin(elapsed * 1.6 + offset) + 1) * 22;
     }
     fireflyAttr.needsUpdate = true;
-    fireflies.visible = dayFactor < 0.48;
-    fireflyMaterial.opacity = Math.max(0, (0.48 - dayFactor) / 0.48) * (0.55 + Math.sin(elapsed * 3) * 0.2);
+    fireflies.visible = dayFactor < 0.58;
+    fireflyMaterial.opacity = Math.max(0, (0.58 - dayFactor) / 0.58) * (0.7 + Math.sin(elapsed * 3) * 0.22);
+    fireflyMaterial.size = 3.2 + Math.sin(elapsed * 2.6) * 0.7;
+
+    for (const cloud of clouds) {
+      const data = cloud.userData;
+      cloud.position.set(
+        px + data.offsetX + Math.sin(elapsed * 0.025 + data.offsetY) * 14,
+        py + data.offsetY + elapsed * data.drift,
+        pz + data.height
+      );
+      // Clouds soften at night rather than disappearing into the dark sky.
+      data.material.opacity = 0.18 + dayFactor * 0.46;
+      data.material.color.set(dayFactor > 0.55 ? 0xf7fbff : 0x9ebce0);
+    }
 
     // External listeners (e.g. audio ambient brightness) — called after
     // all visual state is settled.
@@ -280,7 +328,7 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup) {
     const allObjects = [
       sun, sunHaloInner, sunHaloMid, sunHaloOuter, sunFlare,
       moon, moonHaloInner, moonHaloOuter, moonFlare,
-      stars, fireflies
+      stars, fireflies, ...clouds
     ];
     for (const object of allObjects) {
       scene.remove(object);

@@ -3,22 +3,22 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { mulberry32 } from '../utils/rng.js';
 
 // Layout counts. Tuned for a dense-but-readable fantasy meadow.
-const TREE_COUNT = 32;           // mixed pine + broadleaf
-const BUSH_COUNT = 48;           // low foliage clumps (no collision)
-const BIG_ROCK_COUNT = 22;       // large boulders with moss
-const SMALL_ROCK_COUNT = 48;     // pebbles / shards
-const STUMP_COUNT = 10;          // old cut stumps
-const GRASS_TUFT_COUNT = 320;    // scattered blades, non-colliding
-const MUSHROOM_COUNT = 36;       // bioluminescent clusters
+const TREE_COUNT = 118;          // denser forest framing the playable area
+const BUSH_COUNT = 48;           // small foliage clusters between trees
+const BIG_ROCK_COUNT = 14;       // deliberate landmark boulders
+const SMALL_ROCK_COUNT = 18;     // sparse pebble groups
+const STUMP_COUNT = 7;           // occasional old cut stumps
+const GRASS_TUFT_COUNT = 105;    // very restrained grass accents
+const MUSHROOM_COUNT = 18;       // occasional colorful mushroom clusters
 const LILY_PAD_COUNT = 9;        // around the pond
 const POND_COUNT = 1;            // single calm pond
 const HOUSE_COUNT = 3;
 
-const WORLD_RADIUS = 520;
-const CLEARING_RADIUS = 76;
-const POND_EXCLUSION_RADIUS = 60;  // keep other obstacles away from pond
+const WORLD_RADIUS = 230;
+const CLEARING_RADIUS = 40;
+const POND_EXCLUSION_RADIUS = 48;  // keep other obstacles away from pond
 
-const TREE_COLLISION_RADIUS = 8;
+const TREE_COLLISION_RADIUS = 12;
 const BIG_ROCK_COLLISION_RADIUS = 9;
 const STUMP_COLLISION_RADIUS = 4;
 const HOUSE_COLLISION_RADIUS = 14;
@@ -32,15 +32,19 @@ function snapToGround(mesh) {
   return box;
 }
 
-// Distort an IcosahedronGeometry's vertices for an organic rock shape.
+// Give each boulder an irregular footprint and a lower, grounded silhouette.
 function distortGeometry(geo, rand, flatness) {
   const pos = geo.attributes.position;
   for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i);
+    const y = pos.getY(i);
+    const z = pos.getZ(i);
+    const lower = z < 0 ? 0.72 : 1.0;
     pos.setXYZ(
       i,
-      pos.getX(i) * (0.7 + rand() * 0.6),
-      pos.getY(i) * (0.5 + rand() * 0.35) * flatness,
-      pos.getZ(i) * (0.7 + rand() * 0.6)
+      x * (0.90 + rand() * 0.20),
+      y * (0.90 + rand() * 0.20),
+      z * (0.78 + rand() * 0.14) * lower * (flatness / 0.55)
     );
   }
   geo.computeVertexNormals();
@@ -51,9 +55,9 @@ function distortGeometry(geo, rand, flatness) {
 // Pine / fir — stacked cone layers with darker, colder foliage.
 function makePineTree(rand) {
   const group = new THREE.Group();
-  const height = 18 + rand() * 8;
+  const height = 26 + rand() * 10;
 
-  const trunkHeight = height * 0.30;
+  const trunkHeight = height * 0.34;
   const trunk = new THREE.Mesh(
     new THREE.CylinderGeometry(1.0, 1.6, trunkHeight, 7),
     new THREE.MeshStandardMaterial({
@@ -78,11 +82,11 @@ function makePineTree(rand) {
   // 3-4 stacked cones, each smaller as we go up
   const layers = 3 + Math.floor(rand() * 2);
   let z = trunkHeight;
-  const baseRadius = 3.2 + rand() * 1.0;
+  const baseRadius = 5.2 + rand() * 1.4;
   for (let i = 0; i < layers; i++) {
     const t = i / Math.max(1, layers - 1);
-    const r = baseRadius * (1 - t * 0.55);
-    const h = 4.0 + rand() * 1.5;
+    const r = baseRadius * (1 - t * 0.48);
+    const h = 6.0 + rand() * 1.8;
     const cone = new THREE.Mesh(
       new THREE.ConeGeometry(r, h, 7),
       new THREE.MeshStandardMaterial({
@@ -93,7 +97,8 @@ function makePineTree(rand) {
       })
     );
     cone.rotation.x = Math.PI / 2;
-    cone.position.z = z + h / 2;
+    cone.position.z = z + h * 0.48;
+    cone.position.x = (rand() - 0.5) * 0.5;
     cone.castShadow = true;
     cone.receiveShadow = true;
     group.add(cone);
@@ -105,10 +110,10 @@ function makePineTree(rand) {
 // Broadleaf — single dome of foliage on a taller, slimmer trunk.
 function makeBroadleafTree(rand) {
   const group = new THREE.Group();
-  const height = 16 + rand() * 8;
+  const height = 24 + rand() * 10;
 
-  const trunkHeight = height * 0.55;
-  const trunkR = 0.9 + rand() * 0.4;
+  const trunkHeight = height * 0.62;
+  const trunkR = 1.0 + rand() * 0.35;
   const trunk = new THREE.Mesh(
     new THREE.CylinderGeometry(trunkR * 0.55, trunkR, trunkHeight, 6),
     new THREE.MeshStandardMaterial({
@@ -130,11 +135,11 @@ function makeBroadleafTree(rand) {
                     0.28 + rand() * 0.08);
   const foliageColor = _greenTint.getHex();
 
-  // 2-3 overlapping icosphere "blobs" of foliage for a chunky canopy
-  const blobs = 2 + Math.floor(rand() * 2);
+  // Layered, asymmetrical canopy gives broadleaf trees a recognizable silhouette.
+  const blobs = 4 + Math.floor(rand() * 2);
   const canopy = new THREE.Group();
   for (let i = 0; i < blobs; i++) {
-    const r = 3.0 + rand() * 1.4;
+    const r = (i === 0 ? 4.2 : 3.0) + rand() * 1.4;
     const blob = new THREE.Mesh(
       new THREE.IcosahedronGeometry(r, 1),
       new THREE.MeshStandardMaterial({
@@ -149,7 +154,8 @@ function makeBroadleafTree(rand) {
     const dist = rand() * 1.4;
     blob.position.x = Math.cos(ang) * dist;
     blob.position.y = Math.sin(ang) * dist;
-    blob.position.z = (rand() - 0.5) * 1.0;
+    blob.position.z = (i === 0 ? 0.8 : 1.2 + rand() * 2.4);
+    blob.scale.set(1.0 + rand() * 0.35, 0.85 + rand() * 0.25, 0.85 + rand() * 0.3);
     blob.castShadow = true;
     blob.receiveShadow = true;
     canopy.add(blob);
@@ -194,15 +200,15 @@ function makeBush(rand) {
 // Big boulder — gray with a top "moss" cap
 function makeBigRock(rand) {
   const group = new THREE.Group();
-  const size = 3.5 + rand() * 3.0;
-  const geo = new THREE.IcosahedronGeometry(size, 0);
-  distortGeometry(geo, rand, 0.55);
-  const baseGray = 0.32 + rand() * 0.10;
+  const size = 4.0 + rand() * 3.2;
+  const geo = new THREE.IcosahedronGeometry(size, 1);
+  distortGeometry(geo, rand, 0.52);
+  const baseGray = 0.25 + rand() * 0.07;
   const rockMat = new THREE.MeshStandardMaterial({
     color: new THREE.Color(baseGray - 0.02, baseGray, baseGray + 0.02),
     roughness: 0.95,
     metalness: 0,
-    flatShading: true
+    flatShading: false
   });
   const rock = new THREE.Mesh(geo, rockMat);
   rock.castShadow = true;
@@ -210,17 +216,17 @@ function makeBigRock(rand) {
   group.add(rock);
 
   // Moss cap (top half): a slightly smaller copy in a mossy green
-  const mossGeo = new THREE.IcosahedronGeometry(size * 0.7, 0);
-  distortGeometry(mossGeo, rand, 0.4);
+  const mossGeo = new THREE.SphereGeometry(size * 0.60, 10, 7);
   // bias the cap upward
   const mossMat = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(0x2a4a26),
+    color: new THREE.Color(0x2f512b),
     roughness: 1.0,
     metalness: 0,
-    flatShading: true
+    flatShading: false
   });
   const moss = new THREE.Mesh(mossGeo, mossMat);
-  moss.position.z = size * 0.45;
+  moss.position.z = size * 0.22;
+  moss.scale.set(1.0 + rand() * 0.12, 0.9 + rand() * 0.10, 0.24);
   moss.castShadow = false;
   moss.receiveShadow = true;
   group.add(moss);
@@ -229,9 +235,9 @@ function makeBigRock(rand) {
 }
 
 function makeSmallRock(rand) {
-  const size = 0.7 + rand() * 1.1;
-  const geo = new THREE.IcosahedronGeometry(size, 0);
-  distortGeometry(geo, rand, 0.6);
+  const size = 0.8 + rand() * 1.0;
+  const geo = new THREE.IcosahedronGeometry(size, 1);
+  distortGeometry(geo, rand, 0.48);
   const baseGray = 0.42 + rand() * 0.16;
   const rock = new THREE.Mesh(
     geo,
@@ -275,7 +281,7 @@ function makeStump(rand) {
       metalness: 0
     })
   );
-  top.rotation.x = Math.PI / 2;
+  // CircleGeometry already lies in the XY ground plane (Z-up world).
   top.position.z = height;
   top.receiveShadow = true;
   group.add(top);
@@ -505,7 +511,7 @@ function makePond(rand) {
 function placeRandomly(rand, avoid, minDist) {
   for (let attempt = 0; attempt < 30; attempt++) {
     const angle = rand() * Math.PI * 2;
-    const r = CLEARING_RADIUS + rand() * (WORLD_RADIUS - CLEARING_RADIUS);
+    const r = Math.sqrt(CLEARING_RADIUS ** 2 + rand() * (WORLD_RADIUS ** 2 - CLEARING_RADIUS ** 2));
     const x = Math.cos(angle) * r;
     const y = Math.sin(angle) * r;
     let ok = true;
@@ -530,7 +536,7 @@ export function createObstacles(scene) {
   const pondCenter = (() => {
     for (let attempt = 0; attempt < 30; attempt++) {
       const angle = rand() * Math.PI * 2;
-      const r = 170 + rand() * 230;     // keep the pond in the visible meadow
+      const r = 125 + rand() * 150;     // keep the pond within the active camera view
       const x = Math.cos(angle) * r;
       const y = Math.sin(angle) * r;
       if (r < CLEARING_RADIUS + POND_EXCLUSION_RADIUS) continue;
@@ -551,7 +557,7 @@ export function createObstacles(scene) {
     const { group, totalHeight } = isBroadleaf
       ? makeBroadleafTree(rand)
       : makePineTree(rand);
-    const pos = placeRandomly(rand, placed, 26);
+    const pos = placeRandomly(rand, placed, 19);
     placed.push(pos);
     group.position.x = pos.x;
     group.position.y = pos.y;

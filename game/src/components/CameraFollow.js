@@ -7,7 +7,7 @@ const _targetPos = new THREE.Vector3();
 const BASE_DISTANCE = 165;
 const MIN_DISTANCE = 125;
 const MAX_DISTANCE = 360;
-const BASE_ELEVATION = 0.36;   // ~21 deg above the ground plane
+const BASE_ELEVATION = 0.43;   // ~21 deg above the ground plane
 const MIN_ELEVATION = 0.16;    // low cinematic angle
 const MAX_ELEVATION = 0.78;    // tactical overview
 
@@ -20,10 +20,10 @@ const DRAG_THRESHOLD_PX = 4;
 
 export function createCameraFollow(camera, playerGroup, canvas) {
   const state = {
-    azimuth: 4.0,
+    azimuth: 5.45,
     elevation: BASE_ELEVATION,
     distance: BASE_DISTANCE,
-    targetAzimuth: 4.0,
+    targetAzimuth: 5.45,
     targetElevation: BASE_ELEVATION,
     targetDistance: BASE_DISTANCE
   };
@@ -122,20 +122,21 @@ export function createCameraFollow(camera, playerGroup, canvas) {
     state.elevation += (state.targetElevation - state.elevation) * t;
     state.distance += (state.targetDistance - state.distance) * t;
 
-    // Camera is a child of the player group, so positions are relative to the player.
+    // Keep the camera in world space so player rotation does not rotate the camera rig.
+    const currentPos = playerGroup.position;
     const cosE = Math.cos(state.elevation);
     const sinE = Math.sin(state.elevation);
 
     _targetPos.set(
-      Math.cos(state.azimuth) * cosE * state.distance,
-      Math.sin(state.azimuth) * cosE * state.distance,
-      sinE * state.distance
+      currentPos.x + Math.cos(state.azimuth) * cosE * state.distance,
+      currentPos.y + Math.sin(state.azimuth) * cosE * state.distance,
+      currentPos.z + sinE * state.distance
     );
 
     camera.position.lerp(_targetPos, t);
     camera.up.set(0, 0, 1);
     // Look slightly below the player so the frog sits above center.
-    camera.lookAt(0, 0, -34);
+    camera.lookAt(currentPos.x, currentPos.y, currentPos.z + 18);
   }
 
   return { update };

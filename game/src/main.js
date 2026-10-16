@@ -33,6 +33,7 @@ import { createPowerUpManager } from './components/PowerUpManager.js';
 import { createAudio } from './components/Audio.js';
 import { createMenus } from './components/Menus.js';
 import { createTouchControls } from './components/TouchControls.js';
+import { createScreenShake } from './components/ScreenShake.js';
 import { createGameManager } from './components/GameManager.js';
 import { isTouchDevice } from './utils/dom.js';
 
@@ -49,7 +50,7 @@ document.body.appendChild(damageFlash);
 // -------- Scene --------
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x071024);
-scene.fog = new THREE.Fog(0x101b38, 600, 2800);
+scene.fog = new THREE.Fog(0x263c49, 380, 1500);
 
 // Sky dome: gradient sphere that follows the camera. Day side is warmer,
 // night side is cooler. This sits behind everything else and replaces the
@@ -129,33 +130,34 @@ function createMeadowTexture() {
     seed = (seed * 1664525 + 1013904223) >>> 0;
     return seed / 4294967296;
   };
-  // Soft, broad color patches create visible meadow variation at gameplay distance.
-  for (let i = 0; i < 190; i++) {
+  // A restrained, softly mottled meadow: large quiet patches, almost no speckling.
+  for (let i = 0; i < 70; i++) {
     const x = random() * size;
     const y = random() * size;
-    const radius = 6 + random() * 18;
+    const radius = 18 + random() * 48;
     const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
-    const warm = random() > 0.5;
-    gradient.addColorStop(0, warm
-      ? `rgba(177, 190, 105, ${0.035 + random() * 0.045})`
-      : `rgba(42, 88, 43, ${0.04 + random() * 0.05})`);
+    const tint = random() > 0.5
+      ? 'rgba(190, 192, 126, 0.055)'
+      : 'rgba(45, 83, 45, 0.045)';
+    gradient.addColorStop(0, tint);
     gradient.addColorStop(1, 'rgba(255,255,255,0)');
     ctx.fillStyle = gradient;
     ctx.fillRect(x - radius, y - radius, radius * 2, radius * 2);
   }
 
-  for (let i = 0; i < 22000; i++) {
+  // A few subtle grass strokes add texture without making the floor look noisy.
+  for (let i = 0; i < 4200; i++) {
     const x = random() * size;
     const y = random() * size;
-    const radius = 0.55 + random() * 1.9;
-    const shade = random();
-    ctx.fillStyle = shade > 0.5
-      ? `rgba(72, 112, 48, ${0.035 + random() * 0.07})`
-      : `rgba(180, 198, 126, ${0.03 + random() * 0.06})`;
+    const radius = 0.45 + random() * 0.8;
+    ctx.fillStyle = random() > 0.5
+      ? 'rgba(72, 112, 48, 0.035)'
+      : 'rgba(180, 198, 126, 0.03)';
     ctx.beginPath();
-    ctx.ellipse(x, y, radius * 1.7, radius, random() * Math.PI, 0, Math.PI * 2);
+    ctx.ellipse(x, y, radius * 1.4, radius * 0.65, random() * Math.PI, 0, Math.PI * 2);
     ctx.fill();
   }
+
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
@@ -194,7 +196,7 @@ const environment = createEnvironment(scene, {
 }, groundMaterial, player.group);
 // Camera — child of player group so it follows the player naturally
 const camera = createCamera();
-player.group.add(camera);
+scene.add(camera);
 
 const canvas = document.querySelector('canvas.game');
 const cameraFollow = createCameraFollow(camera, player.group, canvas);
@@ -349,7 +351,8 @@ const renderer = createRenderer(canvas);
 if (import.meta.env.DEV) {
   window.__game = {
     scene, player, enemyManager, obstacles, health, score,
-    input, movement, dash, attack, gameManager.onPowerUpPickup,
+    input, movement, dash, attack,
+    onPowerUpPickup: gameManager.onPowerUpPickup,
     currentState: gameManager.currentState
   };
 }
