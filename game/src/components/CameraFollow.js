@@ -157,7 +157,8 @@ export function createCameraFollow(camera, playerGroup, canvas) {
 
     camera.position.lerp(_targetPos, t);
     camera.up.set(0, 0, 1);
-    // Aim slightly below the frog so it sits higher in frame and less empty foreground dominates.\n    camera.lookAt(currentPos.x, currentPos.y, currentPos.z - 22);
+    // Aim slightly below the frog so it sits higher in frame and less empty foreground dominates.
+    camera.lookAt(currentPos.x, currentPos.y, currentPos.z - 22);
   }
 
   return { update };
