@@ -219,10 +219,10 @@ function makeBigRock(rand) {
   const mossGeo = new THREE.SphereGeometry(size * 0.60, 10, 7);
   // bias the cap upward
   const mossMat = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(0x2a4a26),
+    color: new THREE.Color(0x2f512b),
     roughness: 1.0,
     metalness: 0,
-    flatShading: true
+    flatShading: false
   });
   const moss = new THREE.Mesh(mossGeo, mossMat);
   moss.position.z = size * 0.22;
@@ -281,7 +281,7 @@ function makeStump(rand) {
       metalness: 0
     })
   );
-  top.rotation.x = Math.PI / 2;
+  // CircleGeometry already lies in the XY ground plane (Z-up world).
   top.position.z = height;
   top.receiveShadow = true;
   group.add(top);
