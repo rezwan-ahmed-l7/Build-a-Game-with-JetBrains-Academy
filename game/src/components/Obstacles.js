@@ -3,20 +3,20 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { mulberry32 } from '../utils/rng.js';
 
 // Layout counts. Tuned for a dense-but-readable fantasy meadow.
-const TREE_COUNT = 32;           // mixed pine + broadleaf
-const BUSH_COUNT = 48;           // low foliage clumps (no collision)
-const BIG_ROCK_COUNT = 22;       // large boulders with moss
-const SMALL_ROCK_COUNT = 48;     // pebbles / shards
-const STUMP_COUNT = 10;          // old cut stumps
-const GRASS_TUFT_COUNT = 320;    // scattered blades, non-colliding
-const MUSHROOM_COUNT = 36;       // bioluminescent clusters
+const TREE_COUNT = 40;           // mixed pine + broadleaf
+const BUSH_COUNT = 64;           // low foliage clumps (no collision)
+const BIG_ROCK_COUNT = 26;       // large boulders with moss
+const SMALL_ROCK_COUNT = 70;     // pebbles / shards
+const STUMP_COUNT = 12;          // old cut stumps
+const GRASS_TUFT_COUNT = 480;    // scattered blades, non-colliding
+const MUSHROOM_COUNT = 48;       // bioluminescent clusters
 const LILY_PAD_COUNT = 9;        // around the pond
 const POND_COUNT = 1;            // single calm pond
 const HOUSE_COUNT = 3;
 
-const WORLD_RADIUS = 520;
-const CLEARING_RADIUS = 76;
-const POND_EXCLUSION_RADIUS = 60;  // keep other obstacles away from pond
+const WORLD_RADIUS = 360;
+const CLEARING_RADIUS = 56;
+const POND_EXCLUSION_RADIUS = 48;  // keep other obstacles away from pond
 
 const TREE_COLLISION_RADIUS = 8;
 const BIG_ROCK_COLLISION_RADIUS = 9;
@@ -505,7 +505,7 @@ function makePond(rand) {
 function placeRandomly(rand, avoid, minDist) {
   for (let attempt = 0; attempt < 30; attempt++) {
     const angle = rand() * Math.PI * 2;
-    const r = CLEARING_RADIUS + rand() * (WORLD_RADIUS - CLEARING_RADIUS);
+    const r = Math.sqrt(CLEARING_RADIUS ** 2 + rand() * (WORLD_RADIUS ** 2 - CLEARING_RADIUS ** 2));
     const x = Math.cos(angle) * r;
     const y = Math.sin(angle) * r;
     let ok = true;
@@ -530,7 +530,7 @@ export function createObstacles(scene) {
   const pondCenter = (() => {
     for (let attempt = 0; attempt < 30; attempt++) {
       const angle = rand() * Math.PI * 2;
-      const r = 170 + rand() * 230;     // keep the pond in the visible meadow
+      const r = 125 + rand() * 150;     // keep the pond within the active camera view
       const x = Math.cos(angle) * r;
       const y = Math.sin(angle) * r;
       if (r < CLEARING_RADIUS + POND_EXCLUSION_RADIUS) continue;
