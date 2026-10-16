@@ -50,7 +50,7 @@ document.body.appendChild(damageFlash);
 // -------- Scene --------
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x071024);
-scene.fog = new THREE.Fog(0x101b38, 600, 2800);
+scene.fog = new THREE.Fog(0x263c49, 380, 1500);
 
 // Sky dome: gradient sphere that follows the camera. Day side is warmer,
 // night side is cooler. This sits behind everything else and replaces the
@@ -157,6 +157,21 @@ function createMeadowTexture() {
     ctx.ellipse(x, y, radius * 1.7, radius, random() * Math.PI, 0, Math.PI * 2);
     ctx.fill();
   }
+  // Broad, low-contrast meadow mottling remains visible at gameplay distance.
+  for (let i = 0; i < 260; i++) {
+    const x = random() * size;
+    const y = random() * size;
+    const radius = 5 + random() * 24;
+    const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
+    const tint = random() > 0.52
+      ? 'rgba(204, 205, 125, 0.11)'
+      : 'rgba(24, 72, 39, 0.13)';
+    gradient.addColorStop(0, tint);
+    gradient.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(x - radius, y - radius, radius * 2, radius * 2);
+  }
+
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
