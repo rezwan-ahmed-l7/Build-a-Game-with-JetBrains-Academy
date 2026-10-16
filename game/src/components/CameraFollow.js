@@ -123,6 +123,7 @@ export function createCameraFollow(camera, playerGroup, canvas) {
     state.distance += (state.targetDistance - state.distance) * t;
 
     // Keep the camera in world space so player rotation does not rotate the camera rig.
+    const currentPos = playerGroup.position;
     const cosE = Math.cos(state.elevation);
     const sinE = Math.sin(state.elevation);
 
