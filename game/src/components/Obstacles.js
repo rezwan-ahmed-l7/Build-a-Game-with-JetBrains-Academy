@@ -3,22 +3,22 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { mulberry32 } from '../utils/rng.js';
 
 // Layout counts. Tuned for a dense-but-readable fantasy meadow.
-const TREE_COUNT = 40;           // mixed pine + broadleaf
-const BUSH_COUNT = 64;           // low foliage clumps (no collision)
-const BIG_ROCK_COUNT = 26;       // large boulders with moss
-const SMALL_ROCK_COUNT = 70;     // pebbles / shards
-const STUMP_COUNT = 12;          // old cut stumps
-const GRASS_TUFT_COUNT = 480;    // scattered blades, non-colliding
-const MUSHROOM_COUNT = 48;       // bioluminescent clusters
+const TREE_COUNT = 72;           // taller trees with a fuller forest silhouette
+const BUSH_COUNT = 34;           // intentional foliage accents, not ground clutter
+const BIG_ROCK_COUNT = 16;       // fewer, readable landmark boulders
+const SMALL_ROCK_COUNT = 22;     // sparse pebble groups
+const STUMP_COUNT = 7;           // occasional old cut stumps
+const GRASS_TUFT_COUNT = 145;    // restrained grass accents; keep the ground readable
+const MUSHROOM_COUNT = 18;       // occasional colorful mushroom clusters
 const LILY_PAD_COUNT = 9;        // around the pond
 const POND_COUNT = 1;            // single calm pond
 const HOUSE_COUNT = 3;
 
-const WORLD_RADIUS = 360;
-const CLEARING_RADIUS = 56;
+const WORLD_RADIUS = 300;
+const CLEARING_RADIUS = 48;
 const POND_EXCLUSION_RADIUS = 48;  // keep other obstacles away from pond
 
-const TREE_COLLISION_RADIUS = 8;
+const TREE_COLLISION_RADIUS = 12;
 const BIG_ROCK_COLLISION_RADIUS = 9;
 const STUMP_COLLISION_RADIUS = 4;
 const HOUSE_COLLISION_RADIUS = 14;
@@ -55,9 +55,9 @@ function distortGeometry(geo, rand, flatness) {
 // Pine / fir — stacked cone layers with darker, colder foliage.
 function makePineTree(rand) {
   const group = new THREE.Group();
-  const height = 18 + rand() * 8;
+  const height = 26 + rand() * 10;
 
-  const trunkHeight = height * 0.38;
+  const trunkHeight = height * 0.34;
   const trunk = new THREE.Mesh(
     new THREE.CylinderGeometry(1.0, 1.6, trunkHeight, 7),
     new THREE.MeshStandardMaterial({
@@ -82,11 +82,11 @@ function makePineTree(rand) {
   // 3-4 stacked cones, each smaller as we go up
   const layers = 3 + Math.floor(rand() * 2);
   let z = trunkHeight;
-  const baseRadius = 4.2 + rand() * 1.0;
+  const baseRadius = 5.2 + rand() * 1.4;
   for (let i = 0; i < layers; i++) {
     const t = i / Math.max(1, layers - 1);
     const r = baseRadius * (1 - t * 0.48);
-    const h = 5.0 + rand() * 1.4;
+    const h = 6.0 + rand() * 1.8;
     const cone = new THREE.Mesh(
       new THREE.ConeGeometry(r, h, 7),
       new THREE.MeshStandardMaterial({
@@ -110,9 +110,9 @@ function makePineTree(rand) {
 // Broadleaf — single dome of foliage on a taller, slimmer trunk.
 function makeBroadleafTree(rand) {
   const group = new THREE.Group();
-  const height = 16 + rand() * 8;
+  const height = 24 + rand() * 10;
 
-  const trunkHeight = height * 0.58;
+  const trunkHeight = height * 0.62;
   const trunkR = 1.0 + rand() * 0.35;
   const trunk = new THREE.Mesh(
     new THREE.CylinderGeometry(trunkR * 0.55, trunkR, trunkHeight, 6),
@@ -139,7 +139,7 @@ function makeBroadleafTree(rand) {
   const blobs = 4 + Math.floor(rand() * 2);
   const canopy = new THREE.Group();
   for (let i = 0; i < blobs; i++) {
-    const r = (i === 0 ? 3.4 : 2.4) + rand() * 1.2;
+    const r = (i === 0 ? 4.2 : 3.0) + rand() * 1.4;
     const blob = new THREE.Mesh(
       new THREE.IcosahedronGeometry(r, 1),
       new THREE.MeshStandardMaterial({
@@ -200,7 +200,7 @@ function makeBush(rand) {
 // Big boulder — gray with a top "moss" cap
 function makeBigRock(rand) {
   const group = new THREE.Group();
-  const size = 3.5 + rand() * 3.0;
+  const size = 4.0 + rand() * 3.2;
   const geo = new THREE.IcosahedronGeometry(size, 1);
   distortGeometry(geo, rand, 0.42);
   const baseGray = 0.32 + rand() * 0.10;
@@ -236,7 +236,7 @@ function makeBigRock(rand) {
 }
 
 function makeSmallRock(rand) {
-  const size = 0.7 + rand() * 1.1;
+  const size = 0.8 + rand() * 1.0;
   const geo = new THREE.IcosahedronGeometry(size, 1);
   distortGeometry(geo, rand, 0.38);
   const baseGray = 0.42 + rand() * 0.16;
