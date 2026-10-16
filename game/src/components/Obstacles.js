@@ -21,6 +21,7 @@ const POND_EXCLUSION_RADIUS = 60;  // keep other obstacles away from pond
 const TREE_COLLISION_RADIUS = 8;
 const BIG_ROCK_COLLISION_RADIUS = 9;
 const STUMP_COLLISION_RADIUS = 4;
+const HOUSE_COLLISION_RADIUS = 14;
 
 const _color = new THREE.Color();
 const _greenTint = new THREE.Color();
@@ -641,10 +642,12 @@ export function createObstacles(scene) {
   }
 
   // ----- Houses (GLB) -----
+  const housePositions = [];
   const houseLoader = new GLTFLoader();
   for (let i = 0; i < HOUSE_COUNT; i++) {
     const pos = placeRandomly(rand, placed, 60);
     placed.push(pos);
+    housePositions.push(pos);
     houseLoader.load(
       '/models/small_house.glb',
       (gltf) => {
@@ -663,6 +666,13 @@ export function createObstacles(scene) {
       undefined,
       (err) => { console.warn('Failed to load house model:', err); }
     );
+  }
+  // Add houses to the collision obstacle list so neither enemies nor player can pass through.
+  for (const pos of housePositions) {
+    obstacles.push({
+      position: { x: pos.x, y: pos.y },
+      radius: HOUSE_COLLISION_RADIUS
+    });
   }
 
   // Animation hook: ripple expands, lily pads bob. Called from main loop.

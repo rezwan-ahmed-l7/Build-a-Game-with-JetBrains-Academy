@@ -74,9 +74,7 @@ export function createEnemyManager(scene, playerGroup) {
     const def = ENEMY_TYPES[type];
     enemies.push({
       group,
-      yawGroup: enemy.getYawGroup,
-      mixer: enemy.getMixer,
-      rootBone: enemy.getRootBone,
+      yawGroup: enemy.yawGroup,
       type,
       def,
       hp: def.hp,
@@ -105,8 +103,7 @@ export function createEnemyManager(scene, playerGroup) {
       const enemy = enemies[i];
       const group = enemy.group;
 
-      const mixer = enemy.mixer();
-      if (mixer) mixer.update(delta);
+      if (enemy.mixer) enemy.mixer.update(delta);
 
       if (enemy.isDying) {
         enemy.deathProgress += delta / DEATH_DURATION;
@@ -116,8 +113,7 @@ export function createEnemyManager(scene, playerGroup) {
         const shrink = t < 0.2 ? 1 : 1 - (t - 0.2) / 0.8;
         group.scale.setScalar(Math.max(0.01, punch * shrink));
 
-        const yawGroup = enemy.yawGroup();
-        if (yawGroup) yawGroup.rotation.z += delta * 8;
+        if (enemy.yawGroup) enemy.yawGroup.rotation.z += delta * 8;
 
         if (enemy.deathProgress >= 1) {
           removeEnemy(i);
@@ -154,8 +150,7 @@ export function createEnemyManager(scene, playerGroup) {
           targetYaw,
           Math.min(TURN_SPEED * delta, 1)
         );
-        const yawGroup = enemy.yawGroup();
-        if (yawGroup) yawGroup.rotation.z = enemy.currentYaw;
+        if (enemy.yawGroup) enemy.yawGroup.rotation.z = enemy.currentYaw;
       }
 
       group.position.z = HOVER_BASE_Z + Math.sin(time * enemy.hoverSpeed + enemy.hoverPhase) * HOVER_AMPLITUDE;

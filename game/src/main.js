@@ -33,10 +33,18 @@ import { createPowerUpManager } from './components/PowerUpManager.js';
 import { createAudio } from './components/Audio.js';
 import { createMenus } from './components/Menus.js';
 import { createTouchControls } from './components/TouchControls.js';
-import { createScreenShake } from './components/ScreenShake.js';
+import { createGameManager } from './components/GameManager.js';
 import { isTouchDevice } from './utils/dom.js';
 
 const PLAYER_VS_ENEMY_DIST = PLAYER_COLLISION_RADIUS + ENEMY_COLLISION_RADIUS;
+
+// Touch controls reference (initialized later for touch devices)
+let touch = null;
+
+// Damage flash element
+const damageFlash = document.createElement('div');
+damageFlash.className = 'damage-flash';
+document.body.appendChild(damageFlash);
 
 // -------- Scene --------
 const scene = new THREE.Scene();
@@ -184,9 +192,9 @@ scene.add(player.group);
 const environment = createEnvironment(scene, {
   ambientLight, directionalLight, fillLight, rimLight
 }, groundMaterial, player.group);
-// Camera
+// Camera — child of player group so it follows the player naturally
 const camera = createCamera();
-scene.add(camera);
+player.group.add(camera);
 
 const canvas = document.querySelector('canvas.game');
 const cameraFollow = createCameraFollow(camera, player.group, canvas);
@@ -226,194 +234,37 @@ const dash = createDash(player.group, camera, () => {
 // Power-ups
 const powerUps = createPowerUpManager(scene, player.group);
 
-// ----- Attack (with hooks) -----
-const attack = createAttack(scene, player.group, enemyManager, {
-  onHit(enemy, pos) {
-    damageNumbers.spawn('1', pos.x, pos.y, pos.z + 8, '#ffdd66');
-  },
-  onKill(enemy, pos) {
-    combo.register();
-    const mul = combo.getMultiplier();
-    score.addKillBonus(mul);
-    score.setCombo(combo.getCount(), combo.getTimeLeft());
-    audio.playHit();
-    if (combo.getCount() >= 3) audio.playPowerUp();
-    screenShake.kick(1.5 + mul * 0.6);
-    particles.spawnBurst(pos.x, pos.y, pos.z + 6, {
-      count: 18, color: 0xff5577, speed: 90, life: 0.6, size: 7
-    });
-  },
-  onShake(amount) {
-    screenShake.kick(amount);
-    audio.playAttack();
-  },
-  onParticles(kind, x, y, z, color) {
-    if (kind === 'sparks') {
-      particles.spawnBurst(x, y, z, { count: 12, color, speed: 60, life: 0.4, size: 5 });
-    } else if (kind === 'death') {
-      particles.spawnBurst(x, y, z, { count: 22, color, speed: 100, life: 0.7, size: 8 });
-    }
-  }
+// ----- Game Manager (state, transitions, power-ups) -----
+// Note: menus is created below to avoid circular dependency with gameManager.menuCallbacks
+const gameManager = createGameManager({
+  player,
+  input,
+  movement,
+  health,
+  combo,
+  score,
+  enemyManager,
+  powerUps,
+  dash,
+  attack: null, // set after attack is created
+  audio,
+  menus: null, // set after menus is created
+  particles,
+  damageNumbers,
+  screenShake,
+  damageFlash
 });
 
-// ----- Game state -----
-let currentState = GameState.MENU;
-
-// Damage flash element
-const damageFlash = document.createElement('div');
-damageFlash.className = 'damage-flash';
-document.body.appendChild(damageFlash);
-
-let flashTimer = 0;
-function flashDamage() {
-  damageFlash.classList.add('active');
-  flashTimer = 0.2;
-  setTimeout(() => damageFlash.classList.remove('active'), 200);
-}
-
-// ----- Health / damage flow -----
-health.onChange((event, payload) => {
-  if (event === 'damage') {
-    player.flash();
-    audio.playHurt();
-    flashDamage();
-    screenShake.kick(2.5);
-  } else if (event === 'heal') {
-    audio.playPickup();
-    particles.spawnBurst(player.group.position.x, player.group.position.y, player.group.position.z + 8, {
-      count: 16, color: 0xff7799, speed: 70, life: 0.6, size: 6
-    });
-  } else if (event === 'death') {
-    triggerGameOver();
-  } else if (event === 'reset') {
-    damageFlash.classList.remove('active');
-  }
-  score.setHearts(payload.hp, payload.max);
-});
-
-// ----- Score: combo HUD mirror -----
-function tickComboHud() {
-  score.setCombo(combo.getCount(), combo.getTimeLeft());
-}
-
-// ----- Power-up pickup handler -----
-const ATTACK_BOOST_DURATION = 10;   // seconds the long-attack power-up lasts
-const ATTACK_BOOST_MULT = 1.85;     // 85% bigger radius
-let attackBoostRemaining = 0;
-const SPEED_BOOST_DURATION = 8;
-const SPEED_BOOST_MULT = 1.7;
-let speedBoostRemaining = 0;
-
-// Difficulty drives attack.setRadius(d.attackRadius) each frame. The boost
-// scales on top of that base radius without relying on an undefined field.
-function getBoostedAttackRadius() {
-  return attack.getRadius() * ATTACK_BOOST_MULT;
-}
-
-function onPowerUpPickup(type, pos) {
-  audio.playPickup();
-  if (type === 'heal') {
-    health.heal(1);
-    damageNumbers.spawn('+1 HP', pos.x, pos.y, pos.z + 6, '#ff7799');
-  } else if (type === 'score') {
-    score.addKillBonus(8);
-    damageNumbers.spawn('x2 BONUS', pos.x, pos.y, pos.z + 6, '#ffd166');
-    particles.spawnBurst(pos.x, pos.y, pos.z, { count: 24, color: 0xffd166, speed: 90, life: 0.7, size: 7 });
-  } else if (type === 'speed') {
-    speedBoostRemaining = SPEED_BOOST_DURATION;
-    movement.setSpeedMultiplier(SPEED_BOOST_MULT);
-    score.addKillBonus(2);
-    damageNumbers.spawn('SPEED!', pos.x, pos.y, pos.z + 6, '#4cc9f0');
-    particles.spawnBurst(pos.x, pos.y, pos.z, { count: 22, color: 0x4cc9f0, speed: 80, life: 0.7, size: 6 });
-  } else if (type === 'attack') {
-    // Boost the attack radius for ATTACK_BOOST_DURATION seconds.
-    attackBoostRemaining = ATTACK_BOOST_DURATION;
-    attack.setRadius(getBoostedAttackRadius());
-    score.addKillBonus(4);
-    damageNumbers.spawn('LONG ATTACK!', pos.x, pos.y, pos.z + 6, '#9ee7ff');
-    particles.spawnBurst(pos.x, pos.y, pos.z, { count: 28, color: 0x9ee7ff, speed: 100, life: 0.8, size: 7 });
-  }
-}
-
-// ----- Game state transitions -----
-function triggerGameOver() {
-  if (currentState === GameState.GAMEOVER) return;
-  currentState = GameState.GAMEOVER;
-  input.setEnabled(false);
-  dash.cancel();
-  player.group.visible = false;
-  audio.stopAmbient();
-  audio.playGameOver();
-  score.showGameOver();
-}
-
-function resetGame() {
-  input.setEnabled(true);
-  player.group.position.set(0, 0, 0);
-  movement.reset();
-  player.group.visible = true;
-  health.reset();
-  combo.reset();
-  enemyManager.removeAll();
-  powerUps.removeAll();
-  dash.reset();
-  score.reset();
-  score.setHearts(3, 3);
-  attackBoostRemaining = 0;
-  speedBoostRemaining = 0;
-  movement.setSpeedMultiplier(1);
-  currentState = GameState.PLAYING;
-  score.hideGameOver();
-}
-
-function startGame() {
-  // Order matters: resume the AudioContext first (user gesture triggered
-  // by the Play button) so the oscillators we build a moment later can
-  // actually produce sound.
-  audio.resume().then(() => {
-    audio.startAmbient();
-  }).catch(() => {
-    audio.startAmbient();
-  });
-  resetGame();
-  menus.hideStart();
-  menus.showHud(true);
-}
-
-function togglePause() {
-  if (currentState === GameState.PLAYING) {
-    currentState = GameState.PAUSED;
-    input.setEnabled(false);
-    dash.cancel();
-    menus.showPause();
-  } else if (currentState === GameState.PAUSED) {
-    currentState = GameState.PLAYING;
-    input.setEnabled(true);
-    menus.hidePause();
-  }
-}
+// ----- Attack (with hooks from game manager) -----
+const attack = createAttack(scene, player.group, enemyManager, gameManager.attackHooks);
+gameManager.setAttack(attack);
 
 // ----- Menus -----
 const menus = createMenus({
-  onStart: startGame,
-  onResume: () => {
-    if (currentState === GameState.PAUSED) togglePause();
-  },
-  onTogglePause: () => {
-    if (currentState === GameState.PLAYING || currentState === GameState.PAUSED) {
-      togglePause();
-    }
-  },
-  onRestart: () => {
-    menus.hidePause();
-    resetGame();
-  },
-  onToggleMute: () => {
-    audio.setMuted(!audio.isMuted());
-  },
-  onCycleMode: () => environment.cycleMode(),
-  isMuted: () => audio.isMuted()
+  ...gameManager.menuCallbacks,
+  onCycleMode: () => environment.cycleMode()
 });
+gameManager.setMenus(menus);
 menus.showStart();
 menus.showHud(false); // hidden until start
 
@@ -423,15 +274,14 @@ environment.onUpdate((dayFactor) => {
 });
 
 // ----- Touch controls (mount only on touch devices) -----
-let touch = null;
 if (isTouchDevice()) {
   touch = createTouchControls({
-    onPause: togglePause,
+    onPause: gameManager.togglePause,
     onAttack: () => {
-      if (currentState === GameState.PLAYING) attack.attack(performance.now());
+      if (gameManager.isPlaying()) attack.attack(performance.now());
     },
     onDash: () => {
-      if (currentState === GameState.PLAYING) dash.tryStart();
+      if (gameManager.isPlaying()) dash.tryStart();
     }
   });
 }
@@ -454,23 +304,23 @@ window.addEventListener('keydown', (e) => {
   if (e.repeat) return;
   if (e.code === 'Space') {
     e.preventDefault();
-    if (currentState === GameState.MENU) {
-      startGame();
+    if (gameManager.isMenu()) {
+      gameManager.startGame();
       return;
     }
-    if (currentState === GameState.GAMEOVER) {
-      resetGame();
+    if (gameManager.isGameOver()) {
+      gameManager.resetGame();
       return;
     }
-    if (currentState === GameState.PLAYING) {
+    if (gameManager.isPlaying()) {
       attack.attack(performance.now());
     }
   } else if (e.code === 'Escape' || e.code === 'KeyP') {
-    if (currentState === GameState.PLAYING || currentState === GameState.PAUSED) {
-      togglePause();
+    if (gameManager.isPlaying() || gameManager.isPaused()) {
+      gameManager.togglePause();
     }
   } else if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
-    if (currentState === GameState.PLAYING) {
+    if (gameManager.isPlaying()) {
       const started = dash.tryStart();
       if (started) {
         audio.playDash();
@@ -493,35 +343,14 @@ window.addEventListener('resize', () => {
 // ----- Renderer -----
 const renderer = createRenderer(canvas);
 
-// ----- Player-enemy contact (replaces the old collision game-over check) -----
-function checkPlayerEnemyContact() {
-  if (health.isInvulnerable() || dash.isInvulnerable()) return false;
-  const enemies = enemyManager.getEnemies();
-  for (const enemy of enemies) {
-    if (enemy.isSpawning || enemy.isDying) continue;
-    const dx = player.group.position.x - enemy.group.position.x;
-    const dy = player.group.position.y - enemy.group.position.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    if (dist < PLAYER_VS_ENEMY_DIST) {
-      health.damage(1);
-      // Push the player back a bit
-      const nx = dx / (dist || 1);
-      const ny = dy / (dist || 1);
-      player.group.position.x += nx * 18;
-      player.group.position.y += ny * 18;
-      return true;
-    }
-  }
-  return false;
-}
 
 // Development-only debug hooks support browser QA without exposing the
 // full game object on production builds.
 if (import.meta.env.DEV) {
   window.__game = {
     scene, player, enemyManager, obstacles, health, score,
-    input, movement, dash, attack, onPowerUpPickup,
-    currentState: () => currentState
+    input, movement, dash, attack, gameManager.onPowerUpPickup,
+    currentState: gameManager.currentState
   };
 }
 
@@ -539,12 +368,12 @@ function animate(currentTime) {
   particles.update(delta);
   damageNumbers.update(delta, camera);
   audio.update && audio.update(delta);
-  if (flashTimer > 0) {
-    flashTimer = Math.max(0, flashTimer - delta);
+  if (gameManager.getFlashTimer() > 0) {
+    gameManager.setFlashTimer(Math.max(0, gameManager.getFlashTimer() - delta));
   }
 
-  if (currentState === GameState.PLAYING) {
-    if (checkPlayerEnemyContact()) {
+  if (gameManager.currentState() === GameState.PLAYING) {
+    if (gameManager.checkPlayerEnemyContact(PLAYER_VS_ENEMY_DIST)) {
       // damage handled inside health onChange
     }
     difficulty.setScore(score.getScore());
@@ -555,17 +384,17 @@ function animate(currentTime) {
     attack.setCooldown(d.attackCooldown);
     attack.setRadius(d.attackRadius);
 
-    if (speedBoostRemaining > 0) {
-      speedBoostRemaining = Math.max(0, speedBoostRemaining - delta);
-      movement.setSpeedMultiplier(speedBoostRemaining > 0 ? SPEED_BOOST_MULT : 1);
+    if (gameManager.getSpeedBoostRemaining() > 0) {
+      gameManager.setSpeedBoostTimer(Math.max(0, gameManager.getSpeedBoostRemaining() - delta));
+      movement.setSpeedMultiplier(gameManager.getSpeedBoostRemaining() > 0 ? gameManager.SPEED_BOOST_MULT : 1);
     }
 
     // Long-attack boost: tick down the timer and re-apply the boosted
     // radius AFTER the difficulty set so it never desyncs.
-    if (attackBoostRemaining > 0) {
-      attackBoostRemaining = Math.max(0, attackBoostRemaining - delta);
-      if (attackBoostRemaining > 0) {
-        attack.setRadius(getBoostedAttackRadius());
+    if (gameManager.getAttackBoostRemaining() > 0) {
+      gameManager.setAttackBoostTimer(Math.max(0, gameManager.getAttackBoostRemaining() - delta));
+      if (gameManager.getAttackBoostRemaining() > 0) {
+        attack.setRadius(gameManager.getBoostedAttackRadius());
       }
     }
 
@@ -593,14 +422,14 @@ function animate(currentTime) {
     resolvePlayerVsObstacles(player.group.position, obstacleList);
 
     combo.update(delta);
-    tickComboHud();
+    gameManager.tickComboHud();
 
-    powerUps.update(delta, currentTime / 1000, onPowerUpPickup);
+    powerUps.update(delta, currentTime / 1000, gameManager.onPowerUpPickup);
     score.tick(delta);
     score.render();
-  } else if (currentState === GameState.PAUSED) {
+  } else if (gameManager.currentState() === GameState.PAUSED) {
     // Nothing simulates; only visual systems run
-  } else if (currentState === GameState.GAMEOVER) {
+  } else if (gameManager.currentState() === GameState.GAMEOVER) {
     // Player.update still runs (idle continues at game-over) for the body
   }
 
@@ -651,7 +480,7 @@ function animate(currentTime) {
 // Debug: ?autoplay=1 jumps straight into the game (no menu).
 // Useful for screenshot/headless testing.
 if (new URLSearchParams(location.search).get('autoplay') === '1') {
-  setTimeout(() => startGame(), 200);
+  setTimeout(() => gameManager.startGame(), 200);
 }
 
 // ----- Boot -----

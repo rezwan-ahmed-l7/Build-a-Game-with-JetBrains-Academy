@@ -122,20 +122,20 @@ export function createCameraFollow(camera, playerGroup, canvas) {
     state.elevation += (state.targetElevation - state.elevation) * t;
     state.distance += (state.targetDistance - state.distance) * t;
 
-    const currentPos = playerGroup.position;
+    // Camera is a child of the player group, so positions are relative to the player.
     const cosE = Math.cos(state.elevation);
     const sinE = Math.sin(state.elevation);
 
     _targetPos.set(
-      currentPos.x + Math.cos(state.azimuth) * cosE * state.distance,
-      currentPos.y + Math.sin(state.azimuth) * cosE * state.distance,
-      currentPos.z + sinE * state.distance
+      Math.cos(state.azimuth) * cosE * state.distance,
+      Math.sin(state.azimuth) * cosE * state.distance,
+      sinE * state.distance
     );
 
     camera.position.lerp(_targetPos, t);
     camera.up.set(0, 0, 1);
-    // Lower the look target so the frog sits above center and more play space is visible ahead.
-    camera.lookAt(currentPos.x, currentPos.y, currentPos.z - 34);
+    // Look slightly below the player so the frog sits above center.
+    camera.lookAt(0, 0, -34);
   }
 
   return { update };

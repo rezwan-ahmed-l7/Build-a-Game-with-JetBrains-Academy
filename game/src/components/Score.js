@@ -1,7 +1,6 @@
 // Score, hearts, combo HUD, and game-over panel. Now re-uses the central
 // GameState enum and integrates with the Health system for the heart row.
 
-export { GameState } from './GameState.js';
 import { GameState } from './GameState.js';
 import { load, save } from '../utils/persistence.js';
 
@@ -143,5 +142,3 @@ export function createScore() {
   };
 }
 
-// Re-export to keep callers that imported GameState from Score working.
-export { GameState as legacyGameState };

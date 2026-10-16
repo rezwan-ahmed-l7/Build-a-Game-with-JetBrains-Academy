@@ -5,6 +5,9 @@ import { ENEMY_TYPES } from './EnemyTypes.js';
 const _baseColor = new THREE.Color();
 const _mixed = new THREE.Color();
 
+// Shared loader so the enemy model is cached after the first load
+const enemyLoader = new GLTFLoader();
+
 // createEnemy(type='chaser') → { group, getYawGroup, getModel, getMixer, getRootBone, getType, getStats }
 export function createEnemy(type = 'chaser') {
   const def = ENEMY_TYPES[type] || ENEMY_TYPES.chaser;
@@ -19,8 +22,7 @@ export function createEnemy(type = 'chaser') {
   let rootBone = null;
   let hp = def.hp;
 
-  const loader = new GLTFLoader();
-  loader.load(
+  enemyLoader.load(
     '/models/enemy.glb',
     (gltf) => {
       model = gltf.scene;
@@ -86,15 +88,25 @@ export function createEnemy(type = 'chaser') {
     }
   );
 
-  function getYawGroup() { return yawGroup; }
   function getModel() { return model; }
-  function getMixer() { return mixer; }
-  function getRootBone() { return rootBone; }
   function getType() { return def.name; }
   function getStats() { return def; }
   function getHp() { return hp; }
   function damageHp(n = 1) { hp = Math.max(0, hp - n); return hp; }
 
-  return { group, getYawGroup, getModel, getMixer, getRootBone,
-           getType, getStats, getHp, damageHp };
+  // Return plain values for yawGroup; mixer and rootBone are lazy getters
+  // because they are assigned asynchronously after the model loads.
+  const ret = {
+    group,
+    yawGroup,
+    getModel,
+    getType,
+    getStats,
+    getHp,
+    damageHp,
+    get mixer() { return mixer; },
+    get rootBone() { return rootBone; }
+  };
+
+  return ret;
 }

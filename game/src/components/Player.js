@@ -7,7 +7,6 @@ export function createPlayer() {
   const facingGroup = new THREE.Group();
   group.add(facingGroup);
   let model = null;
-  let mixer = null;
 
   // Procedural animation state (Tode has no skeleton animations)
   const anim = {
@@ -93,7 +92,6 @@ export function createPlayer() {
   }
 
   function update(delta) {
-    if (mixer) mixer.update(delta);
     updateAnim(delta);
     updateFlash(delta);
   }
@@ -134,5 +132,5 @@ export function createPlayer() {
     group.visible = v;
   }
 
-  return { group, getModel, mixer, update, setMoving, flash, setVisible };
+  return { group, getModel, update, setMoving, flash, setVisible };
 }
