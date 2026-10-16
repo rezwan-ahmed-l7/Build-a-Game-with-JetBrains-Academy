@@ -54,3 +54,4 @@ Desktop.ini
 *.swp
 *.swo
 *~
+\n# Local agent permissions and generated gameplay screenshots\n.puku-cli/settings.local.json\n/game/headless-screenshot.png\n/game/visual-*.png\n/game/browser-smoke-*.png\n
