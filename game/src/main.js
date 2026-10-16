@@ -349,7 +349,7 @@ const renderer = createRenderer(canvas);
 if (import.meta.env.DEV) {
   window.__game = {
     scene, player, enemyManager, obstacles, health, score,
-    input, movement, dash, attack, gameManager.onPowerUpPickup,
+    input, movement, dash, attack,\n    onPowerUpPickup: gameManager.onPowerUpPickup,
     currentState: gameManager.currentState
   };
 }
