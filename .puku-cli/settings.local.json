@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs node:*)",
+      "Bash(grep -n \"^//\" src/main.js)",
+      "Bash(for f:*)",
+      "Bash(do echo:*)",
+      "Bash(node --check \"$f\")",
+      "Bash(done)",
+      "Bash(npm install:*)",
+      "Bash(NODE_OPTIONS=--experimental-vm-modules npx jest)",
+      "Bash(node scripts/inspect-gameplay.mjs)",
+      "Bash(echo \"Exit: $?\")",
+      "Read(//tmp/**)",
+      "Bash(node:*)",
+      "Bash(ls *.png)"
+    ]
+  }
+}
