@@ -70,8 +70,8 @@ jobs:
         with:
           name: browser-gameplay-screenshots
           path: |
-            game/browser-smoke-start.png
-            game/browser-smoke-playing.png
+            browser-smoke-start.png
+            browser-smoke-playing.png
           if-no-files-found: ignore
 
   game-build:
