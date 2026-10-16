@@ -65,13 +65,25 @@ export function createMovement(playerGroup, getModel, input, camera, canMoveCall
   function getRotationForDirection(direction, basis) {
     if (!basis.valid) return 0;
     const { camAngle } = basis;
+    // The tode model has its visual "front" (eyes) facing +X in world at
+    // facingGroup.rotation.z = 0. With CCW rotation around Z (three.js Z-up,
+    // right-hand rule), rot.z = theta sends the front to (cos theta,
+    // sin theta).
+    //
+    // Camera forward (XY) = (fwdX, fwdY). The angle of that direction CCW
+    // from +X is atan2(fwdY, fwdX) = pi/2 - camAngle. So the rotations below
+    // express each desired facing direction as an angle CCW from +X.
+    //
+    //   forward  -> face away from camera = camera forward
+    //   backward -> face toward camera
+    //   left     -> face camera-left (strafing left = facing the screen-left
+    //               side; this is camera-forward rotated +90 deg CCW)
+    //   right    -> face camera-right (camera-forward rotated -90 deg CCW)
     switch (direction) {
-      // face away from camera (up on screen) — show back
-      case 'forward':  return camAngle - Math.PI / 2;
-      // face toward camera (down on screen) — show face
-      case 'backward': return camAngle + Math.PI / 2;
-      case 'left':     return camAngle;
-      case 'right':    return camAngle + Math.PI;
+      case 'forward':  return Math.PI / 2 - camAngle;
+      case 'backward': return Math.PI / 2 - camAngle + Math.PI;
+      case 'left':     return Math.PI - camAngle;
+      case 'right':    return -camAngle;
     }
     return 0;
   }
