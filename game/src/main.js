@@ -169,7 +169,7 @@ function createMeadowTexture() {
   return texture;
 }
 
-const groundGeometry = new THREE.CircleGeometry(14000, 128);
+const groundGeometry = new THREE.CircleGeometry(2200, 128);
 const groundMaterial = new THREE.MeshStandardMaterial({
   color: 0x344b2b, map: createMeadowTexture(), roughness: 1.0, metalness: 0
 });
@@ -178,9 +178,9 @@ ground.position.z = -0.5;
 ground.receiveShadow = true;
 scene.add(ground);
 
-// The dark edge falloff now starts well beyond the active arena, so the
-// camera cannot reveal a distracting black wedge at the edge of the ground.
-const vignetteGeometry = new THREE.RingGeometry(13500, 14000, 128);
+// Keep the ground edge beyond the fogged playable world, with a restrained
+// dark falloff so the map has a believable boundary rather than an enormous plane.
+const vignetteGeometry = new THREE.RingGeometry(2100, 2200, 128);
 const vignetteMaterial = new THREE.MeshBasicMaterial({
   color: 0x05080d, side: THREE.DoubleSide,
   transparent: true, opacity: 0.72, depthWrite: false
