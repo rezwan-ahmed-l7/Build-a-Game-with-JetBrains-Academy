@@ -23,12 +23,9 @@ export function createDifficulty() {
       difficulty,
       spawnInterval: BASE_SPAWN_INTERVAL / Math.min(difficulty, MAX_DIFFICULTY),
       enemySpeed: BASE_ENEMY_SPEED * Math.min(difficulty * 1.15, ENEMY_SPEED_CAP),
-      playerSpeedMultiplier: BASE_PLAYER_SPEED_MULT *
-        Math.min(1 + (difficulty - 1) * 0.35, PLAYER_SPEED_CAP),
-      attackCooldown: BASE_ATTACK_COOLDOWN /
-        Math.min(1 + (difficulty - 1) * 0.4, ATTACK_COOLDOWN_CAP),
-      attackRadius: BASE_ATTACK_RADIUS *
-        Math.min(1 + (difficulty - 1) * 0.25, ATTACK_RADIUS_CAP)
+      playerSpeedMultiplier: BASE_PLAYER_SPEED_MULT,
+      attackCooldown: BASE_ATTACK_COOLDOWN,
+      attackRadius: BASE_ATTACK_RADIUS
     };
   }
 

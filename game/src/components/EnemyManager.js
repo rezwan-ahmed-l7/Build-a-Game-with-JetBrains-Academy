@@ -5,9 +5,9 @@ import { getEnemyWeights, ENEMY_TYPES } from './EnemyTypes.js';
 import { pickWeighted } from '../utils/rng.js';
 
 const SPAWN_INTERVAL = 2.2;
-const MAX_ENEMIES = 12;
+const MAX_ENEMIES = 20;
 const ENEMY_SPEED = 18;
-const SPAWN_RADIUS = 230;
+const SPAWN_RADIUS = 140;
 const SPAWN_RANDOMIZE = 70;
 const SPAWN_IN_DURATION = 0.3;
 const HOVER_AMPLITUDE = 2.5;
@@ -21,8 +21,8 @@ const PLAYER_SAFE_RADIUS = 120;   // enemies don't spawn right on top of the pla
 // small per-frame perturbations; cumulative effect = buzzing.
 const BUZZ_HORIZONTAL_AMP = 3.5;   // sideways sway amplitude (world units)
 const BUZZ_VERTICAL_AMP   = 1.2;   // extra vertical bob on top of hover
-const BUZZ_FREQ_FAST      = 14;    // primary buzz frequency (Hz-ish)
-const BUZZ_FREQ_SLOW      = 5.5;   // secondary slower component
+const BUZZ_FREQ_FAST      = 8;     // primary buzz frequency (Hz-ish) — lowered for CPU
+const BUZZ_FREQ_SLOW      = 3;     // secondary slower component
 const TILT_BANK_MAX       = 0.45;  // how far they bank into turns (radians)
 
 const spawnPoints = [
@@ -40,6 +40,11 @@ export function createEnemyManager(scene, playerGroup, audio = null) {
   // Difficulty-controlled parameters, set externally each frame
   let dynamicSpawnInterval = SPAWN_INTERVAL;
   let dynamicSpeedMultiplier = 1;
+  let isFrozen = false;
+
+  function setFrozen(frozen) {
+    isFrozen = !!frozen;
+  }
   // Avoid rapid-fire spawn SFX when several enemies spawn back-to-back in
   // the same tick. Throttle to one wing-buzz every SPAWN_SOUND_MIN_GAP.
   let lastSpawnSound = -1;
@@ -170,6 +175,33 @@ export function createEnemyManager(scene, playerGroup, audio = null) {
         continue;
       }
 
+      // When frozen, skip movement entirely — enemy stays in place
+      if (isFrozen) {
+        // Apply blue ice tint to indicate frozen state
+        group.traverse((child) => {
+          if (child.isMesh && child.material) {
+            if (!child.material.userData.originalEmissive) {
+              child.material.userData.originalEmissive = child.material.emissive ? child.material.emissive.getHex() : 0;
+            }
+            if (child.material.emissive) {
+              child.material.emissive.setHex(0x4488ff);
+              child.material.emissiveIntensity = 0.5;
+            }
+          }
+        });
+        continue;
+      } else {
+        // Restore original emissive when unfrozen
+        group.traverse((child) => {
+          if (child.isMesh && child.material && child.material.userData.originalEmissive !== undefined) {
+            if (child.material.emissive) {
+              child.material.emissive.setHex(child.material.userData.originalEmissive);
+              child.material.emissiveIntensity = 1;
+            }
+          }
+        });
+      }
+
       const dx = playerGroup.position.x - group.position.x;
       const dy = playerGroup.position.y - group.position.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
@@ -189,6 +221,16 @@ export function createEnemyManager(scene, playerGroup, audio = null) {
         // (if we add it later) still sees the un-jittered target.
         enemy.desiredX += dirX * speed * delta;
         enemy.desiredY += dirY * speed * delta;
+
+        // Clamp desired position so the enemy doesn't overshoot past the player.
+        // Once it reaches the player's position, stop accumulating.
+        const toPlayerX = playerGroup.position.x - enemy.desiredX;
+        const toPlayerY = playerGroup.position.y - enemy.desiredY;
+        const dot = dirX * toPlayerX + dirY * toPlayerY;
+        if (dot < 0) {
+          enemy.desiredX = playerGroup.position.x;
+          enemy.desiredY = playerGroup.position.y;
+        }
 
         // "Jhatka" — perpendicular sway that makes the enemy look like a
         // real insect, not a smooth slider. Use two sin waves at
@@ -277,6 +319,7 @@ export function createEnemyManager(scene, playerGroup, audio = null) {
     setSpawnInterval,
     setSpeedMultiplier,
     setDifficulty,
+    setFrozen,
     damageEnemy(index, n = 1) {
       const e = enemies[index];
       if (!e) return null;

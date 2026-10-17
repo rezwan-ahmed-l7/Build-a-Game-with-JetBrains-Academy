@@ -5,9 +5,33 @@ import { GameState } from './GameState.js';
 import { load, save } from '../utils/persistence.js';
 import { isTouchDevice } from '../utils/dom.js';
 
-const SCORE_PER_SECOND = 1;
+const SCORE_PER_SECOND = 3;
 const SCORE_PER_KILL = 15;
 const COMBO_WINDOW = 1.5; // kept here as reference; Combo owns the actual window
+
+// Level thresholds — progressive difficulty scaling.
+// Level 1: 0-1000, Level 2: 1001-2500, Level 3: 2501-5000, Level 4: 5001-8500, ...
+export const LEVEL_THRESHOLDS = [0, 1000, 2500, 5000, 8500, 13000, 18500, 25000, 32500, 41000];
+
+export function getLevel(score) {
+  // Find the highest threshold the score has reached.
+  let level = 1;
+  for (let i = LEVEL_THRESHOLDS.length - 1; i >= 0; i--) {
+    if (score >= LEVEL_THRESHOLDS[i]) {
+      level = i + 1;
+      break;
+    }
+  }
+  return level;
+}
+
+export function getNextLevelScore() {
+  // Return the score needed for the next level, or null if max level reached.
+  if (LEVEL_THRESHOLDS.length > 0) {
+    return LEVEL_THRESHOLDS[LEVEL_THRESHOLDS.length - 1] + 10000; // extrapolate
+  }
+  return null;
+}
 
 // Whether this device is a touchscreen. The game-over panel adapts:
 // keyboard users see "Press Space to restart", touch users see a visible
@@ -50,23 +74,38 @@ export function createScore({ submitter = null } = {}) {
   el.textContent = 'Score: 0';
   document.body.appendChild(el);
 
+  // Level badge, positioned to the right of the score chip
+  const levelEl = document.createElement('div');
+  levelEl.className = 'level-badge';
+  levelEl.textContent = 'Lv. 1';
+  document.body.appendChild(levelEl);
+
   // Combo chip, hidden by default; positioned just below score
   const comboEl = document.createElement('div');
   comboEl.className = 'combo-chip';
   comboEl.style.display = 'none';
   document.body.appendChild(comboEl);
 
-  // Hearts row, top-left
+  // Hearts row, top-left — dynamically created based on max HP
   const heartsEl = document.createElement('div');
   heartsEl.className = 'hearts';
   document.body.appendChild(heartsEl);
   const heartNodes = [];
-  for (let i = 0; i < 3; i++) {
-    const h = document.createElement('span');
-    h.className = 'heart';
-    h.textContent = '\u2665';
-    heartsEl.appendChild(h);
-    heartNodes.push(h);
+
+  function syncHeartNodes(max) {
+    // Remove excess hearts
+    while (heartNodes.length > max) {
+      const node = heartNodes.pop();
+      heartsEl.removeChild(node);
+    }
+    // Add missing hearts
+    while (heartNodes.length < max) {
+      const h = document.createElement('span');
+      h.className = 'heart';
+      h.textContent = '\u2665';
+      heartsEl.appendChild(h);
+      heartNodes.push(h);
+    }
   }
 
   // Game-over overlay. The panel carries an `is-touch` class on
@@ -84,6 +123,7 @@ export function createScore({ submitter = null } = {}) {
       <hr class="game-over-divider" />
       <div class="game-over-stats">
         <span class="label">Score</span><span class="value final-score-value">0</span>
+        <span class="label">Level</span><span class="value final-level-value">1</span>
         <span class="label">Best</span><span class="value dim high-score-value">0</span>
       </div>
       <p class="new-best" style="display:none">\u2728 New best!</p>
@@ -93,6 +133,7 @@ export function createScore({ submitter = null } = {}) {
   `;
   document.body.appendChild(gameOverEl);
   const finalScoreEl = gameOverEl.querySelector('.final-score-value');
+  const finalLevelEl = gameOverEl.querySelector('.final-level-value');
   const highScoreEl = gameOverEl.querySelector('.high-score-value');
   const newBestEl = gameOverEl.querySelector('.new-best');
   const rankEl = document.createElement('p');
@@ -108,7 +149,18 @@ export function createScore({ submitter = null } = {}) {
     if (typeof onRestartRef === 'function') onRestartRef();
   });
 
+  // Keyboard shortcut: Enter restarts when game-over is visible.
+  window.addEventListener('keydown', (e) => {
+    if (e.repeat) return;
+    if (gameOverEl.style.display !== 'none' && e.code === 'Enter') {
+      e.preventDefault();
+      if (typeof onRestartRef === 'function') onRestartRef();
+    }
+  });
+
   function setHearts(hp, max) {
+    // Dynamically adjust heart nodes to match max HP
+    syncHeartNodes(max);
     for (let i = 0; i < heartNodes.length; i++) {
       const node = heartNodes[i];
       if (i < max) {
@@ -146,11 +198,22 @@ export function createScore({ submitter = null } = {}) {
     el.classList.add('bump-kill');
   }
 
+  let lastLevelDisplayed = 0;
+
   function render() {
     const display = Math.floor(score);
     if (display !== lastScoreDisplayed) {
       el.textContent = `Score: ${display}`;
       lastScoreDisplayed = display;
+    }
+    // Update level badge when level changes
+    const currentLevel = getLevel(display);
+    if (currentLevel !== lastLevelDisplayed) {
+      levelEl.textContent = `Lv. ${currentLevel}`;
+      levelEl.classList.remove('bump-level');
+      void levelEl.offsetWidth;
+      levelEl.classList.add('bump-level');
+      lastLevelDisplayed = currentLevel;
     }
     if (combo !== lastComboDisplayed || (combo > 1) !== (lastComboDisplayed > 1)) {
       if (combo > 1) {
@@ -180,7 +243,9 @@ export function createScore({ submitter = null } = {}) {
   }
 
   function showGameOver() {
+    console.log('[Score] showGameOver called, score:', score);
     const display = Math.floor(score);
+    const finalLevel = getLevel(display);
     const prevBest = Math.floor(highScore);
     const isNewBest = score > highScore;
     if (isNewBest) {
@@ -188,19 +253,33 @@ export function createScore({ submitter = null } = {}) {
       save('highScore', Math.floor(highScore));
     }
     // Submit to the leaderboard through the abstraction the caller
-    // injected. If the submitter isn't provided (legacy wiring), we
-    // still get the existing local highScore path.
+    // injected. The submitter is now async (JSONBin.io cloud storage).
+    // We fire-and-forget here so the game-over UI appears immediately;
+    // the rank will be shown once the promise resolves.
     if (typeof submitter === 'function') {
-      try {
-        const result = submitter({ score, ts: Date.now() });
+      console.log('[Score] Submitter function exists, calling...');
+      submitter({ score, ts: Date.now() }).then((result) => {
+        console.log('[Score] Submitter result:', result);
         lastRank = (result && Number.isInteger(result)) ? result : null;
-      } catch {
+        if (lastRank) {
+          rankEl.textContent = `You placed #${lastRank} on the leaderboard!`;
+          rankEl.style.display = '';
+        } else {
+          rankEl.textContent = '';
+          rankEl.style.display = 'none';
+        }
+      }).catch((err) => {
+        console.error('[Score] Submitter error:', err);
         lastRank = null;
-      }
+        rankEl.textContent = '';
+        rankEl.style.display = 'none';
+      });
     } else {
+      console.warn('[Score] No submitter function provided!');
       lastRank = null;
     }
     finalScoreEl.textContent = display;
+    finalLevelEl.textContent = finalLevel;
     highScoreEl.textContent = Math.floor(highScore);
     if (isNewBest) {
       newBestEl.style.display = '';
@@ -230,18 +309,20 @@ export function createScore({ submitter = null } = {}) {
     lastScoreDisplayed = -1;
     lastComboDisplayed = -1;
     lastComboFading = false;
+    lastLevelDisplayed = 0;
     lastHeartsHp = 3;
     lastHeartsMax = 3;
     lastRank = null;
     el.textContent = 'Score: 0';
     el.classList.remove('bump-kill');
+    levelEl.textContent = 'Lv. 1';
     comboEl.style.display = 'none';
     comboEl.classList.remove('flash', 'fade-out');
     rankEl.style.display = 'none';
     for (const node of heartNodes) {
       node.classList.remove('lost', 'empty');
     }
-    setHearts(3, 3);
+    // Hearts will be set by GameManager.applyLevelStats() based on level
   }
 
   function getScore() { return score; }

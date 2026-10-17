@@ -233,8 +233,9 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup) {
       offsetX: randomRange(-900, 900),
       offsetY: randomRange(-900, 900),   // both sides now
       height: randomRange(170, 340),
-      // Slow drift — visible motion, but not rushing across the sky.
+      // Slow drift on both axes — visible motion, but not rushing across the sky.
       drift: randomRange(0.35, 0.95),
+      driftX: randomRange(0.2, 0.6),
       // Each cloud has a unique phase so they don't all drift in lockstep.
       phase: randomRange(0, Math.PI * 2),
       material: cloudMaterial,
@@ -383,9 +384,9 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup) {
     sunHaloMid.visible = sun.visible;
     sunHaloOuter.visible = sun.visible;
     sunFlare.visible = sun.visible;
-    // Halos intensify near the horizon (dusk)
-    const sunHorizonGlow = 1 - Math.abs(dayFactor - 0.5) * 1.4;
-    sunHaloInner.material.opacity = 0.50 * Math.max(0, sunHorizonGlow);
+    // Halos intensify at sunrise/sunset (horizon), fade at noon/midnight
+    const sunHorizonGlow = 1 - Math.abs(dayFactor - 0.25) * 2.0;
+    sunHaloInner.material.opacity = 0.50 * Math.max(0, Math.min(1, sunHorizonGlow));
     sunHaloMid.material.opacity = 0.25 * Math.max(0, sunHorizonGlow);
     sunHaloOuter.material.opacity = 0.12 * Math.max(0, sunHorizonGlow);
     sunFlare.material.opacity = 0.40 * Math.max(0, sunHorizonGlow);
@@ -404,30 +405,36 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup) {
     // Star coordinates are local offsets, so only move the Points object with the player.
     stars.position.set(px, py, 0);
 
-    const fireflyAttr = fireflyGeometry.getAttribute('position');
-    for (let i = 0; i < FIREFLY_COUNT; i++) {
-      const offset = fireflyOffsets[i];
-      fireflyAttr.array[i * 3] = px + Math.cos(elapsed * 0.23 + offset) * (100 + (i % 7) * 23);
-      fireflyAttr.array[i * 3 + 1] = py + Math.sin(elapsed * 0.19 + offset) * (90 + (i % 5) * 25);
-      fireflyAttr.array[i * 3 + 2] = 8 + (Math.sin(elapsed * 1.6 + offset) + 1) * 22;
+    // Fireflies only update when visible to save GPU bandwidth
+    if (dayFactor < 0.58) {
+      const fireflyAttr = fireflyGeometry.getAttribute('position');
+      for (let i = 0; i < FIREFLY_COUNT; i++) {
+        const offset = fireflyOffsets[i];
+        fireflyAttr.array[i * 3] = px + Math.cos(elapsed * 0.23 + offset) * (100 + (i % 7) * 23);
+        fireflyAttr.array[i * 3 + 1] = py + Math.sin(elapsed * 0.19 + offset) * (90 + (i % 5) * 25);
+        fireflyAttr.array[i * 3 + 2] = 8 + (Math.sin(elapsed * 1.6 + offset) + 1) * 22;
+      }
+      fireflyAttr.needsUpdate = true;
     }
-    fireflyAttr.needsUpdate = true;
     fireflies.visible = dayFactor < 0.58;
     fireflyMaterial.opacity = Math.max(0, (0.58 - dayFactor) / 0.58) * (0.7 + Math.sin(elapsed * 3) * 0.22);
     fireflyMaterial.size = 3.2 + Math.sin(elapsed * 2.6) * 0.7;
 
     for (const cloud of clouds) {
       const data = cloud.userData;
-      // Slow, unique drift per cloud. We mod the world-Y position by a
-      // large loop distance so clouds re-enter from the opposite edge
-      // instead of racing off forever — gives a continuous sky full of
-      // clouds without unbounded world growth.
+      // Slow, unique drift per cloud on both X and Y axes so the drift
+      // looks natural from any camera angle. We mod both axes by a large
+      // loop distance so clouds re-enter from the opposite edge instead
+      // of racing off forever — gives a continuous sky full of clouds
+      // without unbounded world growth.
       const LOOP = 2000;
+      const xWorld = px + data.offsetX + elapsed * data.driftX;
+      const xWrapped = ((xWorld + LOOP) % LOOP) - LOOP / 2;
       const yWorld = py + data.offsetY + elapsed * data.drift;
       const yWrapped = ((yWorld + LOOP) % LOOP) - LOOP / 2;
       const xWobble = Math.sin(elapsed * 0.04 + data.phase) * 18;
       cloud.position.set(
-        px + data.offsetX + xWobble,
+        xWrapped + xWobble,
         py + yWrapped,
         pz + data.height
       );

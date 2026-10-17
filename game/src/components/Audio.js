@@ -109,6 +109,8 @@ export function createAudio() {
                     attack: 0.001, decay: 0.18, gain: 0.22 }),
     powerUp: build({ type: 'triangle', freq: 440, freqEnd: 880, dur: 0.45,
                      attack: 0.005, decay: 0.45, gain: 0.20 }),
+    levelUp: build({ type: 'sine', freq: 523, freqEnd: 1046, dur: 0.6,
+                     attack: 0.005, decay: 0.6, gain: 0.25 }),
     death: build({ type: 'sawtooth', freq: 220, freqEnd: 40, dur: 0.9,
                    attack: 0.01, decay: 0.9, gain: 0.32,
                    noise: 0.12, filterFreq: 800 }),
@@ -181,9 +183,10 @@ export function createAudio() {
       ambientNodes.push(o, lfo);
     });
 
-    // Arpeggio: pluck each chord note every 350ms in sequence.
+    // Arpeggio: pluck each chord note every 380ms in sequence using
+    // setTimeout chain instead of setInterval — survives tab throttling.
     let arpStep = 0;
-    arpTimer = setInterval(() => {
+    function arpTick() {
       if (!ctx) return;
       const f = chord[arpStep % chord.length] * 2; // one octave up
       const o = ctx.createOscillator();
@@ -198,7 +201,9 @@ export function createAudio() {
       o.start(t0);
       o.stop(t0 + 0.55);
       arpStep++;
-    }, 380);
+      arpTimer = setTimeout(arpTick, 380);
+    }
+    arpTimer = setTimeout(arpTick, 380);
   }
 
   function startAmbient() {
@@ -210,7 +215,9 @@ export function createAudio() {
     if (ctx.state === 'suspended') {
       ctx.resume().then(() => {
         if (ctx && ctx.state === 'running') buildAmbientGraph();
-      }).catch(() => {});
+      }).catch((err) => {
+        console.warn('Failed to resume AudioContext (user gesture may be required):', err);
+      });
     } else {
       buildAmbientGraph();
     }
@@ -221,7 +228,7 @@ export function createAudio() {
     ambientNodes.forEach((n) => { try { n.stop(); } catch {} });
     ambientNodes = null;
     if (arpTimer) {
-      clearInterval(arpTimer);
+      clearTimeout(arpTimer);
       arpTimer = null;
     }
   }
@@ -245,6 +252,7 @@ export function createAudio() {
     playHurt: () => safePlay(sfx.hurt),
     playPickup: () => safePlay(sfx.pickup),
     playPowerUp: () => safePlay(sfx.powerUp),
+    playLevelUp: () => safePlay(sfx.levelUp),
     playDeath: () => safePlay(sfx.death),
     playDash: () => safePlay(sfx.dash),
     playMenuClick: () => safePlay(sfx.menuClick),

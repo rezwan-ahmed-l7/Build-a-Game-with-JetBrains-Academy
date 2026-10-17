@@ -18,7 +18,7 @@ import {
   ENEMY_COLLISION_RADIUS
 } from './components/Collision.js';
 import { createAttack } from './components/Attack.js';
-import { createScore } from './components/Score.js';
+import { createScore, getLevel } from './components/Score.js';
 import { getEffectiveProfile } from './components/Profile.js';
 import { submitScore as leaderboardSubmit } from './components/Leaderboard.js';
 import { createDifficulty } from './components/Difficulty.js';
@@ -218,15 +218,17 @@ const movement = createMovement(
 // Score / Health / Combo / Difficulty
 // `submitScore` is the single swap-point for a future backend. It reads
 // the current profile (or falls back to Anonymous + frog emoji) and
-// hands the entry to the Leaderboard. To go from local-only to a real
-// server, replace the body with a fetch() — nothing else changes.
-function submitScore({ score: s, ts }) {
+// hands the entry to the Leaderboard. The leaderboard now uses JSONBin.io
+// for cloud storage — any device can read/write scores. Falls back to
+// localStorage if network is unavailable.
+async function submitScore({ score: s, ts }) {
+  console.log('[main] submitScore called, score:', s);
   const profile = getEffectiveProfile();
+  console.log('[main] Profile:', profile);
   const entry = { name: profile.name, flag: profile.flag, score: s, ts: ts || Date.now() };
-  // v1: local-only leaderboard.
-  const rank = leaderboardSubmit(entry);
-  // v2 (ready to enable when a backend is stood up):
-  //   fetch('/api/scores', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(entry) })
+  console.log('[main] Submitting entry:', entry);
+  const rank = await leaderboardSubmit(entry);
+  console.log('[main] Leaderboard rank:', rank);
   return rank;
 }
 const score = createScore({ submitter: submitScore });
@@ -317,6 +319,11 @@ window.addEventListener('keydown', (e) => {
   if (e.repeat) return;
   if (e.code === 'Space') {
     e.preventDefault();
+    if (gameManager.isPlaying()) {
+      attack.attack(performance.now());
+    }
+  } else if (e.code === 'Enter') {
+    e.preventDefault();
     if (gameManager.isMenu()) {
       gameManager.startGame();
       return;
@@ -324,9 +331,6 @@ window.addEventListener('keydown', (e) => {
     if (gameManager.isGameOver()) {
       gameManager.resetGame();
       return;
-    }
-    if (gameManager.isPlaying()) {
-      attack.attack(performance.now());
     }
   } else if (e.code === 'Escape' || e.code === 'KeyP') {
     if (gameManager.isPlaying() || gameManager.isPaused()) {
@@ -402,21 +406,55 @@ function animate(currentTime) {
     enemyManager.setSpawnInterval(d.spawnInterval);
     enemyManager.setSpeedMultiplier(d.enemySpeed / 16);
     enemyManager.setDifficulty(d.difficulty);
-    attack.setCooldown(d.attackCooldown);
-    attack.setRadius(d.attackRadius);
 
+    // Level detection — check if score crossed into a new level
+    const displayScore = Math.floor(score.getScore());
+    const newLevel = getLevel(displayScore);
+    if (newLevel > gameManager.getCurrentLevel()) {
+      gameManager.triggerLevelUp(newLevel);
+    }
+
+    // Speed boost timer
     if (gameManager.getSpeedBoostRemaining() > 0) {
       gameManager.setSpeedBoostTimer(Math.max(0, gameManager.getSpeedBoostRemaining() - delta));
-      movement.setSpeedMultiplier(gameManager.getSpeedBoostRemaining() > 0 ? gameManager.SPEED_BOOST_MULT : 1);
+      movement.setSpeedMultiplier(gameManager.SPEED_BOOST_MULT);
+    } else {
+      // Restore level-based speed when boost expires
+      const lvl = gameManager.getCurrentLevel();
+      const levelSpeed = gameManager.LEVEL_STATS[lvl] ? gameManager.LEVEL_STATS[lvl].moveSpeedMult : 1.0;
+      movement.setSpeedMultiplier(levelSpeed);
     }
 
     // Long-attack boost: tick down the timer and re-apply the boosted
     // radius AFTER the difficulty set so it never desyncs.
     if (gameManager.getAttackBoostRemaining() > 0) {
       gameManager.setAttackBoostTimer(Math.max(0, gameManager.getAttackBoostRemaining() - delta));
-      if (gameManager.getAttackBoostRemaining() > 0) {
-        attack.setRadius(gameManager.getBoostedAttackRadius());
-      }
+      attack.setRadius(gameManager.getBoostedAttackRadius());
+    } else {
+      // Restore base attack radius when boost expires
+      const lvl = gameManager.getCurrentLevel();
+      const baseRadius = gameManager.BASE_ATTACK_RADIUS;
+      attack.setRadius(baseRadius);
+    }
+
+    // Shield timer
+    if (gameManager.getShieldRemaining() > 0) {
+      gameManager.setShieldTimer(Math.max(0, gameManager.getShieldRemaining() - delta));
+    }
+
+    // Double attack timer
+    if (gameManager.getDoubleAttackRemaining() > 0) {
+      gameManager.setDoubleAttackTimer(Math.max(0, gameManager.getDoubleAttackRemaining() - delta));
+    }
+
+    // Magnet timer — auto-pull power-ups toward player
+    if (gameManager.getMagnetRemaining() > 0) {
+      gameManager.setMagnetTimer(Math.max(0, gameManager.getMagnetRemaining() - delta));
+    }
+
+    // Freeze timer — pause enemy movement
+    if (gameManager.getFreezeRemaining() > 0) {
+      gameManager.setFreezeTimer(Math.max(0, gameManager.getFreezeRemaining() - delta));
     }
 
     movement.update(effectiveDelta);
@@ -426,6 +464,8 @@ function animate(currentTime) {
     movement.applySquashStretch();
     player.setMoving(movement.isCurrentlyMoving());
 
+    // Apply freeze to enemies
+    enemyManager.setFrozen(gameManager.getFreezeRemaining() > 0);
     enemyManager.update(effectiveDelta, currentTime / 1000);
 
     // Footstep dust when moving on the ground
@@ -445,7 +485,7 @@ function animate(currentTime) {
     combo.update(delta);
     gameManager.tickComboHud();
 
-    powerUps.update(delta, currentTime / 1000, gameManager.onPowerUpPickup);
+    powerUps.update(delta, currentTime / 1000, gameManager.onPowerUpPickup, gameManager.getMagnetRemaining() > 0);
     score.tick(delta);
     score.render();
   } else if (gameManager.currentState() === GameState.PAUSED) {
@@ -496,8 +536,18 @@ function animate(currentTime) {
   }
   const shake = screenShake.getIntensity();
   if (shake > 0) {
-    const off = screenShake.update(delta, camera.position);
-    camera.position.add(off);
+    const off = screenShake.update(delta, null);
+    const savedX = camera.position.x;
+    const savedY = camera.position.y;
+    const savedZ = camera.position.z;
+    camera.position.x += off.x;
+    camera.position.y += off.y;
+    camera.position.z += off.z;
+    renderer.render(scene, camera);
+    camera.position.x = savedX;
+    camera.position.y = savedY;
+    camera.position.z = savedZ;
+    return;
   }
   renderer.render(scene, camera);
 }

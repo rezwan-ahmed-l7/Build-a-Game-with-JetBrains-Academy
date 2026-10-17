@@ -417,18 +417,18 @@ export function createMenus({ onStart, onResume, onRestart, onTogglePause, onTog
     return Object.assign(backdrop, { prefill });
   }
 
-  function renderLeaderboardInto(target, rankEl, playCounterEl) {
+  async function renderLeaderboardInto(target, rankEl, playCounterEl) {
     if (!target) return;
     clear(target);
-    const top = getTop();
+    const top = await getTop();
     // Update the community play counter on every re-render. Hidden
     // until the count is > 0 — never shows "0 players have tried".
     if (playCounterEl) {
-      const attempts = getAttempts();
+      const attempts = await getAttempts();
       if (attempts > 0) {
         const formatted = attempts.toLocaleString('en-US');
-        const noun = attempts === 1 ? 'player has' : 'players have';
-        playCounterEl.textContent = `${formatted} ${noun} tried Tode the Frog`;
+        const noun = attempts === 1 ? 'game played' : 'games played';
+        playCounterEl.textContent = `${formatted} ${noun} on Tode the Frog`;
         playCounterEl.style.display = '';
       } else {
         playCounterEl.textContent = '';

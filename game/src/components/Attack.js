@@ -23,9 +23,18 @@ export function createAttack(scene, playerGroup, enemyManager, callbacks = {}) {
 
   let cooldown = BASE_ATTACK_COOLDOWN;
   let radius = BASE_ATTACK_RADIUS;
+  let damage = 1;
 
   function setCooldown(value) {
     cooldown = value;
+  }
+
+  function setDamage(value) {
+    damage = Math.max(1, Math.floor(value));
+  }
+
+  function getDamage() {
+    return damage;
   }
 
   function setRadius(value) {
@@ -113,14 +122,10 @@ export function createAttack(scene, playerGroup, enemyManager, callbacks = {}) {
         // Damage; if HP drops to 0, kill (plays death anim).
         // EnemyManager exposes wrapper records, so apply damage through its API.
         const damagedEnemy = typeof enemyManager.damageEnemy === 'function'
-          ? enemyManager.damageEnemy(i, 1)
+          ? enemyManager.damageEnemy(i, damage)
           : enemy;
         if (!damagedEnemy) continue;
 
-        // Legacy direct enemy objects expose damageHp; manager records have hp.
-        if (typeof damagedEnemy.damageHp === 'function') {
-          damagedEnemy.damageHp(1);
-        }
         onHit(damagedEnemy, enemyPos);
         if (damagedEnemy.hp <= 0 || (typeof damagedEnemy.damageHp === 'function' && damagedEnemy.getHp?.() <= 0)) {
           enemyManager.killEnemy(i);
@@ -157,6 +162,8 @@ export function createAttack(scene, playerGroup, enemyManager, callbacks = {}) {
     updateVisual,
     getHitStopDelta,
     setCooldown,
+    setDamage,
+    getDamage,
     setRadius,
     getRadius
   };

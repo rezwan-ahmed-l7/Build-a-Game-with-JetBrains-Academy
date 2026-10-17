@@ -11,7 +11,7 @@ import * as THREE from 'three';
 
 const DASH_DURATION_MS = 220;
 const DASH_SPEED = 360;
-const DASH_COOLDOWN_MS = 1100;
+let DASH_COOLDOWN_MS = 1100; // default, can be changed by setCooldown()
 const I_FRAME_DURATION_MS = 280;
 const DASH_BLINK_INTERVAL_MS = 50;
 
@@ -30,6 +30,9 @@ export function createDash(playerGroup, camera, getInputDirection, applyDisplace
 
   function tryStart() {
     if (now() < cooldownUntilMs) return false;
+    // Don't start a new dash while already dashing — avoids conflicting
+    // with the active dash direction and movement queue.
+    if (dashRemainingMs > 0) return false;
     dirX = 0;
     dirY = 0;
     const inputDir = getInputDirection();
@@ -100,6 +103,10 @@ export function createDash(playerGroup, camera, getInputDirection, applyDisplace
     }
   }
 
+  function setCooldown(ms) {
+    DASH_COOLDOWN_MS = Math.max(500, Math.floor(ms));
+  }
+
   function isDashing() { return dashRemainingMs > 0; }
   function isInvulnerable() { return now() < iFramesUntilMs; }
   function getCooldown() {
@@ -123,5 +130,5 @@ export function createDash(playerGroup, camera, getInputDirection, applyDisplace
   }
 
   return { tryStart, update, isDashing, isInvulnerable,
-           getCooldown, getCooldownMax, cancel, reset };
+           getCooldown, getCooldownMax, setCooldown, cancel, reset };
 }

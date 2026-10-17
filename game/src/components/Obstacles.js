@@ -5,12 +5,12 @@ import { mulberry32 } from '../utils/rng.js';
 // Layout counts. Tuned for a forest you can SEE from the player but
 // not run into every two steps. We bias placement to the outer ring so
 // the immediate play area stays open and the trees form a horizon line.
-const TREE_COUNT = 360;          // a healthy forest, distributed over a wide area
-const BUSH_COUNT = 90;
+const TREE_COUNT = 180;          // balanced forest — fewer trees for better performance
+const BUSH_COUNT = 50;
 const BIG_ROCK_COUNT = 28;
 const SMALL_ROCK_COUNT = 40;
 const STUMP_COUNT = 14;
-const GRASS_TUFT_COUNT = 180;
+const GRASS_TUFT_COUNT = 90;
 const MUSHROOM_COUNT = 30;
 const LILY_PAD_COUNT = 9;        // around the pond
 const POND_COUNT = 3;            // multiple ponds scattered across the meadow
@@ -751,7 +751,7 @@ export function createObstacles(scene) {
       ? makeBroadleafTree(rand)
       : makePineTree(rand);
     // Combine: keep clear of player spawn, of pond water, and of other trees.
-    const avoid = [...playerAvoid, ...pondAvoid, ...placed];
+    const avoid = playerAvoid.concat(pondAvoid, placed);
     const pos = placeTree(rand, avoid, TREE_SPACING_MIN);
     placed.push(pos);
     group.position.x = pos.x;
@@ -768,7 +768,7 @@ export function createObstacles(scene) {
   // ----- Bushes (low, dense, non-colliding) -----
   for (let i = 0; i < BUSH_COUNT; i++) {
     const { group } = makeBush(rand);
-    const avoid = [...playerAvoid, ...pondAvoid, ...placed];
+    const avoid = playerAvoid.concat(pondAvoid, placed);
     const pos = placeRandomlyWithRadii(rand, avoid, 7);
     placed.push(pos);
     group.position.x = pos.x;
@@ -781,7 +781,7 @@ export function createObstacles(scene) {
   // ----- Big boulders (with moss cap) -----
   for (let i = 0; i < BIG_ROCK_COUNT; i++) {
     const { group, size } = makeBigRock(rand);
-    const avoid = [...playerAvoid, ...pondAvoid, ...placed];
+    const avoid = playerAvoid.concat(pondAvoid, placed);
     const pos = placeRandomlyWithRadii(rand, avoid, 22);
     placed.push(pos);
     group.position.x = pos.x;
@@ -798,7 +798,7 @@ export function createObstacles(scene) {
   // ----- Small pebbles (no collision) -----
   for (let i = 0; i < SMALL_ROCK_COUNT; i++) {
     const { mesh } = makeSmallRock(rand);
-    const avoid = [...playerAvoid, ...pondAvoid, ...placed];
+    const avoid = playerAvoid.concat(pondAvoid, placed);
     const pos = placeRandomlyWithRadii(rand, avoid, 5);
     placed.push(pos);
     mesh.position.x = pos.x;
@@ -811,7 +811,7 @@ export function createObstacles(scene) {
   // ----- Stumps -----
   for (let i = 0; i < STUMP_COUNT; i++) {
     const { group, size } = makeStump(rand);
-    const avoid = [...playerAvoid, ...pondAvoid, ...placed];
+    const avoid = playerAvoid.concat(pondAvoid, placed);
     const pos = placeRandomlyWithRadii(rand, avoid, 18);
     placed.push(pos);
     group.position.x = pos.x;
@@ -828,7 +828,7 @@ export function createObstacles(scene) {
   // ----- Grass tufts (decorative) -----
   for (let i = 0; i < GRASS_TUFT_COUNT; i++) {
     const group = makeGrassTuft(rand);
-    const avoid = [...playerAvoid, ...pondAvoid, ...placed];
+    const avoid = playerAvoid.concat(pondAvoid, placed);
     const pos = placeRandomlyWithRadii(rand, avoid, 4);
     group.position.x = pos.x;
     group.position.y = pos.y;
@@ -840,7 +840,7 @@ export function createObstacles(scene) {
   // ----- Mushroom clusters (bioluminescent) -----
   for (let i = 0; i < MUSHROOM_COUNT; i++) {
     const cluster = makeMushroomCluster(rand);
-    const avoid = [...playerAvoid, ...pondAvoid, ...placed];
+    const avoid = playerAvoid.concat(pondAvoid, placed);
     const pos = placeRandomlyWithRadii(rand, avoid, 12);
     placed.push(pos);
     cluster.position.set(pos.x, pos.y, 0);
@@ -852,7 +852,7 @@ export function createObstacles(scene) {
   const housePositions = [];
   const houseLoader = new GLTFLoader();
   for (let i = 0; i < HOUSE_COUNT; i++) {
-    const avoid = [...playerAvoid, ...pondAvoid, ...placed];
+    const avoid = playerAvoid.concat(pondAvoid, placed);
     const pos = placeRandomlyWithRadii(rand, avoid, 60);
     placed.push(pos);
     housePositions.push(pos);

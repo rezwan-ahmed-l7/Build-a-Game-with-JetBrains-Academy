@@ -5,12 +5,32 @@ import * as THREE from 'three';
 import { createPowerUp, POWERUP_TYPES } from './PowerUp.js';
 
 const PICKUP_RADIUS = 22;
-const SPAWN_RADIUS = 280;
+const SPAWN_RADIUS = 120;
 
 export function createPowerUpManager(scene, playerGroup) {
   const active = [];
   let nextSpawnIn = 8; // first one is quick so the player sees it
   let elapsed = 0;
+  let currentLevel = 1;
+
+  function setLevel(level) {
+    currentLevel = level;
+  }
+
+  function pickType() {
+    // Weighted spawn — cumulative, level-aware
+    // Base weights: heal 35%, score 20%, attack 15%, speed 10% = 80%
+    // New types fill the remaining 20% based on level unlock
+    const r = Math.random();
+    if (currentLevel >= 9 && r < 0.02) return 'freeze';
+    if (currentLevel >= 7 && r < 0.05) return 'magnet';
+    if (currentLevel >= 5 && r < 0.10) return 'doubleAttack';
+    if (currentLevel >= 3 && r < 0.15) return 'shield';
+    if (r < 0.50) return 'heal';
+    if (r < 0.70) return 'score';
+    if (r < 0.85) return 'attack';
+    return 'speed';
+  }
 
   function spawn() {
     // Random angle & radius; never on top of the player.
@@ -19,23 +39,17 @@ export function createPowerUpManager(scene, playerGroup) {
     const x = playerGroup.position.x + Math.cos(angle) * r;
     const y = playerGroup.position.y + Math.sin(angle) * r;
 
-    // Weighted type: heal is most common, score next, attack + speed rare
-    const r2 = Math.random();
-    let type = 'heal';
-    if (r2 > 0.92) type = 'speed';
-    else if (r2 > 0.78) type = 'attack';
-    else if (r2 > 0.55) type = 'score';
-
+    const type = pickType();
     const pu = createPowerUp(type, x, y);
     scene.add(pu.group);
     active.push(pu);
   }
 
-  function update(delta, time, onPickup) {
+  function update(delta, time, onPickup, magnetActive) {
     elapsed += delta;
     nextSpawnIn -= delta;
     if (nextSpawnIn <= 0) {
-      nextSpawnIn = 14 + Math.random() * 8;
+      nextSpawnIn = 10 + Math.random() * 5;
       spawn();
     }
 
@@ -49,15 +63,40 @@ export function createPowerUpManager(scene, playerGroup) {
         continue;
       }
       if (pu.isCollected()) continue;
-      const dx = pu.getPosition().x - playerGroup.position.x;
-      const dy = pu.getPosition().y - playerGroup.position.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist < PICKUP_RADIUS) {
-        pu.markCollected();
-        onPickup(pu.getType(), pu.getPosition());
-        scene.remove(pu.group);
-        pu.dispose();
-        active.splice(i, 1);
+
+      // Magnet: auto-pull power-ups toward player
+      if (magnetActive) {
+        const pos = pu.getPosition();
+        const mdx = playerGroup.position.x - pos.x;
+        const mdy = playerGroup.position.y - pos.y;
+        const mDist = Math.sqrt(mdx * mdx + mdy * mdy);
+        if (mDist > 1) {
+          const pullSpeed = 120 * delta; // units per second
+          const nx = mdx / mDist;
+          const ny = mdy / mDist;
+          pu.group.position.x += nx * pullSpeed;
+          pu.group.position.y += ny * pullSpeed;
+        }
+        // Increase pickup radius when magnet is active
+        if (mDist < PICKUP_RADIUS + 30) {
+          pu.markCollected();
+          onPickup(pu.getType(), pu.getPosition());
+          scene.remove(pu.group);
+          pu.dispose();
+          active.splice(i, 1);
+          continue;
+        }
+      } else {
+        const dx = pu.getPosition().x - playerGroup.position.x;
+        const dy = pu.getPosition().y - playerGroup.position.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < PICKUP_RADIUS) {
+          pu.markCollected();
+          onPickup(pu.getType(), pu.getPosition());
+          scene.remove(pu.group);
+          pu.dispose();
+          active.splice(i, 1);
+        }
       }
     }
   }
@@ -70,5 +109,5 @@ export function createPowerUpManager(scene, playerGroup) {
     active.length = 0;
   }
 
-  return { update, removeAll };
+  return { update, removeAll, setLevel };
 }

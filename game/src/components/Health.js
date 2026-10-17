@@ -48,13 +48,18 @@ export function createHealth(max = 3, invulnDurationMs = 700) {
     notify('reset', { hp, max: max });
   }
 
+  function setMax(value) {
+    max = Math.max(1, Math.floor(value));
+    if (hp > max) hp = max;
+  }
+
   function isInvulnerable() { return now() < invulnUntilMs; }
   function getHp() { return hp; }
   function getMax() { return max; }
   function isDead() { return hp <= 0; }
 
   return {
-    damage, heal, update, reset, onChange,
+    damage, heal, update, reset, onChange, setMax,
     isInvulnerable, getHp, getMax, isDead
   };
 }

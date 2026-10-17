@@ -54,6 +54,9 @@ export function createCameraFollow(camera, playerGroup, canvas) {
 
   function onPointerDown(e) {
     if (canvas && e.target !== canvas) return;
+    // On touch devices, skip camera drag — the virtual joystick handles
+    // movement, and camera drag would conflict with it.
+    if (e.pointerType === 'touch') return;
     beginDrag(e);
   }
   function onPointerMove(e) {
