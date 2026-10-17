@@ -145,7 +145,10 @@ const server = http.createServer(async (req, res) => {
     const incoming = await readBody(req);
     if (!Array.isArray(incoming)) return send(res, 400, { error: 'Expected a leaderboard array' }, origin);
     if (incoming.length > 50) return send(res, 400, { error: 'Too many entries' }, origin);
-    const leaderboard = await writeRecord(cleanBoard(incoming));
+    // Merge rather than replacing the shared board, so a stale browser cannot
+    // accidentally erase entries submitted by other players.
+    const current = await readRecord();
+    const leaderboard = await writeRecord(cleanBoard([...current.leaderboard, ...incoming]));
     return send(res, 200, { leaderboard }, origin);
   } catch (error) {
     const status = error?.message === 'BODY_TOO_LARGE' ? 413 : error instanceof SyntaxError ? 400 : 502;
