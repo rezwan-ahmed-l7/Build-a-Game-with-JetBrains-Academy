@@ -210,7 +210,9 @@ try {
   await page.locator('#menu-pause').waitFor({ state: 'hidden' });
 
   // Pause during an active dash and ensure the player stays still.
-  await page.waitForTimeout(900);
+  // Level 1's dash cooldown is 3 seconds, so don't assume a fixed 900 ms
+  // wait is enough after the earlier dash. Wait for the actual game state.
+  await page.waitForFunction(() => window.__game.dash.getCooldown() <= 0, null, { timeout: 5000 });
   const beforePauseDash = await page.evaluate(() => ({
     x: window.__game.player.group.position.x,
     y: window.__game.player.group.position.y
