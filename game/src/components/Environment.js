@@ -362,14 +362,14 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
     //
     // Distance is large enough that the sun/moon read as far away in the
     // sky, not as nearby objects hovering over the player.
-    const HORIZONTAL_DIST = 480;   // east/west sweep distance from player
+    const HORIZONTAL_DIST = 620;   // wide east/west sweep keeps sun and moon apart
     const MIN_HEIGHT = 110;        // sun/moon height at sunrise/sunset
     const PEAK_HEIGHT = 260;       // sun/moon height at noon/midnight
     // Half-arc for height: reuses sunHeightFrac from above (0 at sunrise,
     // 1 at noon, 0 at sunset) so the arc positioning matches the sky
     // color. Do NOT redeclare sunHeightFrac here.
     const sunX = Math.cos(orbit) * HORIZONTAL_DIST;
-    const sunY = Math.sin(orbit) * 100;
+    const sunY = Math.sin(orbit) * 300;
     const sunZ = MIN_HEIGHT + sunHeightFrac * (PEAK_HEIGHT - MIN_HEIGHT);
     // Moon is "up" during the night portion of the cycle (when sun is low)
     // Keep the moon high when the sun is near the horizon, and low when
@@ -377,7 +377,7 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
     // radians with a cycle offset and produced an unrelated moon arc.
     const moonHeightFrac = 1 - sunHeightFrac;
     const moonX = -Math.cos(orbit) * HORIZONTAL_DIST;
-    const moonY = -Math.sin(orbit) * 100;
+    const moonY = -Math.sin(orbit) * 300;
     const moonZ = MIN_HEIGHT + moonHeightFrac * (PEAK_HEIGHT - MIN_HEIGHT);
 
     if (mode === 'day') {
