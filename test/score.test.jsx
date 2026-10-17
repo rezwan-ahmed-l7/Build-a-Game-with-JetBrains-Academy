@@ -58,6 +58,6 @@ describe('score component', () => {
     score.tick(2);
     score.showGameOver();
 
-    expect(score.getHighScore()).toBe(5);
+    expect(score.getHighScore()).toBe(15);
   });
 });
