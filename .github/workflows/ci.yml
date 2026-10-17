@@ -74,6 +74,19 @@ jobs:
             game/browser-smoke-playing.png
           if-no-files-found: ignore
 
+  gameplay-regressions:
+    name: Gameplay regression tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: game
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --test tests/regressions.test.mjs
+
   game-build:
     name: Build Three.js game
     runs-on: ubuntu-latest
