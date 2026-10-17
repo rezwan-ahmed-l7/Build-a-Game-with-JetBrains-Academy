@@ -289,17 +289,14 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
 
     const wave = (Math.cos(phase * Math.PI * 2) + 1) * 0.5;
     const dayFactor = mode === 'day' ? 1 : mode === 'night' ? 0 : wave;
-    // Dusk factor is driven by the sun's HEIGHT (low sun = orange sky),
-    // not just by mode. This way the sky actually goes orange when the
-    // sun is near the horizon in any mode (auto / day / night), and
-    // returns to blue/night as the sun climbs out of frame.
-    // sunHeightFrac is sin(orbit*π): 0 at sunrise/sunset, 1 at noon.
-    // We invert it so dusk is strong when sun is LOW.
-    const sunHeightFrac = Math.sin(phase * Math.PI);
-    const sunLowFactor = 1 - sunHeightFrac;  // 1 at horizon, 0 at noon
-    // Squash the curve so dusk only shows in the lowest 25% of the arc.
-    // 0..0.25 maps to 0..1 dusk strength; 0.25+ clamps to 0.
-    const duskFactor = Math.max(0, 1 - sunHeightFrac * 4);
+    // Drive the celestial height and lighting from the same normalized cycle.
+    // In auto mode, daylight peaks at phase 0 and night at phase 0.5.
+    // The sun is near the horizon only at the daylight-to-night edges; do
+    // not leave a permanent sunset tint during the full night.
+    const sunHeightFrac = wave;
+    const duskFactor = mode === 'auto' && dayFactor > 0 && dayFactor < 0.25
+      ? 1 - dayFactor / 0.25
+      : 0;
 
     // Base sky color: blend night → day by dayFactor. Then OVERLAY the
     // dusk tint on top so the orange peak shows up in day mode too.
