@@ -49,8 +49,12 @@ export function createHealth(max = 3, invulnDurationMs = 700) {
   }
 
   function setMax(value) {
-    max = Math.max(1, Math.floor(value));
+    const nextMax = Math.max(1, Math.floor(value));
+    if (nextMax === max) return;
+
+    max = nextMax;
     if (hp > max) hp = max;
+    notify('max', { hp, max });
   }
 
   function isInvulnerable() { return now() < invulnUntilMs; }
