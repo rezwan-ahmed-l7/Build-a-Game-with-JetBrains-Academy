@@ -23,13 +23,13 @@ const HOUSE_COUNT = 3;
 // instead of crowding the player's play area.
 const WORLD_RADIUS = 700;
 // Player has a clear arena to move around — no trees, rocks or houses inside.
-const PLAYER_CLEARING_RADIUS = 125;
+const PLAYER_CLEARING_RADIUS = 90;
 // Trees should be a comfortable distance from each other (a real forest
 // has canopy gaps the player can see through).
 const TREE_SPACING_MIN = 22;
 // Inner forest ring — most of the trees live outside this radius so the
 // player can move freely, but they still form a visible forest border.
-const FOREST_INNER_RADIUS = 155;
+const FOREST_INNER_RADIUS = 115;
 // Outer band where 80% of the trees go (creates the horizon forest look).
 const FOREST_OUTER_BIAS = 0.8;
 const CLEARING_RADIUS = 40;
