@@ -352,6 +352,11 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
     const px = playerGroup.position.x;
     const py = playerGroup.position.y;
     const pz = playerGroup.position.z;
+    // Celestial bodies stay world-anchored; only clouds, stars, and fireflies
+    // use player-relative offsets to maintain sky coverage during exploration.
+    const skyOriginX = 0;
+    const skyOriginY = 0;
+    const skyOriginZ = 0;
 
     // Arc parameters — placed so the sun/moon always stay in the sky
     // (never touching the ground) while still arcing visibly across the
@@ -382,16 +387,16 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
       // Day mode also follows an arc — phase=0 is sunrise (horizon left),
       // phase=0.5 is noon (overhead), phase=1 is sunset (horizon right).
       // This way the user actually sees the sun rise and set, not a static sky.
-      sun.position.set(px + sunX, py + sunY, pz + sunZ);
+      sun.position.set(skyOriginX + sunX, skyOriginY + sunY, skyOriginZ + sunZ);
       // Moon stays below the horizon during day — push it underground.
-      moon.position.set(px + moonX, py + moonY, pz - 600);
+      moon.position.set(skyOriginX + moonX, skyOriginY + moonY, skyOriginZ - 600);
     } else if (mode === 'night') {
       // Night mode: phase drives the moon's rise/set, sun goes underground.
-      moon.position.set(px + moonX, py + moonY, pz + moonZ);
-      sun.position.set(px + sunX, py + sunY, pz - 600);
+      moon.position.set(skyOriginX + moonX, skyOriginY + moonY, skyOriginZ + moonZ);
+      sun.position.set(skyOriginX + sunX, skyOriginY + sunY, skyOriginZ - 600);
     } else {
-      sun.position.set(px + sunX, py + sunY, pz + sunZ);
-      moon.position.set(px + moonX, py + moonY, pz + moonZ);
+      sun.position.set(skyOriginX + sunX, skyOriginY + sunY, skyOriginZ + sunZ);
+      moon.position.set(skyOriginX + moonX, skyOriginY + moonY, skyOriginZ + moonZ);
     }
     // Move all halo layers + flares to follow the sun/moon
     sunHaloInner.position.copy(sun.position);
