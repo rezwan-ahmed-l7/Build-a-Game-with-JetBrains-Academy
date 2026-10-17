@@ -35,7 +35,10 @@ import { load, save } from '../utils/persistence.js';
 // 4. Copy the bin ID from the URL (e.g., /b/6360e54a65b57a31e6a94a42)
 // 5. Paste the values below
 //
-const JSONBIN_API_KEY = '$2a$10$JEmUTran3DtFAKce1qSmWu8DKyiD5FADULRM7RnEg0H3N6VcP7NDK';
+// Never ship a JSONBin Master Key in browser code: every visitor can read it.
+// Cloud sync is deliberately disabled until a server-side proxy is configured.
+// The localStorage leaderboard remains fully functional in the meantime.
+const JSONBIN_API_KEY = '';
 const JSONBIN_BIN_ID = '6ad32ef4ffd5d16053730958';
 const JSONBIN_BASE_URL = 'https://api.jsonbin.io/v3';
 
@@ -46,6 +49,7 @@ const CAP = 5;
 // ---- JSONBin.io Cloud Functions ----
 
 async function readFromCloud() {
+  if (!JSONBIN_API_KEY || !JSONBIN_BIN_ID) return null;
   try {
     console.log('[Leaderboard] Reading from JSONBin.io...');
     const response = await fetch(`${JSONBIN_BASE_URL}/b/${JSONBIN_BIN_ID}/latest`, {
@@ -80,6 +84,7 @@ async function readFromCloud() {
 }
 
 async function writeToCloud(board) {
+  if (!JSONBIN_API_KEY || !JSONBIN_BIN_ID) return false;
   try {
     console.log('[Leaderboard] Writing to JSONBin.io...', board.length, 'entries');
     
