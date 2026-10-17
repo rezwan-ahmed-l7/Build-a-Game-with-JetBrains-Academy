@@ -370,7 +370,10 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
     const sunY = Math.sin(orbit) * 100;
     const sunZ = MIN_HEIGHT + sunHeightFrac * (PEAK_HEIGHT - MIN_HEIGHT);
     // Moon is "up" during the night portion of the cycle (when sun is low)
-    const moonHeightFrac = Math.sin((orbit + 1) * Math.PI);
+    // Keep the moon high when the sun is near the horizon, and low when
+    // the sun is near noon. The previous (orbit + 1) * PI expression mixed
+    // radians with a cycle offset and produced an unrelated moon arc.
+    const moonHeightFrac = 1 - sunHeightFrac;
     const moonX = -Math.cos(orbit) * HORIZONTAL_DIST;
     const moonY = -Math.sin(orbit) * 100;
     const moonZ = MIN_HEIGHT + moonHeightFrac * (PEAK_HEIGHT - MIN_HEIGHT);
