@@ -24,114 +24,58 @@
 
 import { load, save } from '../utils/persistence.js';
 
-// ---- JSONBin.io Configuration ----
-// Sign up at https://jsonbin.io (free), create a bin with the leaderboard
-// data, then fill in your API key and bin ID below.
-//
-// To set up:
-// 1. Create a free account at jsonbin.io
-// 2. Go to API Keys page and copy your Master Key
-// 3. Create a new bin with: {"leaderboard": []}
-// 4. Copy the bin ID from the URL (e.g., /b/6360e54a65b57a31e6a94a42)
-// 5. Paste the values below
-//
-// Never ship a JSONBin Master Key in browser code: every visitor can read it.
-// Cloud sync is deliberately disabled until a server-side proxy is configured.
-// The localStorage leaderboard remains fully functional in the meantime.
-const JSONBIN_API_KEY = '';
-const JSONBIN_BIN_ID = '6ad32ef4ffd5d16053730958';
-const JSONBIN_BASE_URL = 'https://api.jsonbin.io/v3';
+// ---- Server-side leaderboard API configuration ----
+// Set VITE_LEADERBOARD_API_URL in the Render Static Site environment.
+// The JSONBin Master Key must only exist on the separate backend service.
+const LEADERBOARD_API_URL = (import.meta.env.VITE_LEADERBOARD_API_URL || '').replace(/\/+$/, '');
 
 // LocalStorage fallback key
 const KEY = 'leaderboard';
 const CAP = 5;
 
-// ---- JSONBin.io Cloud Functions ----
+// ---- Server-side leaderboard API functions ----
 
 async function readFromCloud() {
-  if (!JSONBIN_API_KEY || !JSONBIN_BIN_ID) return null;
+  if (!LEADERBOARD_API_URL) return null;
   try {
-    console.log('[Leaderboard] Reading from JSONBin.io...');
-    const response = await fetch(`${JSONBIN_BASE_URL}/b/${JSONBIN_BIN_ID}/latest`, {
+    const response = await fetch(`${LEADERBOARD_API_URL}/leaderboard`, {
       method: 'GET',
-      headers: {
-        'X-Master-Key': JSONBIN_API_KEY
-      }
+      headers: { 'Accept': 'application/json' },
+      signal: AbortSignal.timeout(10000),
     });
-
-    console.log('[Leaderboard] Read response status:', response.status);
-
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('[Leaderboard] JSONBin read failed:', response.status, errorText);
+      console.error('[Leaderboard] API read failed:', response.status);
       return null;
     }
-
     const data = await response.json();
-    console.log('[Leaderboard] Read data:', data);
-    const raw = data.record?.leaderboard || data.record || [];
+    const raw = data?.leaderboard;
     if (!Array.isArray(raw)) return [];
-    const filtered = raw.filter((e) => e && typeof e === 'object'
-      && typeof e.name === 'string'
-      && typeof e.flag === 'string'
-      && Number.isFinite(e.score));
-    console.log('[Leaderboard] Filtered entries:', filtered.length);
-    return filtered;
+    return raw.filter((entry) => entry && typeof entry === 'object'
+      && typeof entry.name === 'string'
+      && typeof entry.flag === 'string'
+      && Number.isFinite(entry.score));
   } catch (err) {
-    console.error('[Leaderboard] JSONBin network error:', err.message, err);
+    console.error('[Leaderboard] API read error:', err.message);
     return null;
   }
 }
 
 async function writeToCloud(board) {
-  if (!JSONBIN_API_KEY || !JSONBIN_BIN_ID) return false;
+  if (!LEADERBOARD_API_URL) return false;
   try {
-    console.log('[Leaderboard] Writing to JSONBin.io...', board.length, 'entries');
-    
-    // First, read the current bin data to preserve attempts counter
-    const readResponse = await fetch(`${JSONBIN_BASE_URL}/b/${JSONBIN_BIN_ID}/latest`, {
-      method: 'GET',
-      headers: {
-        'X-Master-Key': JSONBIN_API_KEY
-      }
-    });
-    
-    const record = { leaderboard: board };
-    
-    if (readResponse.ok) {
-      const data = await readResponse.json();
-      const currentRecord = data.record || {};
-      // Preserve the attempts counter if it exists, otherwise initialize to 0
-      if (Number.isFinite(currentRecord.attempts)) {
-        record.attempts = currentRecord.attempts;
-      } else {
-        record.attempts = 0;
-      }
-    } else {
-      // If we can't read current data, initialize attempts to 0
-      record.attempts = 0;
-    }
-    
-    const response = await fetch(`${JSONBIN_BASE_URL}/b/${JSONBIN_BIN_ID}`, {
+    const response = await fetch(`${LEADERBOARD_API_URL}/leaderboard`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Master-Key': JSONBIN_API_KEY
-      },
-      body: JSON.stringify(record)
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify(board),
+      signal: AbortSignal.timeout(10000),
     });
-
-    console.log('[Leaderboard] Write response status:', response.status);
-
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('[Leaderboard] JSONBin write failed:', response.status, errorText);
+      console.error('[Leaderboard] API write failed:', response.status);
       return false;
     }
-    console.log('[Leaderboard] Write successful!');
     return true;
   } catch (err) {
-    console.error('[Leaderboard] JSONBin network error:', err.message, err);
+    console.error('[Leaderboard] API write error:', err.message);
     return false;
   }
 }
