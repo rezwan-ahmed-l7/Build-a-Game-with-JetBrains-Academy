@@ -4,9 +4,9 @@ const _targetPos = new THREE.Vector3();
 
 // Default camera setup: a classic 3rd-person action-adventure view.
 // Keep the player prominent while leaving enough room to read nearby threats.
-const BASE_DISTANCE = 165;
-const MIN_DISTANCE = 125;
-const MAX_DISTANCE = 360;
+const BASE_DISTANCE = 138;
+const MIN_DISTANCE = 108;
+const MAX_DISTANCE = 320;
 const BASE_ELEVATION = 0.43;   // ~21 deg above the ground plane
 const MIN_ELEVATION = 0.16;    // low cinematic angle
 const MAX_ELEVATION = 0.78;    // tactical overview
