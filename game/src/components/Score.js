@@ -25,12 +25,10 @@ export function getLevel(score) {
   return level;
 }
 
-export function getNextLevelScore() {
-  // Return the score needed for the next level, or null if max level reached.
-  if (LEVEL_THRESHOLDS.length > 0) {
-    return LEVEL_THRESHOLDS[LEVEL_THRESHOLDS.length - 1] + 10000; // extrapolate
-  }
-  return null;
+export function getNextLevelScore(score = 0) {
+  // Return the threshold for the next level, or null at the maximum level.
+  const nextThreshold = LEVEL_THRESHOLDS[getLevel(Math.max(0, Number(score) || 0))];
+  return nextThreshold ?? null;
 }
 
 // Whether this device is a touchscreen. The game-over panel adapts:
