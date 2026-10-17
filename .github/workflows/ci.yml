@@ -107,3 +107,19 @@ jobs:
 
       - name: Build game
         run: npm run build
+
+  leaderboard-api-check:
+    name: Leaderboard API syntax check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: leaderboard-api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Validate backend syntax and package metadata
+        run: |
+          node --check server.js
+          node -e "JSON.parse(require('node:fs').readFileSync('package.json', 'utf8'))"
