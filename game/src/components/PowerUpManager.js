@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { createPowerUp, POWERUP_TYPES } from './PowerUp.js';
 
 const PICKUP_RADIUS = 22;
-const SPAWN_RADIUS = 120;
+const SPAWN_RADIUS = 280;
 
 export function createPowerUpManager(scene, playerGroup) {
   const active = [];

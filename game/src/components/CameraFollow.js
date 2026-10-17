@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { isTouchDevice } from '../utils/dom.js';
 
 const _targetPos = new THREE.Vector3();
 
@@ -55,9 +54,6 @@ export function createCameraFollow(camera, playerGroup, canvas) {
 
   function onPointerDown(e) {
     if (canvas && e.target !== canvas) return;
-    // On touch devices, skip camera drag entirely — the virtual joystick
-    // handles movement, and camera drag conflicts with it.
-    if (isTouchDevice() && e.pointerType === 'touch') return;
     beginDrag(e);
   }
   function onPointerMove(e) {
@@ -109,9 +105,7 @@ export function createCameraFollow(camera, playerGroup, canvas) {
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup', onKeyUp);
   if (canvas) {
-    // Only disable touch-action on non-touch devices — on touch devices,
-    // the virtual joystick needs touch events to work properly.
-    if (!isTouchDevice()) canvas.style.touchAction = 'none';
+    canvas.style.touchAction = 'none';
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
   }
 

@@ -5,7 +5,7 @@ import { GameState } from './GameState.js';
 import { load, save } from '../utils/persistence.js';
 import { isTouchDevice } from '../utils/dom.js';
 
-const SCORE_PER_SECOND = 3;
+const SCORE_PER_SECOND = 1;
 const SCORE_PER_KILL = 15;
 const COMBO_WINDOW = 1.5; // kept here as reference; Combo owns the actual window
 
@@ -109,14 +109,6 @@ export function createScore({ submitter = null } = {}) {
   });
 
   function setHearts(hp, max) {
-    // Dynamically adjust heart nodes to match the current max HP.
-    while (heartNodes.length < max) {
-      const h = document.createElement('span');
-      h.className = 'heart';
-      h.textContent = '\u2665';
-      heartsEl.appendChild(h);
-      heartNodes.push(h);
-    }
     for (let i = 0; i < heartNodes.length; i++) {
       const node = heartNodes[i];
       if (i < max) {

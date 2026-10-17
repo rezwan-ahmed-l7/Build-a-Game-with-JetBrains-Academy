@@ -88,8 +88,7 @@ export function createPlayer() {
     model.rotation.z = sway;
     const baseScale = 20;
     const breathScale = 1 + breath * 0.5;
-    // Set all three axes so idle scale is consistent after Movement squash/stretch
-    model.scale.setScalar(baseScale * breathScale);
+    model.scale.y = baseScale * breathScale;
   }
 
   function update(delta) {

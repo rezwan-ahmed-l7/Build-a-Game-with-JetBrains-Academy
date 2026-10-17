@@ -1,14 +1,9 @@
 // Floating world-space damage numbers. Each number is a canvas-texture
 // sprite that floats up and fades out.
-// Textures are cached so common values (+1, +2, +15, etc.) don't
-// recreate the canvas on every spawn — reduces GC pressure.
 
 import * as THREE from 'three';
 
 const POOL = 24;
-
-// Shared texture cache: key = "text|color", value = CanvasTexture
-const textureCache = new Map();
 
 export function createDamageNumbers(scene) {
   const slots = [];
@@ -28,13 +23,9 @@ export function createDamageNumbers(scene) {
     const slot = slots[writeIdx];
     writeIdx = (writeIdx + 1) % POOL;
 
-    const cacheKey = text + '|' + color;
-    let tex = textureCache.get(cacheKey);
-    if (!tex) {
-      tex = makeNumberTexture(text, color);
-      textureCache.set(cacheKey, tex);
-    }
-    slot.mat.map = tex;
+    if (slot.tex) slot.tex.dispose();
+    slot.tex = makeNumberTexture(text, color);
+    slot.mat.map = slot.tex;
     slot.mat.needsUpdate = true;
 
     slot.sprite.position.set(x, y, z);

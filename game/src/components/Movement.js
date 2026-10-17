@@ -96,10 +96,7 @@ export function createMovement(playerGroup, getModel, input, camera, canMoveCall
     let direction = next;
     let dirInfo;
     if (next && typeof next === 'object' && next.click) {
-      // Click-to-move: use the raw click offset scaled by MOVE_DISTANCE.
-      // The offset is in [-1, 1] range (normalized screen coords), so
-      // clicking near the center moves a short distance, clicking near
-      // the edge moves the full MOVE_DISTANCE.
+      // Click-to-move: target = player + click * MOVE_DISTANCE in world X/Y
       dirInfo = {
         x: next.click.x * MOVE_DISTANCE,
         y: next.click.y * MOVE_DISTANCE

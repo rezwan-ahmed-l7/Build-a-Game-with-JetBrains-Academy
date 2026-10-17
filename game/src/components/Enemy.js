@@ -70,9 +70,6 @@ export function createEnemy(type = 'chaser') {
   const group = new THREE.Group();
   const yawGroup = new THREE.Group();
   group.add(yawGroup);
-  // Keep invisible until the model finishes loading so the enemy doesn't
-  // appear as an empty group that suddenly pops into view.
-  group.visible = false;
 
   let model = null;
   let mixer = null;
@@ -167,8 +164,6 @@ export function createEnemy(type = 'chaser') {
       model.traverse((c) => {
         if (c.name === 'Root' && !rootBone) rootBone = c;
       });
-      // Model loaded — make the group visible now.
-      group.visible = true;
     },
     undefined,
     (error) => {

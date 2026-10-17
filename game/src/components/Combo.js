@@ -3,7 +3,7 @@
 //
 // Wall-clock based so it works correctly even when frame deltas spike.
 
-const WINDOW_MS = 3000;
+const WINDOW_MS = 1500;
 
 export function createCombo() {
   let count = 0;

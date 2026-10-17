@@ -86,16 +86,13 @@ export function createTouchControls({ onPause, onAttack, onDash }) {
   // - fwd/back/left/right: boolean flags
   function getDirection() {
     if (!state.active) return null;
-    // Dead zone is a fraction of the joystick radius so it scales
-    // correctly across devices with different touch precision.
-    const dead = state.radius * 0.2; // ~20% of radius
     const mag = Math.sqrt(state.dx * state.dx + state.dy * state.dy);
-    if (mag < dead) return null;
+    if (mag < 12) return null; // dead zone
     return {
-      fwd: state.dy < -dead,
-      back: state.dy > dead,
-      left: state.dx < -dead,
-      right: state.dx > dead
+      fwd: state.dy < -12,
+      back: state.dy > 12,
+      left: state.dx < -12,
+      right: state.dx > 12
     };
   }
 

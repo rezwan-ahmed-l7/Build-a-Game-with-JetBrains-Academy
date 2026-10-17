@@ -8,6 +8,9 @@ const SPEED_BOOST_DURATION = 8;
 const SPEED_BOOST_MULT = 1.7;
 const PLAYER_PUSHBACK = 18;
 
+let attackRef = null;
+let menusRef = null;
+
 export function createGameManager({
   player,
   input,
@@ -26,10 +29,9 @@ export function createGameManager({
   screenShake,
   damageFlash
 }) {
-  // Store references locally — attack and menus are passed in at creation time.
-  // No longer module-level to avoid conflicts between multiple instances.
-  let attackRef = attack || null;
-  let menusRef = menus || null;
+  // Store references so they can be set later (attack and menus may be null at creation time)
+  if (attack) attackRef = attack;
+  if (menus) menusRef = menus;
 
   let currentState = GameState.MENU;
   let attackBoostRemaining = 0;
@@ -198,9 +200,8 @@ export function createGameManager({
         health.damage(1);
         const nx = dx / (dist || 1);
         const ny = dy / (dist || 1);
-        // Use movement.translate() so the pushback integrates with the
-        // movement animation system instead of jumping the player.
-        movement.translate(nx * PLAYER_PUSHBACK, ny * PLAYER_PUSHBACK);
+        player.group.position.x += nx * PLAYER_PUSHBACK;
+        player.group.position.y += ny * PLAYER_PUSHBACK;
         return true;
       }
     }

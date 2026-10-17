@@ -10,6 +10,9 @@ const BASE_ATTACK_RADIUS = 38;
 
 const MAX_DIFFICULTY = 3.2;
 const ENEMY_SPEED_CAP = 2.8;
+const PLAYER_SPEED_CAP = 1.6;
+const ATTACK_COOLDOWN_CAP = 1.8;     // divisor cap
+const ATTACK_RADIUS_CAP = 1.45;      // multiplier cap
 
 export function createDifficulty() {
   let lastScore = 0;
@@ -20,10 +23,12 @@ export function createDifficulty() {
       difficulty,
       spawnInterval: BASE_SPAWN_INTERVAL / Math.min(difficulty, MAX_DIFFICULTY),
       enemySpeed: BASE_ENEMY_SPEED * Math.min(difficulty * 1.15, ENEMY_SPEED_CAP),
-      // Player stats remain constant — difficulty should only make enemies harder,
-      // not give the player superpowers.
-      attackCooldown: BASE_ATTACK_COOLDOWN,
-      attackRadius: BASE_ATTACK_RADIUS
+      playerSpeedMultiplier: BASE_PLAYER_SPEED_MULT *
+        Math.min(1 + (difficulty - 1) * 0.35, PLAYER_SPEED_CAP),
+      attackCooldown: BASE_ATTACK_COOLDOWN /
+        Math.min(1 + (difficulty - 1) * 0.4, ATTACK_COOLDOWN_CAP),
+      attackRadius: BASE_ATTACK_RADIUS *
+        Math.min(1 + (difficulty - 1) * 0.25, ATTACK_RADIUS_CAP)
     };
   }
 

@@ -117,6 +117,10 @@ export function createAttack(scene, playerGroup, enemyManager, callbacks = {}) {
           : enemy;
         if (!damagedEnemy) continue;
 
+        // Legacy direct enemy objects expose damageHp; manager records have hp.
+        if (typeof damagedEnemy.damageHp === 'function') {
+          damagedEnemy.damageHp(1);
+        }
         onHit(damagedEnemy, enemyPos);
         if (damagedEnemy.hp <= 0 || (typeof damagedEnemy.damageHp === 'function' && damagedEnemy.getHp?.() <= 0)) {
           enemyManager.killEnemy(i);

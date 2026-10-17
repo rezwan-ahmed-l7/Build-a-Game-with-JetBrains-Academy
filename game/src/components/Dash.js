@@ -30,9 +30,6 @@ export function createDash(playerGroup, camera, getInputDirection, applyDisplace
 
   function tryStart() {
     if (now() < cooldownUntilMs) return false;
-    // Don't start a new dash while already dashing — avoids conflicting
-    // with the active dash direction and movement queue.
-    if (dashRemainingMs > 0) return false;
     dirX = 0;
     dirY = 0;
     const inputDir = getInputDirection();

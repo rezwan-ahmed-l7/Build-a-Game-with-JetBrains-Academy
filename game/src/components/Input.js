@@ -57,11 +57,12 @@ export function createInput() {
     if (!basis.valid) return;
 
     // Convert to world X/Y by projecting the click direction onto the
-    // camera basis. Store the raw (un-normalized) offset so Movement can
-    // scale it — clicking farther from center moves the player farther.
+    // camera basis. (We just store a target world position for movement
+    // to consume.)
     const tx = nx * basis.fwdX + ny * basis.rightX;
     const ty = nx * basis.fwdY + ny * basis.rightY;
-    queue.push({ click: { x: tx, y: ty } });
+    const len = Math.sqrt(tx * tx + ty * ty) || 1;
+    queue.push({ click: { x: tx / len, y: ty / len } });
     if (queue.length > maxQueueSize) queue.shift();
   }
 
@@ -98,12 +99,8 @@ export function createInput() {
   }
 
   // Register a click-to-move handler on a canvas. Returns a cleanup function.
-  // On touch devices, click-to-move is disabled to avoid conflicting with
-  // the virtual joystick — only mouse clicks trigger movement.
   function attachClickToMove(canvas, getCameraBasis) {
     function onClick(e) {
-      // Ignore touch events — touch devices use the virtual joystick
-      if (e.pointerType === 'touch') return;
       handleCanvasClick(e, getCameraBasis);
     }
     canvas.addEventListener('pointerdown', onClick);
