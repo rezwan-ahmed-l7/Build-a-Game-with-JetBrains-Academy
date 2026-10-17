@@ -199,17 +199,15 @@ export function createPowerUp(type, x, y) {
   shadow.position.z = -7.5;
   group.add(shadow);
 
-  // ----- Point light so the icon glows in the scene -----
-  // (Player's directional light hits the meadow, this adds a soft local glow.)
-  const light = new THREE.PointLight(def.color, 0.6, 36, 2);
-  light.position.set(0, 0, 0);
-  group.add(light);
+  // ----- Emissive glow instead of a PointLight -----
+  // PointLights are expensive (one per power-up). The emissive material
+  // already makes the icon glow visually, so we skip the light entirely.
 
   // (No ground text label — the shape itself communicates the power-up.
   // Adding text would compete with the icon and clutter the field.)
 
   let life = 0;
-  let lifetime = 14; // seconds before despawn
+  let lifetime = 20; // seconds before despawn
   let collected = false;
 
   function update(delta, time) {
@@ -230,9 +228,6 @@ export function createPowerUp(type, x, y) {
     // Halo pulses softly.
     const pulse = 0.45 + 0.25 * Math.sin(time * 3.2);
     halo.material.opacity = pulse;
-
-    // Light pulse too, so the scene gets a soft tint cycle.
-    light.intensity = 0.5 + 0.3 * Math.sin(time * 3.2);
 
     // Last 3 seconds: blink the icon (not the halo, so it's still findable).
     const remaining = lifetime - life;

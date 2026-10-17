@@ -4,7 +4,7 @@
 
 import * as THREE from 'three';
 
-const POOL = 240;
+const POOL = 480;
 const ATTRIBUTES_PER_VERTEX = 9; // pos(3) + color(3) + size(1) + life(2) — life as float pair
 
 export function createParticles(scene) {

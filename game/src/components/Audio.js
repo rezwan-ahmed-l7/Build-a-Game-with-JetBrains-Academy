@@ -27,7 +27,9 @@ export function createAudio() {
   function resume() {
     ensureContext();
     if (ctx && ctx.state === 'suspended') {
-      return ctx.resume().catch(() => {});
+      return ctx.resume().catch((err) => {
+        console.warn('Failed to resume AudioContext (user gesture may be required):', err);
+      });
     }
     return Promise.resolve();
   }
@@ -181,16 +183,19 @@ export function createAudio() {
       ambientNodes.push(o, lfo);
     });
 
-    // Arpeggio: pluck each chord note every 350ms in sequence.
+    // Arpeggio: schedule each chord note using WebAudio scheduling
+    // instead of setInterval, so timing remains accurate even when
+    // the browser tab is backgrounded.
     let arpStep = 0;
-    arpTimer = setInterval(() => {
+    const arpInterval = 0.38; // seconds between plucks
+    function scheduleArp() {
       if (!ctx) return;
+      const t0 = ctx.currentTime;
       const f = chord[arpStep % chord.length] * 2; // one octave up
       const o = ctx.createOscillator();
       o.type = 'sine';
       o.frequency.value = f;
       const g = ctx.createGain();
-      const t0 = ctx.currentTime;
       g.gain.setValueAtTime(0, t0);
       g.gain.linearRampToValueAtTime(0.10, t0 + 0.02);
       g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.5);
@@ -198,7 +203,9 @@ export function createAudio() {
       o.start(t0);
       o.stop(t0 + 0.55);
       arpStep++;
-    }, 380);
+      arpTimer = setTimeout(scheduleArp, arpInterval * 1000);
+    }
+    scheduleArp();
   }
 
   function startAmbient() {
@@ -221,7 +228,7 @@ export function createAudio() {
     ambientNodes.forEach((n) => { try { n.stop(); } catch {} });
     ambientNodes = null;
     if (arpTimer) {
-      clearInterval(arpTimer);
+      clearTimeout(arpTimer);
       arpTimer = null;
     }
   }

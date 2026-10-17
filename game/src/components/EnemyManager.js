@@ -5,9 +5,9 @@ import { getEnemyWeights, ENEMY_TYPES } from './EnemyTypes.js';
 import { pickWeighted } from '../utils/rng.js';
 
 const SPAWN_INTERVAL = 2.2;
-const MAX_ENEMIES = 12;
+const MAX_ENEMIES = 20;
 const ENEMY_SPEED = 18;
-const SPAWN_RADIUS = 230;
+const SPAWN_RADIUS = 140;
 const SPAWN_RANDOMIZE = 70;
 const SPAWN_IN_DURATION = 0.3;
 const HOVER_AMPLITUDE = 2.5;
@@ -21,8 +21,8 @@ const PLAYER_SAFE_RADIUS = 120;   // enemies don't spawn right on top of the pla
 // small per-frame perturbations; cumulative effect = buzzing.
 const BUZZ_HORIZONTAL_AMP = 3.5;   // sideways sway amplitude (world units)
 const BUZZ_VERTICAL_AMP   = 1.2;   // extra vertical bob on top of hover
-const BUZZ_FREQ_FAST      = 14;    // primary buzz frequency (Hz-ish)
-const BUZZ_FREQ_SLOW      = 5.5;   // secondary slower component
+const BUZZ_FREQ_FAST      = 8;     // primary buzz frequency (Hz-ish)
+const BUZZ_FREQ_SLOW      = 3;     // secondary slower component
 const TILT_BANK_MAX       = 0.45;  // how far they bank into turns (radians)
 
 const spawnPoints = [
@@ -184,11 +184,27 @@ export function createEnemyManager(scene, playerGroup, audio = null) {
         const dirY = dy / dist;
 
         const speed = enemy.baseSpeed * dynamicSpeedMultiplier;
-        // Move the *desired* position along the chase vector. The buzz
+        // Move the *desired* position along the chase vector, but clamp
+        // it so the enemy never overshoots past the player. The buzz
         // offset is added on top at the end, so collision / pathing
         // (if we add it later) still sees the un-jittered target.
-        enemy.desiredX += dirX * speed * delta;
-        enemy.desiredY += dirY * speed * delta;
+        const moveStep = speed * delta;
+        enemy.desiredX += dirX * moveStep;
+        enemy.desiredY += dirY * moveStep;
+
+        // Clamp desired position so it doesn't overshoot the player.
+        // If the desired position has moved past the player along the chase
+        // direction, clamp it to the player's position.
+        const fromSpawnToDesiredX = enemy.desiredX - x;
+        const fromSpawnToDesiredY = enemy.desiredY - y;
+        const fromDesiredToPlayerX = playerGroup.position.x - enemy.desiredX;
+        const fromDesiredToPlayerY = playerGroup.position.y - enemy.desiredY;
+        // Dot product: if negative, desired has passed the player
+        const dot = fromSpawnToDesiredX * fromDesiredToPlayerX + fromSpawnToDesiredY * fromDesiredToPlayerY;
+        if (dot < 0) {
+          enemy.desiredX = playerGroup.position.x;
+          enemy.desiredY = playerGroup.position.y;
+        }
 
         // "Jhatka" — perpendicular sway that makes the enemy look like a
         // real insect, not a smooth slider. Use two sin waves at

@@ -5,12 +5,12 @@ import { mulberry32 } from '../utils/rng.js';
 // Layout counts. Tuned for a forest you can SEE from the player but
 // not run into every two steps. We bias placement to the outer ring so
 // the immediate play area stays open and the trees form a horizon line.
-const TREE_COUNT = 360;          // a healthy forest, distributed over a wide area
-const BUSH_COUNT = 90;
+const TREE_COUNT = 180;          // balanced forest — fewer trees for better performance
+const BUSH_COUNT = 50;
 const BIG_ROCK_COUNT = 28;
 const SMALL_ROCK_COUNT = 40;
 const STUMP_COUNT = 14;
-const GRASS_TUFT_COUNT = 180;
+const GRASS_TUFT_COUNT = 90;
 const MUSHROOM_COUNT = 30;
 const LILY_PAD_COUNT = 9;        // around the pond
 const POND_COUNT = 3;            // multiple ponds scattered across the meadow
@@ -666,7 +666,6 @@ function placeTree(rand, avoid, minDist) {
 export function createObstacles(scene) {
   const obstacles = [];
   const rand = mulberry32(12345);
-  const placed = [];
   // Ponds get a generous exclusion zone so trees / rocks don't end up
   // standing on the water. Each entry is {x, y, r} where r is the extra
   // clearance from that point.
@@ -674,6 +673,9 @@ export function createObstacles(scene) {
   // A virtual "avoid" entry at the origin representing the player spawn.
   // The radius is the player's clearing — no obstacles in this disc.
   const playerAvoid = [{ x: 0, y: 0, r: PLAYER_CLEARING_RADIUS }];
+  // Combined avoid list — built once, then only `placed` grows.
+  // This avoids spread-copying arrays on every placement iteration.
+  const avoid = [...playerAvoid, ...pondAvoid];
 
   // ----- Ponds (placed first; other obstacles avoid them) -----
   // One large main pond + two smaller satellite ponds scattered in
@@ -750,8 +752,7 @@ export function createObstacles(scene) {
     const { group, totalHeight } = isBroadleaf
       ? makeBroadleafTree(rand)
       : makePineTree(rand);
-    // Combine: keep clear of player spawn, of pond water, and of other trees.
-    const avoid = [...playerAvoid, ...pondAvoid, ...placed];
+    avoid.push(...placed);
     const pos = placeTree(rand, avoid, TREE_SPACING_MIN);
     placed.push(pos);
     group.position.x = pos.x;
@@ -768,7 +769,7 @@ export function createObstacles(scene) {
   // ----- Bushes (low, dense, non-colliding) -----
   for (let i = 0; i < BUSH_COUNT; i++) {
     const { group } = makeBush(rand);
-    const avoid = [...playerAvoid, ...pondAvoid, ...placed];
+    avoid.push(...placed);
     const pos = placeRandomlyWithRadii(rand, avoid, 7);
     placed.push(pos);
     group.position.x = pos.x;
@@ -781,7 +782,7 @@ export function createObstacles(scene) {
   // ----- Big boulders (with moss cap) -----
   for (let i = 0; i < BIG_ROCK_COUNT; i++) {
     const { group, size } = makeBigRock(rand);
-    const avoid = [...playerAvoid, ...pondAvoid, ...placed];
+    avoid.push(...placed);
     const pos = placeRandomlyWithRadii(rand, avoid, 22);
     placed.push(pos);
     group.position.x = pos.x;
@@ -798,7 +799,7 @@ export function createObstacles(scene) {
   // ----- Small pebbles (no collision) -----
   for (let i = 0; i < SMALL_ROCK_COUNT; i++) {
     const { mesh } = makeSmallRock(rand);
-    const avoid = [...playerAvoid, ...pondAvoid, ...placed];
+    avoid.push(...placed);
     const pos = placeRandomlyWithRadii(rand, avoid, 5);
     placed.push(pos);
     mesh.position.x = pos.x;
@@ -811,7 +812,7 @@ export function createObstacles(scene) {
   // ----- Stumps -----
   for (let i = 0; i < STUMP_COUNT; i++) {
     const { group, size } = makeStump(rand);
-    const avoid = [...playerAvoid, ...pondAvoid, ...placed];
+    avoid.push(...placed);
     const pos = placeRandomlyWithRadii(rand, avoid, 18);
     placed.push(pos);
     group.position.x = pos.x;
@@ -828,7 +829,7 @@ export function createObstacles(scene) {
   // ----- Grass tufts (decorative) -----
   for (let i = 0; i < GRASS_TUFT_COUNT; i++) {
     const group = makeGrassTuft(rand);
-    const avoid = [...playerAvoid, ...pondAvoid, ...placed];
+    avoid.push(...placed);
     const pos = placeRandomlyWithRadii(rand, avoid, 4);
     group.position.x = pos.x;
     group.position.y = pos.y;
@@ -840,7 +841,7 @@ export function createObstacles(scene) {
   // ----- Mushroom clusters (bioluminescent) -----
   for (let i = 0; i < MUSHROOM_COUNT; i++) {
     const cluster = makeMushroomCluster(rand);
-    const avoid = [...playerAvoid, ...pondAvoid, ...placed];
+    avoid.push(...placed);
     const pos = placeRandomlyWithRadii(rand, avoid, 12);
     placed.push(pos);
     cluster.position.set(pos.x, pos.y, 0);
@@ -849,13 +850,11 @@ export function createObstacles(scene) {
   }
 
   // ----- Houses (GLB) -----
-  const housePositions = [];
   const houseLoader = new GLTFLoader();
   for (let i = 0; i < HOUSE_COUNT; i++) {
-    const avoid = [...playerAvoid, ...pondAvoid, ...placed];
+    avoid.push(...placed);
     const pos = placeRandomlyWithRadii(rand, avoid, 60);
     placed.push(pos);
-    housePositions.push(pos);
     houseLoader.load(
       '/models/small_house.glb',
       (gltf) => {
@@ -870,17 +869,16 @@ export function createObstacles(scene) {
           }
         });
         scene.add(house);
+        // Only add collision after the model successfully loads —
+        // avoids invisible walls if loading fails.
+        obstacles.push({
+          position: { x: pos.x, y: pos.y },
+          radius: HOUSE_COLLISION_RADIUS
+        });
       },
       undefined,
       (err) => { console.warn('Failed to load house model:', err); }
     );
-  }
-  // Add houses to the collision obstacle list so neither enemies nor player can pass through.
-  for (const pos of housePositions) {
-    obstacles.push({
-      position: { x: pos.x, y: pos.y },
-      radius: HOUSE_COLLISION_RADIUS
-    });
   }
 
   // Animation hook: ripple expands, lily pads bob. Called from main loop.
