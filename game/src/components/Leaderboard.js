@@ -1,4 +1,4 @@
-// Top-5 shared leaderboard using JSONBin.io (no database needed).
+// Top-5 shared leaderboard using a server-side API backed by JSONBin.io.
 //
 // JSONBin.io is a free cloud JSON storage service — stores the leaderboard
 // as a JSON array in the cloud. Any device/browser can read/write to it.
@@ -15,8 +15,7 @@
 //     existing player has a higher score, the existing player stays.
 //
 // Fallback: If network is unavailable, falls back to localStorage so the
-// game still works offline. Scores submitted offline will be synced next
-// time the player is online.
+// game still works offline. Local scores are retained when the API is unavailable.
 //
 // `submitScore(entry)` returns the new rank (1-5) if the run is on the
 // board, or null if it didn't make it. The game-over UI uses this to
