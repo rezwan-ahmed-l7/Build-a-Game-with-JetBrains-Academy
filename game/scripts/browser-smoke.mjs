@@ -58,6 +58,21 @@ try {
   }
   await page.locator('canvas.game').waitFor({ state: 'visible' });
   if (await page.locator('#boot-banner').count()) throw new Error('Temporary boot debug banner is still visible');
+
+  // A clean CI browser has no saved profile. The Play button is intentionally
+  // disabled until both a valid player name and a country flag are selected.
+  // Set these through the real UI so the smoke test exercises the onboarding
+  // flow instead of trying to click a disabled button.
+  await page.locator('#profile-name').fill('SmokeTester');
+  await page.locator('#profile-flag').click();
+  await page.locator('.flag-cell[data-code="BD"]').click();
+  await page.locator('#flag-confirm').click();
+  await page.locator('#btn-start').waitFor({ state: 'visible' });
+  await page.waitForFunction(() => {
+    const button = document.querySelector('#btn-start');
+    return button && !button.disabled;
+  });
+
   await page.screenshot({ path: 'browser-smoke-start.png' });
 
   await page.locator('#btn-start').click();
