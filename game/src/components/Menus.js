@@ -11,6 +11,7 @@ const NAME_MIN = 1;
 const NAME_MAX = 12;
 
 export function createMenus({ onStart, onResume, onRestart, onTogglePause, onToggleMute, onCycleMode, isMuted }) {
+  const leaderboardRenderVersions = new WeakMap();
   // Resolve once so all child builders (start menu, pause menu, game-over
   // hint) agree on whether to render keyboard or touch instructions.
   const isTouch = isTouchDevice();
@@ -416,8 +417,6 @@ export function createMenus({ onStart, onResume, onRestart, onTogglePause, onTog
 
     return Object.assign(backdrop, { prefill });
   }
-
-  const leaderboardRenderVersions = new WeakMap();
 
   async function renderLeaderboardInto(target, rankEl, playCounterEl) {
     if (!target) return;
