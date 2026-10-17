@@ -52,7 +52,7 @@ document.body.appendChild(damageFlash);
 // -------- Scene --------
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x071024);
-scene.fog = new THREE.Fog(0x263c49, 380, 1500);
+scene.fog = new THREE.Fog(0x263c49, 560, 1900);
 
 // Sky dome: gradient sphere that follows the camera. Day side is warmer,
 // night side is cooler. This sits behind everything else and replaces the
@@ -195,7 +195,7 @@ scene.add(player.group);
 // Environment (depends on lights + player)
 const environment = createEnvironment(scene, {
   ambientLight, directionalLight, fillLight, rimLight
-}, groundMaterial, player.group);
+}, groundMaterial, player.group, skyMaterial);
 // Camera — child of player group so it follows the player naturally
 const camera = createCamera();
 scene.add(camera);
