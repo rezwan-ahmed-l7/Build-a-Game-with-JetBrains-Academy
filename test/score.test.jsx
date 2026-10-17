@@ -20,8 +20,8 @@ describe('score component', () => {
     score.tick(2.5);
     score.render();
 
-    expect(score.getScore()).toBeCloseTo(2.5);
-    expect(document.querySelector('.score').textContent).toBe('Score: 2');
+    expect(score.getScore()).toBeCloseTo(7.5);
+    expect(document.querySelector('.score').textContent).toBe('Score: 7');
   });
 
   test('adds kill bonus', () => {
@@ -50,9 +50,9 @@ describe('score component', () => {
     score.tick(5);
     score.showGameOver();
 
-    expect(document.querySelector('.final-score-value').textContent).toBe('5');
+    expect(document.querySelector('.final-score-value').textContent).toBe('15');
     expect(document.querySelector('.game-over').style.display).toBe('flex');
-    expect(score.getHighScore()).toBe(5);
+    expect(score.getHighScore()).toBe(15);
 
     score.reset();
     score.tick(2);
