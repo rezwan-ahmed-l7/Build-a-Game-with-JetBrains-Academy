@@ -19,7 +19,7 @@ function blendHex(a, b, t) {
   return (r << 16) | (g << 8) | bl;
 }
 
-export function createEnvironment(scene, lights, groundMaterial, playerGroup) {
+export function createEnvironment(scene, lights, groundMaterial, playerGroup, skyMaterial = null) {
   const {
     ambientLight,
     directionalLight,
@@ -33,6 +33,14 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup) {
   const dayBackground = new THREE.Color(0x91c9df);
   const duskBackground = new THREE.Color(0xf18b68);
   const nightBackground = new THREE.Color(0x172b49);
+  const daySkyTop = new THREE.Color(0x1b3a78);
+  const duskSkyTop = new THREE.Color(0x49335f);
+  const nightSkyTop = new THREE.Color(0x081326);
+  const daySkyHorizon = new THREE.Color(0x80b6e8);
+  const duskSkyHorizon = new THREE.Color(0xf18b68);
+  const nightSkyHorizon = new THREE.Color(0x263b55);
+  const skyTopWorking = new THREE.Color();
+  const skyHorizonWorking = new THREE.Color();
   const dayFog = new THREE.Color(0x91c9df);
   const duskFog = new THREE.Color(0x6e405f);
   const nightFog = new THREE.Color(0x263b55);
@@ -300,6 +308,17 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup) {
     workingColor.copy(nightBackground).lerp(dayBackground, dayFactor);
     workingColor.lerp(duskBackground, duskFactor * 0.95);
     scene.background.copy(workingColor);
+
+    // The visible sky is a shader dome, so update its gradient too;
+    // changing scene.background alone leaves the dome stuck in daytime blue.
+    if (skyMaterial?.uniforms?.topColor && skyMaterial?.uniforms?.bottomColor) {
+      skyTopWorking.copy(nightSkyTop).lerp(daySkyTop, dayFactor);
+      skyTopWorking.lerp(duskSkyTop, duskFactor * 0.9);
+      skyHorizonWorking.copy(nightSkyHorizon).lerp(daySkyHorizon, dayFactor);
+      skyHorizonWorking.lerp(duskSkyHorizon, duskFactor * 0.95);
+      skyMaterial.uniforms.topColor.value.copy(skyTopWorking);
+      skyMaterial.uniforms.bottomColor.value.copy(skyHorizonWorking);
+    }
 
     workingColor.copy(nightFog).lerp(dayFog, dayFactor);
     workingColor.lerp(duskFog, duskFactor * 0.85);
