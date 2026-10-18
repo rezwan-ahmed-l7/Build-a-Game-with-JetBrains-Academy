@@ -201,176 +201,184 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
   const fireflies = new THREE.Points(fireflyGeometry, fireflyMaterial);
   scene.add(fireflies);
 
-  // ----- Distant birds: simple V-shaped silhouettes in the daytime sky -----
-  // Birds are far away, small, and move slowly across the sky. They have
-  // animated wings that flap periodically. They are purely decorative and
-  // do not interact with gameplay (no collision, no damage).
+  // ----- Distant birds: premium 3D silhouettes in the daytime sky -----
+  // Sleek, modern bird models with swept-back wings, forked tail, and smooth body.
+  // They circle independently in the distant sky, staying visible but far from the camera.
   const birds = [];
   for (let i = 0; i < BIRD_COUNT; i++) {
-    // Create realistic bird wing texture using canvas
+    const birdGroup = new THREE.Group();
+
+    // Color variation: dark grey to near-black, with subtle warm/cool tones
+    const colorVariation = [0x2a2a2e, 0x333338, 0x252528, 0x3a3a3e, 0x1e1e22][i % 5];
+    const bellyColor = [0x5a5a60, 0x606068, 0x505058, 0x6a6a70, 0x4a4a50][i % 5];
+
+    const birdMat = new THREE.MeshStandardMaterial({
+      color: colorVariation, roughness: 0.7, metalness: 0.05,
+      transparent: true, opacity: 0, depthWrite: false, fog: false
+    });
+    const bellyMat = new THREE.MeshStandardMaterial({
+      color: bellyColor, roughness: 0.75, metalness: 0.05,
+      transparent: true, opacity: 0, depthWrite: false, fog: false
+    });
+
+    // --- Body: sleek torpedo shape using custom lathe ---
+    const bodyPoints = [];
+    const segments = 20;
+    for (let p = 0; p <= segments; p++) {
+      const t = p / segments;
+      let r;
+      // Tail (t=0): very thin taper
+      if (t < 0.08) r = t / 0.08 * 0.15;
+      // Tail-base to mid-body: smooth swell
+      else if (t < 0.35) r = 0.15 + (t - 0.08) / 0.27 * 0.55;
+      // Mid-body to chest: full width
+      else if (t < 0.6) r = 0.70 + (t - 0.35) / 0.25 * 0.10;
+      // Chest to neck: gradual taper
+      else if (t < 0.82) r = 0.80 - (t - 0.6) / 0.22 * 0.50;
+      // Neck to head: thin
+      else if (t < 0.92) r = 0.30 - (t - 0.82) / 0.10 * 0.15;
+      // Head: small sphere
+      else r = 0.15 - (t - 0.92) / 0.08 * 0.10;
+      bodyPoints.push(new THREE.Vector2(Math.max(0.01, r), t * 10 - 5));
+    }
+    const bodyGeo = new THREE.LatheGeometry(bodyPoints, 10);
+    const body = new THREE.Mesh(bodyGeo, birdMat);
+    body.rotation.z = Math.PI / 2;
+    birdGroup.add(body);
+
+    // --- Belly: lighter underside ---
+    const bellyPoints = [];
+    for (let p = 0; p <= segments; p++) {
+      const t = p / segments;
+      let r;
+      if (t < 0.08) r = t / 0.08 * 0.10;
+      else if (t < 0.35) r = 0.10 + (t - 0.08) / 0.27 * 0.40;
+      else if (t < 0.6) r = 0.50 + (t - 0.35) / 0.25 * 0.05;
+      else if (t < 0.82) r = 0.55 - (t - 0.6) / 0.22 * 0.35;
+      else r = 0.20 - (t - 0.82) / 0.18 * 0.15;
+      bellyPoints.push(new THREE.Vector2(Math.max(0.01, r), t * 10 - 5));
+    }
+    const bellyGeo = new THREE.LatheGeometry(bellyPoints, 10, 0, Math.PI);
+    const belly = new THREE.Mesh(bellyGeo, bellyMat);
+    belly.rotation.z = Math.PI / 2;
+    belly.rotation.y = Math.PI / 2;
+    birdGroup.add(belly);
+
+    // --- Wings: swept-back delta shape with feather detail ---
     const wingCanvas = document.createElement('canvas');
     wingCanvas.width = 256;
     wingCanvas.height = 128;
     const wCtx = wingCanvas.getContext('2d');
     wCtx.clearRect(0, 0, 256, 128);
-    // Realistic wing shape: curved leading edge, long pointed tip, feathered trailing edge
-    wCtx.fillStyle = '#1a1a1a';
+
+    // Wing shape: swept-back delta with pointed tip and scalloped trailing edge
+    wCtx.fillStyle = '#1a1a1e';
     wCtx.beginPath();
-    // Leading edge (top) — smooth curve from body to tip
-    wCtx.moveTo(10, 90);
-    wCtx.quadraticCurveTo(30, 50, 80, 20);
-    wCtx.quadraticCurveTo(140, 5, 200, 8);
-    wCtx.quadraticCurveTo(230, 10, 250, 20);
-    // Wing tip — pointed
-    wCtx.quadraticCurveTo(248, 25, 240, 30);
-    // Trailing edge (bottom) — feathered notches
-    wCtx.lineTo(225, 38);
-    wCtx.lineTo(218, 32);
-    wCtx.lineTo(210, 40);
-    wCtx.lineTo(200, 34);
-    wCtx.lineTo(190, 42);
-    wCtx.lineTo(178, 36);
-    wCtx.lineTo(165, 44);
-    wCtx.lineTo(150, 38);
-    wCtx.lineTo(135, 46);
-    wCtx.lineTo(118, 40);
-    wCtx.lineTo(100, 48);
-    wCtx.lineTo(80, 44);
-    wCtx.lineTo(60, 52);
-    wCtx.lineTo(40, 50);
-    wCtx.lineTo(20, 60);
-    wCtx.lineTo(8, 70);
+    wCtx.moveTo(20, 80);           // wing root (body attachment)
+    wCtx.quadraticCurveTo(40, 40, 100, 15);  // leading edge sweep
+    wCtx.quadraticCurveTo(180, 5, 240, 10);  // wing tip
+    wCtx.quadraticCurveTo(245, 15, 238, 22); // tip curve
+    // Scalloped trailing edge (primary feathers)
+    const scallops = [
+      [230, 30], [220, 25], [210, 35], [200, 28], [190, 38],
+      [178, 30], [165, 40], [150, 32], [135, 42], [120, 34],
+      [105, 44], [90, 36], [75, 46], [60, 40], [45, 50], [30, 60]
+    ];
+    for (const [sx, sy] of scallops) wCtx.lineTo(sx, sy);
     wCtx.closePath();
     wCtx.fill();
-    // Primary feather lines (long, from tip inward)
-    wCtx.strokeStyle = 'rgba(50,50,50,0.5)';
-    wCtx.lineWidth = 1;
-    for (let f = 0; f < 10; f++) {
-      const x1 = 150 + f * 12;
-      const y1 = 12 + f * 0.5;
-      const x2 = x1 - 8 - f * 2;
-      const y2 = 35 + f * 1.5;
+
+    // Feather texture lines
+    wCtx.strokeStyle = 'rgba(60,60,65,0.4)';
+    wCtx.lineWidth = 0.8;
+    for (let f = 0; f < 14; f++) {
+      const baseX = 100 + f * 10;
       wCtx.beginPath();
-      wCtx.moveTo(x1, y1);
-      wCtx.lineTo(x2, y2);
+      wCtx.moveTo(baseX, 10 + f * 0.3);
+      wCtx.lineTo(baseX - 5, 30 + f * 1.2);
       wCtx.stroke();
     }
-    // Secondary feather lines (shorter, closer to body)
-    wCtx.strokeStyle = 'rgba(60,60,60,0.35)';
-    wCtx.lineWidth = 0.7;
-    for (let f = 0; f < 12; f++) {
-      const x1 = 30 + f * 10;
-      const y1 = 45 + f * 0.3;
-      const x2 = x1 - 5;
-      const y2 = 55 + f * 0.8;
-      wCtx.beginPath();
-      wCtx.moveTo(x1, y1);
-      wCtx.lineTo(x2, y2);
-      wCtx.stroke();
-    }
-    // Subtle lighter edge on leading edge for depth
-    wCtx.strokeStyle = 'rgba(80,80,80,0.2)';
-    wCtx.lineWidth = 1.5;
-    wCtx.beginPath();
-    wCtx.moveTo(10, 90);
-    wCtx.quadraticCurveTo(30, 50, 80, 20);
-    wCtx.quadraticCurveTo(140, 5, 200, 8);
-    wCtx.quadraticCurveTo(230, 10, 250, 20);
-    wCtx.stroke();
     const wingTexture = new THREE.CanvasTexture(wingCanvas);
     wingTexture.needsUpdate = true;
 
-    const birdGroup = new THREE.Group();
-    const birdMat = new THREE.MeshStandardMaterial({
-      color: 0x3a3a3a,
-      roughness: 0.8,
-      metalness: 0.1,
-      transparent: true,
-      opacity: 0,
-      depthWrite: false,
-      fog: false
-    });
-
-    // 3D bird body — tapered shape using lathe geometry
-    const bodyPoints = [];
-    for (let p = 0; p <= 12; p++) {
-      const t = p / 12;
-      let r;
-      if (t < 0.15) r = t / 0.15 * 0.6;           // tail taper
-      else if (t < 0.5) r = 0.6 + (t - 0.15) / 0.35 * 0.4;  // body swell
-      else if (t < 0.8) r = 1.0 - (t - 0.5) / 0.3 * 0.5;    // chest
-      else r = 0.5 - (t - 0.8) / 0.2 * 0.4;                  // neck/head
-      bodyPoints.push(new THREE.Vector2(r, t * 8 - 4));
-    }
-    const bodyGeo = new THREE.LatheGeometry(bodyPoints, 8);
-    const body = new THREE.Mesh(bodyGeo, birdMat);
-    body.rotation.z = Math.PI / 2;
-    birdGroup.add(body);
-
-    // Left wing — with realistic texture
-    const leftWingGeo = new THREE.PlaneGeometry(14, 5);
-    const leftWingMat = new THREE.MeshStandardMaterial({
-      map: wingTexture, roughness: 0.85, metalness: 0.05,
+    const wingMat = new THREE.MeshStandardMaterial({
+      map: wingTexture, roughness: 0.8, metalness: 0.02,
       transparent: true, opacity: 0, depthWrite: false, fog: false, side: THREE.DoubleSide
     });
-    const leftWing = new THREE.Mesh(leftWingGeo, leftWingMat);
-    leftWing.position.set(-7, 0.3, 0.7);
-    leftWing.rotation.z = -Math.PI / 5;
+
+    // Left wing — swept back
+    const leftWingGeo = new THREE.PlaneGeometry(16, 6, 4, 2);
+    const leftWing = new THREE.Mesh(leftWingGeo, wingMat.clone());
+    leftWing.position.set(-5, 0.5, 0.8);
+    leftWing.rotation.z = -0.3;
     birdGroup.add(leftWing);
 
-    // Right wing — mirrored texture
-    const rightWingGeo = new THREE.PlaneGeometry(14, 5);
-    const rightWingMat = new THREE.MeshStandardMaterial({
-      map: wingTexture, roughness: 0.85, metalness: 0.05,
-      transparent: true, opacity: 0, depthWrite: false, fog: false, side: THREE.DoubleSide
-    });
-    const rightWing = new THREE.Mesh(rightWingGeo, rightWingMat);
-    rightWing.position.set(7, 0.3, 0.7);
-    rightWing.rotation.z = Math.PI / 5;
-    rightWing.rotation.y = Math.PI;  // mirror the texture
+    // Right wing — mirrored
+    const rightWingGeo = new THREE.PlaneGeometry(16, 6, 4, 2);
+    const rightWing = new THREE.Mesh(rightWingGeo, wingMat.clone());
+    rightWing.position.set(5, 0.5, 0.8);
+    rightWing.rotation.z = 0.3;
+    rightWing.rotation.y = Math.PI;
     birdGroup.add(rightWing);
 
-    // Head — small sphere
-    const headGeo = new THREE.SphereGeometry(0.9, 8, 6);
+    // --- Head: smooth sphere with slight elongation ---
+    const headGeo = new THREE.SphereGeometry(0.7, 10, 8);
     const head = new THREE.Mesh(headGeo, birdMat);
-    head.position.set(4.8, 0.4, 0);
+    head.position.set(4.5, 0.3, 0);
+    head.scale.set(1.1, 0.9, 0.9);
     birdGroup.add(head);
 
-    // Eyes — tiny white dots
-    const eyeGeo = new THREE.SphereGeometry(0.15, 4, 4);
-    const eyeMat = new THREE.MeshBasicMaterial({
-      color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, fog: false
-    });
-    const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
-    leftEye.position.set(5.3, 0.6, 0.4);
-    birdGroup.add(leftEye);
-    const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
-    rightEye.position.set(5.3, 0.6, -0.4);
-    birdGroup.add(rightEye);
-
-    // Beak — thin cone
-    const beakGeo = new THREE.ConeGeometry(0.25, 2, 4);
+    // --- Beak: thin, pointed ---
+    const beakGeo = new THREE.ConeGeometry(0.15, 1.8, 6);
     const beakMat = new THREE.MeshStandardMaterial({
-      color: 0x997744, roughness: 0.6, metalness: 0.1,
+      color: 0x887755, roughness: 0.5, metalness: 0.1,
       transparent: true, opacity: 0, depthWrite: false, fog: false
     });
     const beak = new THREE.Mesh(beakGeo, beakMat);
-    beak.position.set(6.8, 0.4, 0);
+    beak.position.set(5.8, 0.3, 0);
     beak.rotation.z = -Math.PI / 2;
     birdGroup.add(beak);
 
-    // Tail — narrow flat plane with slight angle
-    const tailGeo = new THREE.PlaneGeometry(5, 1.5);
+    // --- Eye: tiny dark dot ---
+    const eyeGeo = new THREE.SphereGeometry(0.12, 4, 4);
+    const eyeMat = new THREE.MeshBasicMaterial({
+      color: 0x111111, transparent: true, opacity: 0, depthWrite: false, fog: false
+    });
+    const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
+    eyeL.position.set(5.0, 0.6, 0.35);
+    birdGroup.add(eyeL);
+    const eyeR = new THREE.Mesh(eyeGeo, eyeMat);
+    eyeR.position.set(5.0, 0.6, -0.35);
+    birdGroup.add(eyeR);
+
+    // --- Tail: forked (swallow-style) ---
     const tailMat = new THREE.MeshStandardMaterial({
-      color: 0x2a2a2a, roughness: 0.85, metalness: 0.05,
+      color: 0x1e1e22, roughness: 0.8, metalness: 0.02,
       transparent: true, opacity: 0, depthWrite: false, fog: false, side: THREE.DoubleSide
     });
-    const tail = new THREE.Mesh(tailGeo, tailMat);
-    tail.position.set(-4.5, 0, 0.3);
-    tail.rotation.z = Math.PI / 7;
-    birdGroup.add(tail);
+    // Left fork
+    const tailLGeo = new THREE.PlaneGeometry(3, 4);
+    const tailL = new THREE.Mesh(tailLGeo, tailMat);
+    tailL.position.set(-4.5, 0.3, 0.4);
+    tailL.rotation.z = 0.4;
+    birdGroup.add(tailL);
+    // Right fork
+    const tailRGeo = new THREE.PlaneGeometry(3, 4);
+    const tailR = new THREE.Mesh(tailRGeo, tailMat);
+    tailR.position.set(-4.5, 0.3, -0.4);
+    tailR.rotation.z = -0.4;
+    birdGroup.add(tailR);
 
-    // Birds in the distant sky — far enough to look natural, close enough to see
+    // --- Wing joints (shoulder bumps) ---
+    const jointGeo = new THREE.SphereGeometry(0.35, 6, 4);
+    const jointL = new THREE.Mesh(jointGeo, birdMat);
+    jointL.position.set(-5, 0.5, 0.5);
+    birdGroup.add(jointL);
+    const jointR = new THREE.Mesh(jointGeo, birdMat);
+    jointR.position.set(5, 0.5, 0.5);
+    birdGroup.add(jointR);
+
+    // Flight parameters
     const birdHeight = randomRange(120, 250);
     const birdDistance = randomRange(200, 450);
     const birdAngle = randomRange(0, Math.PI * 2);
@@ -391,10 +399,12 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
       wobbleSpeed: birdWobbleSpeed,
       leftWing,
       rightWing,
-      tail,
+      tailL,
+      tailR,
       bodyMat: birdMat,
-      wingMatL: leftWingMat,
-      wingMatR: rightWingMat,
+      bellyMat,
+      wingMatL: leftWing.material,
+      wingMatR: rightWing.material,
       beakMat,
       tailMat,
       eyeMat,
@@ -815,12 +825,14 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
       const flapAngle = Math.sin(elapsed * data.flapSpeed + data.flapPhase) * 0.5;
       data.leftWing.rotation.x = flapAngle;
       data.rightWing.rotation.x = -flapAngle;
-      // Tail slight bob
-      data.tail.rotation.x = Math.sin(elapsed * data.flapSpeed * 0.5 + data.flapPhase) * 0.15;
+      // Tail fork slight bob
+      data.tailL.rotation.x = Math.sin(elapsed * data.flapSpeed * 0.5 + data.flapPhase) * 0.15;
+      data.tailR.rotation.x = Math.sin(elapsed * data.flapSpeed * 0.5 + data.flapPhase) * 0.15;
 
       // Fade in/out based on time of day — set all materials
       const opacity = birdVisibility * 0.85;
       data.bodyMat.opacity = opacity;
+      data.bellyMat.opacity = opacity;
       data.wingMatL.opacity = opacity;
       data.wingMatR.opacity = opacity;
       data.beakMat.opacity = opacity;

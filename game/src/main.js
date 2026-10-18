@@ -53,7 +53,7 @@ document.body.appendChild(damageFlash);
 // -------- Scene --------
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x071024);
-scene.fog = new THREE.Fog(0x263c49, 700, 2400);
+// No fog — sea surrounds the ground like an island
 
 // Sky dome: gradient sphere that follows the camera. Day side is warmer,
 // night side is cooler. This sits behind everything else and replaces the
@@ -193,35 +193,7 @@ ground.position.z = -0.5;
 ground.receiveShadow = true;
 scene.add(ground);
 
-// The meadow fades to darkness beyond the bounded playable arena: a wide,
-// soft transition ring that avoids a hard black edge while still signaling
-// the world boundary. Uses a canvas texture for a smooth radial gradient.
-function createVignetteTexture() {
-  const size = 512;
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = size;
-  const ctx = canvas.getContext('2d');
-  // Radial gradient: transparent at inner edge, dark at outer edge
-  const gradient = ctx.createRadialGradient(size/2, size/2, size * 0.3, size/2, size/2, size/2);
-  gradient.addColorStop(0, 'rgba(5,8,13,0)');
-  gradient.addColorStop(0.5, 'rgba(5,8,13,0.3)');
-  gradient.addColorStop(0.8, 'rgba(5,8,13,0.7)');
-  gradient.addColorStop(1, 'rgba(5,8,13,0.95)');
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, size, size);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.needsUpdate = true;
-  return texture;
-}
-const vignetteGeometry = new THREE.RingGeometry(GROUND_RADIUS - 60, GROUND_RADIUS, 128);
-const vignetteMaterial = new THREE.MeshBasicMaterial({
-  map: createVignetteTexture(), side: THREE.DoubleSide,
-  transparent: true, opacity: 1.0, depthWrite: false
-});
-const vignette = new THREE.Mesh(vignetteGeometry, vignetteMaterial);
-vignette.position.z = -0.3;
-scene.add(vignette);
+// No sea — clean ground edge
 
 // Player
 const player = createPlayer();
@@ -247,7 +219,13 @@ const audio = createAudio();
 const enemyManager = createEnemyManager(scene, player.group, audio);
 const movement = createMovement(
   player.group, player.getModel, input, camera,
-  (targetPos) => canPlayerMoveTo(targetPos, enemyManager.getEnemies(), obstacles.getObstacles())
+  (targetPos) => {
+    // While dashing, skip obstacle check so the player can pass through
+    if (dash.isDashing()) {
+      return canPlayerMoveTo(targetPos, enemyManager.getEnemies(), []);
+    }
+    return canPlayerMoveTo(targetPos, enemyManager.getEnemies(), obstacles.getObstacles());
+  }
 );
 // Score / Health / Combo / Difficulty
 // `submitScore` is the single swap-point for a future backend. It reads
@@ -314,6 +292,9 @@ const gameManager = createGameManager({
 // main.js also calls gameManager.resetGame()).
 score.setOnRestart(() => gameManager.resetGame());
 
+// Back button returns to main menu
+score.setOnBack(() => gameManager.showMenu());
+
 // ----- Attack (with hooks from game manager) -----
 const attack = createAttack(scene, player.group, enemyManager, gameManager.attackHooks);
 gameManager.setAttack(attack);
@@ -350,6 +331,20 @@ input.attachClickToAttack(canvas, () => {
   if (gameManager.isPlaying()) attack.attack(performance.now());
 });
 
+// Right-click triggers dash during gameplay
+canvas.addEventListener('contextmenu', (e) => {
+  e.preventDefault();
+  if (gameManager.isPlaying()) {
+    const started = dash.tryStart();
+    if (started) {
+      audio.playDash();
+      particles.spawnBurst(player.group.position.x, player.group.position.y, player.group.position.z + 4, {
+        count: 14, color: 0x9ee7ff, speed: 50, life: 0.4, size: 6
+      });
+    }
+  }
+});
+
 // ----- Global keybinds -----
 window.addEventListener('keydown', (e) => {
   if (e.repeat) return;
@@ -360,11 +355,11 @@ window.addEventListener('keydown', (e) => {
       return;
     }
     if (gameManager.isGameOver()) {
-      gameManager.resetGame();
-      return;
+      return; // Let Score.js handle Enter for restart
     }
     if (gameManager.isPaused()) {
-      gameManager.togglePause();
+      menus.hidePause();
+      gameManager.resetGame();
       return;
     }
   } else if (e.code === 'Space') {
@@ -374,15 +369,17 @@ window.addEventListener('keydown', (e) => {
       attack.attack(performance.now());
     }
   } else if (e.code === 'Escape' || e.code === 'KeyP') {
-    if (gameManager.isPlaying() || gameManager.isPaused()) {
+    if (gameManager.isPlaying()) {
       gameManager.togglePause();
+    } else if (gameManager.isPaused()) {
+      gameManager.beginResumeCountdown();
+    } else if (gameManager.isGameOver()) {
+      gameManager.showMenu();
     }
   } else if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
     e.preventDefault();
-    console.log('[MAIN] Shift pressed, isPlaying:', gameManager.isPlaying());
     if (gameManager.isPlaying()) {
       const started = dash.tryStart();
-      console.log('[MAIN] dash.tryStart returned:', started);
       if (started) {
         audio.playDash();
         particles.spawnBurst(player.group.position.x, player.group.position.y, player.group.position.z + 4, {
@@ -529,7 +526,10 @@ function animate(currentTime) {
     resolveEnemyVsEnemy(enemies);
     resolveEnemyVsObstacles(enemies, obstacleList);
     resolveEnemyVsPlayer(enemies, player.group.position);
-    resolvePlayerVsObstacles(player.group.position, obstacleList);
+    // Skip player-vs-obstacle collision while dashing so the player can pass through
+    if (!dash.isDashing()) {
+      resolvePlayerVsObstacles(player.group.position, obstacleList);
+    }
 
     combo.update(delta);
     gameManager.tickComboHud();

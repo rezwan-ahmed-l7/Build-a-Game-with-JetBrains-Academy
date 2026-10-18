@@ -4,6 +4,7 @@
 import { el, clear, isTouchDevice } from '../utils/dom.js';
 import { loadProfile, saveProfile } from './Profile.js';
 import { getTop } from './Leaderboard.js';
+import { getAttempts } from './PlayCounter.js';
 import { COUNTRIES } from '../data/countries.js';
 
 const NAME_MIN = 1;
@@ -302,6 +303,8 @@ export function createMenus({ onStart, onResume, onRestart, onTogglePause, onTog
     // Rank is now rendered INSIDE the leaderboard title (e.g. "Top 5 — You #3")
     // so the title and badge are a single line, no separate row.
     const rankBadge = el('span', { class: 'lb-my-rank', id: 'menu-my-rank' });
+    // Played times counter between "Top 5" and "You"
+    const playedBadge = el('span', { class: 'lb-played', id: 'menu-played' });
 
     // "How to play" — single inline pill row. Glyph + label only, no
     // description text. The same info used to live in 3 stacked cards
@@ -340,6 +343,7 @@ export function createMenus({ onStart, onResume, onRestart, onTogglePause, onTog
       el('div', { class: 'leaderboard-wrap' }, [
         el('div', { class: 'leaderboard-header' }, [
           el('h3', { class: 'leaderboard-title' }, ['Top 5']),
+          playedBadge,
           rankBadge,
         ]),
         leaderboard,
@@ -351,19 +355,16 @@ export function createMenus({ onStart, onResume, onRestart, onTogglePause, onTog
   function buildFlagModal(onClose) {
     const backdrop = el('div', { class: 'flag-modal-backdrop', style: { display: 'none' } });
 
-    // Header — same hierarchy as the start menu: eyebrow + title + subtitle + divider.
+    // Header — minimal title only
     const header = el('div', { class: 'flag-modal-header' }, [
-      el('p', { class: 'flag-modal-eyebrow' }, ['PICK YOUR COUNTRY']),
-      el('h2', { class: 'flag-modal-title' }, ['Choose your flag']),
-      el('p', { class: 'flag-modal-subtitle' }, ['This will show on the leaderboard']),
-      el('hr', { class: 'flag-modal-divider' }),
+      el('h2', { class: 'flag-modal-title' }, ['Pick your country']),
     ]);
 
     // "Current pick" card — mirrors the .game-over-stats inner surface.
     // Starts as the placeholder, then is populated as the user hovers / clicks.
     const pickEmoji = el('div', { class: 'flag-pick-emoji' }, ['🏳️']);
     const pickName = el('div', { class: 'flag-pick-name' }, ['Pick a flag']);
-    const pickHint = el('div', { class: 'flag-pick-hint' }, ['Tap a flag below to choose']);
+    const pickHint = el('div', { class: 'flag-pick-hint' }, ['']);
     const pickCard = el('div', { class: 'flag-pick-card' }, [pickEmoji, pickName, pickHint]);
 
     const grid = el('div', { class: 'flag-grid' });
@@ -373,7 +374,7 @@ export function createMenus({ onStart, onResume, onRestart, onTogglePause, onTog
     const confirmBtn = el('button', {
       class: 'flag-modal-confirm is-disabled', type: 'button', id: 'flag-confirm',
       disabled: 'disabled'
-    }, ['Use this flag']);
+    }, ['Confirm']);
 
     const panel = el('div', { class: 'flag-modal' }, [
       header,
@@ -395,11 +396,11 @@ export function createMenus({ onStart, onResume, onRestart, onTogglePause, onTog
       if (c) {
         pickEmoji.textContent = c.emoji;
         pickName.textContent = c.name;
-        pickHint.textContent = 'Looks good? Hit Use this flag below.';
+        pickHint.textContent = '';
       } else {
         pickEmoji.textContent = '🏳️';
-        pickName.textContent = 'Pick a flag';
-        pickHint.textContent = 'Tap a flag below to choose';
+        pickName.textContent = '—';
+        pickHint.textContent = '';
       }
     }
     function refreshConfirm() {
@@ -444,12 +445,15 @@ export function createMenus({ onStart, onResume, onRestart, onTogglePause, onTog
       // Commit: update profile + chip + avatar + play state, then close.
       profile.flag = pending.emoji;
       flagChip.textContent = pending.emoji;
-      if (profile.flag) avatar.textContent = profile.flag;
       if (profile.name) saveProfile(profile.name, profile.flag);
       refreshPlayState();
       cancel();
     }
-    confirmBtn.addEventListener('click', confirm);
+    confirmBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      confirm();
+    });
     backdrop.addEventListener('click', (e) => {
       if (e.target === backdrop) cancel();
     });
@@ -499,6 +503,24 @@ export function createMenus({ onStart, onResume, onRestart, onTogglePause, onTog
     clear(target);
     const top = await getTop();
     if (renderVersion !== leaderboardRenderVersions.get(target)) return;
+
+    // Update played times badge
+    const playedEl = target.closest('.leaderboard-wrap')
+      ?.querySelector('.lb-played');
+    if (playedEl) {
+      try {
+        const attempts = await getAttempts();
+        if (attempts != null && attempts > 0) {
+          playedEl.textContent = `Played ${attempts} times`;
+          playedEl.style.display = '';
+        } else {
+          playedEl.style.display = 'none';
+        }
+      } catch {
+        playedEl.style.display = 'none';
+      }
+    }
+
     if (top.length === 0) {
       target.appendChild(el('p', { class: 'leaderboard-empty' }, ['No runs yet — be the first.']));
       if (rankEl) rankEl.textContent = '';

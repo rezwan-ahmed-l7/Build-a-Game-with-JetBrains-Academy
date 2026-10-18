@@ -9,11 +9,11 @@
 
 import * as THREE from 'three';
 
-const DASH_DURATION_MS = 220;
+let DASH_DURATION_MS = 250; // base 250ms, grows with level
 const DASH_SPEED = 360;
-let DASH_COOLDOWN_MS = 1100; // default, can be changed by setCooldown()
-const I_FRAME_DURATION_MS = 280;
-const DASH_BLINK_INTERVAL_MS = 50;
+let DASH_COOLDOWN_MS = 1000; // fixed 1.0s
+let I_FRAME_DURATION_MS = 250; // base 250ms, grows with level
+const DASH_BLINK_INTERVAL_MS = 50; // fixed 50ms
 
 const _camDir = new THREE.Vector3();
 
@@ -30,14 +30,12 @@ export function createDash(playerGroup, camera, getInputDirection, applyDisplace
 
   function tryStart() {
     const t = now();
-    console.log('[DASH tryStart] cooldownUntil:', cooldownUntilMs, 'dashRemaining:', dashRemainingMs);
-    if (t < cooldownUntilMs) { console.log('[DASH] blocked: cooldown'); return false; }
-    if (dashRemainingMs > 0) { console.log('[DASH] blocked: already dashing'); return false; }
+    if (t < cooldownUntilMs) return false;
+    if (dashRemainingMs > 0) return false;
     dirX = 0;
     dirY = 0;
     const inputDir = getInputDirection();
-    console.log('[DASH] inputDir:', inputDir);
-    if (!inputDir) { console.log('[DASH] blocked: no input direction'); return false; }
+    if (!inputDir) return false;
 
     camera.getWorldDirection(_camDir);
     const len = Math.sqrt(_camDir.x * _camDir.x + _camDir.y * _camDir.y);
@@ -103,8 +101,18 @@ export function createDash(playerGroup, camera, getInputDirection, applyDisplace
     }
   }
 
-  function setCooldown(ms) {
-    DASH_COOLDOWN_MS = Math.max(500, Math.floor(ms));
+  function setLevel(level) {
+    // Duration & i-frames grow with level: base 250ms, lvl3 300ms, lvl5 350ms
+    if (level >= 5) {
+      DASH_DURATION_MS = 350;
+      I_FRAME_DURATION_MS = 350;
+    } else if (level >= 3) {
+      DASH_DURATION_MS = 300;
+      I_FRAME_DURATION_MS = 300;
+    } else {
+      DASH_DURATION_MS = 250;
+      I_FRAME_DURATION_MS = 250;
+    }
   }
 
   function isDashing() { return dashRemainingMs > 0; }
@@ -129,6 +137,10 @@ export function createDash(playerGroup, camera, getInputDirection, applyDisplace
     playerGroup.visible = true;
   }
 
+  function setCooldown(ms) {
+    DASH_COOLDOWN_MS = Math.max(500, Math.floor(ms));
+  }
+
   return { tryStart, update, isDashing, isInvulnerable,
-           getCooldown, getCooldownMax, setCooldown, cancel, reset };
+           getCooldown, getCooldownMax, setCooldown, setLevel, cancel, reset };
 }

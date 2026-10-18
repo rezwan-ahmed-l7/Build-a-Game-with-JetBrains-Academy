@@ -83,6 +83,8 @@ export function createInput() {
     }
     function onClick(e) {
       if (!enabled) return;
+      // Only left-click (button 0) triggers attack; right-click is for dash.
+      if (e.button !== 0) return;
       onAttack();
     }
     canvas.addEventListener('pointerdown', onClick);

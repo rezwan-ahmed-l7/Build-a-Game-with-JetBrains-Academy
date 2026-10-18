@@ -259,8 +259,11 @@ export function createGameManager({
     // Movement: set base speed multiplier
     movement.setSpeedMultiplier(stats.moveSpeedMult);
 
-    // Dash: set cooldown
+    // Dash: set cooldown and level-based duration/i-frames
     dash.setCooldown(stats.dashCooldownMs);
+    if (typeof dash.setLevel === 'function') {
+      dash.setLevel(level);
+    }
 
     // Update hearts UI with actual current HP, not max
     score.setHearts(health.getHp(), stats.maxHp);
@@ -536,11 +539,18 @@ export function createGameManager({
     isMuted: () => audio.isMuted()
   };
 
+  function showMenu() {
+    currentState = GameState.MENU;
+    score.hideGameOver();
+    menusRef.showStart && menusRef.showStart();
+  }
+
   return {
     currentState: () => currentState,
     startGame,
     resetGame,
     togglePause,
+    beginResumeCountdown,
     triggerGameOver,
     onPowerUpPickup,
     tickComboHud,
@@ -549,6 +559,7 @@ export function createGameManager({
     isGameOver,
     isMenu,
     isCountdown,
+    showMenu,
     setAttack,
     setMenus,
     checkPlayerEnemyContact,

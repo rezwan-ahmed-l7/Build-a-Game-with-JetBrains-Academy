@@ -423,31 +423,31 @@ canvas.game {
   100% { transform: translateY(0) scale(1); opacity: 1; }
 }
 
-.game-over-hint {
-  margin: 0;
-  font-size: 14px;
-  color: var(--text-muted);
-  letter-spacing: 0.06em;
-  animation: hint-pulse 2.4s var(--ease-out) infinite;
+/* Game-over buttons row — Restart + Back */
+.game-over-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 14px;
 }
-@keyframes hint-pulse {
-  0%, 100% { opacity: 0.75; }
-  50%      { opacity: 1; }
-}
-
-/* Game-over Restart button — re-uses .menu-button.primary so the look
-   matches the start menu's Play button. The button is the only way a
-   touch player restarts (they can't press Space), so it MUST stay
-   visible on .is-touch panels. On non-touch panels, the button is
-   hidden and the keyboard "Press Space to restart" hint takes over. */
 .game-over-restart {
-  margin: 14px 0 0;
-  min-width: 180px;
+  min-width: 140px;
 }
-/* Touch: hide the keyboard hint, show the button. */
-.game-over.is-touch .game-over-hint { display: none; }
-/* Non-touch: hide the button (keyboard users can press Space). */
-.game-over:not(.is-touch) .game-over-restart { display: none; }
+.game-over-back {
+  min-width: 100px;
+}
+/* .menu-button.secondary — subtle outline style */
+.menu-button.secondary {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--text-muted);
+  box-shadow: none;
+}
+.menu-button.secondary:hover {
+  border-color: var(--line-strong);
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.04);
+}
 
 .hint kbd {
   display: inline-block;
@@ -702,16 +702,6 @@ canvas.game {
 }
 .resume-countdown-active {
   animation: resume-countdown-pop 0.8s var(--ease-out);
-}
-.resume-countdown::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at center,
-    rgba(7, 16, 36, 0.0) 0%,
-    rgba(7, 16, 36, 0.55) 70%,
-    rgba(7, 16, 36, 0.85) 100%);
-  pointer-events: none;
 }
 .resume-countdown {
   font: inherit;
@@ -1293,18 +1283,16 @@ canvas.game {
   to   { opacity: 1; }
 }
 .flag-modal {
-  background: linear-gradient(180deg, var(--surface-card-top) 0%, var(--surface-card-bottom) 100%);
+  background: var(--surface-1);
   border: 1px solid var(--line);
   border-radius: var(--radius-card);
-  box-shadow: var(--shadow-2),
-              0 0 60px rgba(255, 226, 122, 0.15),
-              var(--inner-hi);
-  padding: 28px 28px 22px;
-  width: min(640px, calc(100vw - 32px));
+  box-shadow: var(--shadow-2), var(--inner-hi);
+  padding: 18px 18px 16px;
+  width: min(420px, calc(100vw - 32px));
   max-height: calc(100vh - 64px);
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 12px;
   animation: flag-modal-in 0.22s var(--ease-out);
   text-align: center;
 }
@@ -1322,27 +1310,24 @@ canvas.game {
 }
 .flag-modal-eyebrow {
   margin: 0;
-  color: var(--mint);
-  font-size: 11px;
+  color: var(--gold-soft);
+  font-size: 9px;
   font-weight: 800;
   letter-spacing: 0.32em;
   text-transform: uppercase;
-  text-shadow: 0 0 12px rgba(134, 217, 196, 0.25);
 }
 .flag-modal-title {
   margin: 0;
-  font-size: clamp(28px, 4vw, 40px);
-  font-weight: 850;
+  font-size: clamp(18px, 3vw, 24px);
+  font-weight: 800;
   letter-spacing: -0.02em;
   color: var(--gold-soft);
-  text-shadow: 0 8px 40px rgba(255, 190, 89, 0.24),
-               0 0 24px rgba(255, 226, 122, 0.24);
   line-height: 1.1;
 }
 .flag-modal-subtitle {
   margin: 0;
-  font-size: 12px;
-  color: var(--text-dim);
+  font-size: 10px;
+  color: var(--text-muted);
   letter-spacing: 0.18em;
   text-transform: uppercase;
   font-weight: 600;
@@ -1360,27 +1345,26 @@ canvas.game {
 .flag-pick-card {
   display: flex;
   align-items: center;
-  gap: 18px;
-  padding: 16px 22px;
-  background: rgba(7, 16, 36, 0.45);
+  gap: 10px;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.25);
   border: 1px solid var(--line-soft);
-  border-radius: 14px;
+  border-radius: 10px;
   box-shadow: var(--inner-hi);
   text-align: left;
 }
 .flag-pick-emoji {
-  font-size: 64px;
+  font-size: 36px;
   line-height: 1;
   flex: 0 0 auto;
   font-family: 'Noto Color Emoji', 'Apple Color Emoji', 'Segoe UI Emoji',
                'Segoe UI Symbol', 'Twemoji Mozilla', sans-serif;
-  filter: drop-shadow(0 0 14px rgba(255, 226, 122, 0.30));
   transition: transform var(--dur-2) var(--ease-out);
 }
 .flag-pick-name {
   flex: 1 1 auto;
   min-width: 0;
-  font-size: 22px;
+  font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.01em;
   color: var(--text);
@@ -1390,7 +1374,7 @@ canvas.game {
 }
 .flag-pick-hint {
   flex: 0 0 auto;
-  font-size: 10px;
+  font-size: 8px;
   color: var(--text-muted);
   letter-spacing: 0.18em;
   text-transform: uppercase;
@@ -1402,15 +1386,15 @@ canvas.game {
 /* ----- Flag grid + themed scrollbar ----- */
 .flag-grid {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 8px;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 4px;
   overflow-y: auto;
   /* Themed scrollbar (Webkit + Firefox). */
   scrollbar-width: thin;
   scrollbar-color: var(--line) rgba(0, 0, 0, 0.18);
-  max-height: 38vh;
-  padding: 8px 6px;
-  scroll-padding: 8px;
+  max-height: 28vh;
+  padding: 4px 2px;
+  scroll-padding: 4px;
 }
 .flag-grid::-webkit-scrollbar {
   width: 10px;
@@ -1437,10 +1421,10 @@ canvas.game {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 10px 4px;
-  background: rgba(0, 0, 0, 0.30);
+  padding: 4px 2px;
+  background: rgba(0, 0, 0, 0.20);
   border: 1px solid var(--line-soft);
-  border-radius: 10px;
+  border-radius: 6px;
   cursor: pointer;
   font: inherit;
   color: var(--text-dim);
@@ -1460,11 +1444,10 @@ canvas.game {
   box-shadow: 0 0 0 1px var(--gold-soft) inset, var(--glow-gold);
 }
 .flag-emoji {
-  font-size: 40px;
+  font-size: 24px;
   line-height: 1;
   font-family: 'Noto Color Emoji', 'Apple Color Emoji', 'Segoe UI Emoji',
                'Segoe UI Symbol', 'Twemoji Mozilla', sans-serif;
-  text-shadow: 0 0 4px rgba(255, 255, 255, 0.18);
 }
 .flag-cell:focus-visible {
   outline: 2px solid var(--gold-soft);
@@ -1474,25 +1457,24 @@ canvas.game {
 /* ----- Primary CTA — same look as .menu-button.primary ----- */
 .flag-modal-confirm {
   font: inherit;
-  font-size: 18px;
+  font-size: 13px;
   font-weight: 800;
   letter-spacing: 0.06em;
-  padding: 14px 36px;
-  border-radius: 12px;
+  padding: 8px 24px;
+  border-radius: 8px;
   border: 1px solid rgba(255, 226, 122, 0.6);
   background: linear-gradient(135deg, var(--gold), var(--orange));
   color: var(--text-on-gold);
   text-transform: uppercase;
   cursor: pointer;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.32),
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.32),
               0 0 0 1px rgba(255, 226, 122, 0.5) inset,
-              0 0 28px rgba(255, 226, 122, 0.35),
               var(--inner-hi);
   transition: transform var(--dur-1) var(--ease-out),
               box-shadow var(--dur-1) var(--ease-out),
               border-color var(--dur-1) var(--ease-out);
   align-self: center;
-  min-width: 220px;
+  min-width: 160px;
 }
 .flag-modal-confirm:hover:not(.is-disabled) {
   transform: translateY(-1px);
@@ -1553,6 +1535,14 @@ canvas.game {
   font-weight: 700;
 }
 .lb-my-rank:empty { display: none; }
+.lb-played {
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--gold-soft);
+  font-weight: 600;
+}
+.lb-played:empty { display: none; }
 .leaderboard {
   background: var(--surface-1);
   border: 1px solid var(--line);

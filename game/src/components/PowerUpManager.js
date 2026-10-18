@@ -20,16 +20,15 @@ export function createPowerUpManager(scene, playerGroup) {
 
   function pickType() {
     // Weighted spawn — cumulative, level-aware
-    // Base weights: heal 35%, score 20%, attack 15%, speed 10% = 80%
-    // New types fill the remaining 20% based on level unlock
+    // Heal is rarer now so it doesn't spawn too often
     const r = Math.random();
     if (currentLevel >= 9 && r < 0.02) return 'freeze';
     if (currentLevel >= 7 && r < 0.05) return 'magnet';
     if (currentLevel >= 5 && r < 0.10) return 'doubleAttack';
-    if (currentLevel >= 3 && r < 0.15) return 'shield';
-    if (r < 0.50) return 'heal';
-    if (r < 0.70) return 'score';
-    if (r < 0.85) return 'attack';
+    if (currentLevel >= 3 && r < 0.18) return 'shield';
+    if (r < 0.15) return 'heal';
+    if (r < 0.35) return 'score';
+    if (r < 0.55) return 'attack';
     return 'speed';
   }
 

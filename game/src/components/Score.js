@@ -173,8 +173,10 @@ export function createScore({ submitter = null } = {}) {
         <span class="label">Best</span><span class="value dim high-score-value">0</span>
       </div>
       <p class="new-best" style="display:none">\u2728 New best!</p>
-      <p class="game-over-hint">Press <kbd>Space</kbd> or <kbd>Enter</kbd> to restart</p>
-      <button class="menu-button primary game-over-restart" id="btn-game-over-restart" type="button">Restart</button>
+      <div class="game-over-buttons">
+        <button class="menu-button primary game-over-restart" id="btn-game-over-restart" type="button">Restart</button>
+        <button class="menu-button secondary game-over-back" id="btn-game-over-back" type="button">Back</button>
+      </div>
     </div>
   `;
   document.body.appendChild(gameOverEl);
@@ -193,6 +195,12 @@ export function createScore({ submitter = null } = {}) {
   const restartBtn = gameOverEl.querySelector('#btn-game-over-restart');
   restartBtn.addEventListener('click', () => {
     if (typeof onRestartRef === 'function') onRestartRef();
+  });
+  // Back button calls the injected callback to return to main menu.
+  const backBtn = gameOverEl.querySelector('#btn-game-over-back');
+  let onBackRef = null;
+  backBtn.addEventListener('click', () => {
+    if (typeof onBackRef === 'function') onBackRef();
   });
 
   // Keyboard shortcut: Enter restarts when game-over is visible.
@@ -260,12 +268,21 @@ export function createScore({ submitter = null } = {}) {
     el.classList.add('bump-kill');
   }
 
+  // Format large scores: 500+ → 0.5k, 1000+ → 1k, 1500+ → 1.5k, etc.
+  function formatScore(n) {
+    if (n < 500) return String(n);
+    const k = n / 1000;
+    if (k >= 10) return `${Math.floor(k)}k`;
+    if (k >= 1) return `${k.toFixed(1).replace(/\.0$/, '')}k`;
+    return `${k.toFixed(1)}k`;
+  }
+
   let lastLevelDisplayed = 0;
 
   function render() {
     const display = Math.floor(score);
     if (display !== lastScoreDisplayed) {
-      el.textContent = `Score: ${display}`;
+      el.textContent = `Score: ${formatScore(display)}`;
       lastScoreDisplayed = display;
     }
     // Update level badge when level changes
@@ -408,6 +425,7 @@ export function createScore({ submitter = null } = {}) {
     getScore, getHighScore, getCombo, getLastRank,
     setHearts, setCombo, pulseCombo,
     // Wired by main.js after GameManager is built (Score is constructed first).
-    setOnRestart: (fn) => { onRestartRef = fn; }
+    setOnRestart: (fn) => { onRestartRef = fn; },
+    setOnBack: (fn) => { onBackRef = fn; }
   };
 }
