@@ -3,6 +3,7 @@
 
 import * as THREE from 'three';
 import { createPowerUp, POWERUP_TYPES } from './PowerUp.js';
+import { PLAYABLE_RADIUS } from './WorldBounds.js';
 
 const PICKUP_RADIUS = 22;
 const SPAWN_RADIUS = 120;
@@ -36,8 +37,16 @@ export function createPowerUpManager(scene, playerGroup) {
     // Random angle & radius; never on top of the player.
     const angle = Math.random() * Math.PI * 2;
     const r = 100 + Math.random() * SPAWN_RADIUS;
-    const x = playerGroup.position.x + Math.cos(angle) * r;
-    const y = playerGroup.position.y + Math.sin(angle) * r;
+    let x = playerGroup.position.x + Math.cos(angle) * r;
+    let y = playerGroup.position.y + Math.sin(angle) * r;
+    // Keep pickups inside the intended arena so they never reward boundary exploits.
+    const distance = Math.hypot(x, y);
+    const maxPickupRadius = PLAYABLE_RADIUS - 24;
+    if (distance > maxPickupRadius) {
+      const scale = maxPickupRadius / distance;
+      x *= scale;
+      y *= scale;
+    }
 
     const type = pickType();
     const pu = createPowerUp(type, x, y);
