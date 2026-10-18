@@ -29,14 +29,15 @@ export function createDash(playerGroup, camera, getInputDirection, applyDisplace
   function now() { return performance.now(); }
 
   function tryStart() {
-    if (now() < cooldownUntilMs) return false;
-    // Don't start a new dash while already dashing — avoids conflicting
-    // with the active dash direction and movement queue.
-    if (dashRemainingMs > 0) return false;
+    const t = now();
+    console.log('[DASH tryStart] cooldownUntil:', cooldownUntilMs, 'dashRemaining:', dashRemainingMs);
+    if (t < cooldownUntilMs) { console.log('[DASH] blocked: cooldown'); return false; }
+    if (dashRemainingMs > 0) { console.log('[DASH] blocked: already dashing'); return false; }
     dirX = 0;
     dirY = 0;
     const inputDir = getInputDirection();
-    if (!inputDir) return false;
+    console.log('[DASH] inputDir:', inputDir);
+    if (!inputDir) { console.log('[DASH] blocked: no input direction'); return false; }
 
     camera.getWorldDirection(_camDir);
     const len = Math.sqrt(_camDir.x * _camDir.x + _camDir.y * _camDir.y);
@@ -58,7 +59,6 @@ export function createDash(playerGroup, camera, getInputDirection, applyDisplace
     dirX /= dlen;
     dirY /= dlen;
 
-    const t = now();
     dashElapsedMs = 0;
     dashRemainingMs = DASH_DURATION_MS;
     iFramesUntilMs = t + I_FRAME_DURATION_MS;

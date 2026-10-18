@@ -378,8 +378,11 @@ window.addEventListener('keydown', (e) => {
       gameManager.togglePause();
     }
   } else if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+    e.preventDefault();
+    console.log('[MAIN] Shift pressed, isPlaying:', gameManager.isPlaying());
     if (gameManager.isPlaying()) {
       const started = dash.tryStart();
+      console.log('[MAIN] dash.tryStart returned:', started);
       if (started) {
         audio.playDash();
         particles.spawnBurst(player.group.position.x, player.group.position.y, player.group.position.z + 4, {
