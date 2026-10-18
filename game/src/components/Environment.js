@@ -19,7 +19,7 @@ function blendHex(a, b, t) {
   return (r << 16) | (g << 8) | bl;
 }
 
-export function createEnvironment(scene, lights, groundMaterial, playerGroup) {
+export function createEnvironment(scene, lights, groundMaterial, playerGroup, skyMaterial = null) {
   const {
     ambientLight,
     directionalLight,
@@ -33,6 +33,14 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup) {
   const dayBackground = new THREE.Color(0x91c9df);
   const duskBackground = new THREE.Color(0xf18b68);
   const nightBackground = new THREE.Color(0x172b49);
+  const daySkyTop = new THREE.Color(0x1b3a78);
+  const duskSkyTop = new THREE.Color(0x49335f);
+  const nightSkyTop = new THREE.Color(0x081326);
+  const daySkyHorizon = new THREE.Color(0x80b6e8);
+  const duskSkyHorizon = new THREE.Color(0xf18b68);
+  const nightSkyHorizon = new THREE.Color(0x263b55);
+  const skyTopWorking = new THREE.Color();
+  const skyHorizonWorking = new THREE.Color();
   const dayFog = new THREE.Color(0x91c9df);
   const duskFog = new THREE.Color(0x6e405f);
   const nightFog = new THREE.Color(0x263b55);
@@ -281,17 +289,14 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup) {
 
     const wave = (Math.cos(phase * Math.PI * 2) + 1) * 0.5;
     const dayFactor = mode === 'day' ? 1 : mode === 'night' ? 0 : wave;
-    // Dusk factor is driven by the sun's HEIGHT (low sun = orange sky),
-    // not just by mode. This way the sky actually goes orange when the
-    // sun is near the horizon in any mode (auto / day / night), and
-    // returns to blue/night as the sun climbs out of frame.
-    // sunHeightFrac is sin(orbit*π): 0 at sunrise/sunset, 1 at noon.
-    // We invert it so dusk is strong when sun is LOW.
-    const sunHeightFrac = Math.sin(phase * Math.PI);
-    const sunLowFactor = 1 - sunHeightFrac;  // 1 at horizon, 0 at noon
-    // Squash the curve so dusk only shows in the lowest 25% of the arc.
-    // 0..0.25 maps to 0..1 dusk strength; 0.25+ clamps to 0.
-    const duskFactor = Math.max(0, 1 - sunHeightFrac * 4);
+    // Drive the celestial height and lighting from the same normalized cycle.
+    // In auto mode, daylight peaks at phase 0 and night at phase 0.5.
+    // The sun is near the horizon only at the daylight-to-night edges; do
+    // not leave a permanent sunset tint during the full night.
+    const sunHeightFrac = wave;
+    const duskFactor = mode === 'auto' && dayFactor > 0 && dayFactor < 0.25
+      ? 1 - dayFactor / 0.25
+      : 0;
 
     // Base sky color: blend night → day by dayFactor. Then OVERLAY the
     // dusk tint on top so the orange peak shows up in day mode too.
@@ -300,6 +305,17 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup) {
     workingColor.copy(nightBackground).lerp(dayBackground, dayFactor);
     workingColor.lerp(duskBackground, duskFactor * 0.95);
     scene.background.copy(workingColor);
+
+    // The visible sky is a shader dome, so update its gradient too;
+    // changing scene.background alone leaves the dome stuck in daytime blue.
+    if (skyMaterial?.uniforms?.topColor && skyMaterial?.uniforms?.bottomColor) {
+      skyTopWorking.copy(nightSkyTop).lerp(daySkyTop, dayFactor);
+      skyTopWorking.lerp(duskSkyTop, duskFactor * 0.9);
+      skyHorizonWorking.copy(nightSkyHorizon).lerp(daySkyHorizon, dayFactor);
+      skyHorizonWorking.lerp(duskSkyHorizon, duskFactor * 0.95);
+      skyMaterial.uniforms.topColor.value.copy(skyTopWorking);
+      skyMaterial.uniforms.bottomColor.value.copy(skyHorizonWorking);
+    }
 
     workingColor.copy(nightFog).lerp(dayFog, dayFactor);
     workingColor.lerp(duskFog, duskFactor * 0.85);
@@ -333,6 +349,11 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup) {
     const px = playerGroup.position.x;
     const py = playerGroup.position.y;
     const pz = playerGroup.position.z;
+    // Celestial bodies stay world-anchored; only clouds, stars, and fireflies
+    // use player-relative offsets to maintain sky coverage during exploration.
+    const skyOriginX = 0;
+    const skyOriginY = 0;
+    const skyOriginZ = 0;
 
     // Arc parameters — placed so the sun/moon always stay in the sky
     // (never touching the ground) while still arcing visibly across the
@@ -341,35 +362,38 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup) {
     //
     // Distance is large enough that the sun/moon read as far away in the
     // sky, not as nearby objects hovering over the player.
-    const HORIZONTAL_DIST = 480;   // east/west sweep distance from player
+    const HORIZONTAL_DIST = 620;   // wide east/west sweep keeps sun and moon apart
     const MIN_HEIGHT = 110;        // sun/moon height at sunrise/sunset
     const PEAK_HEIGHT = 260;       // sun/moon height at noon/midnight
     // Half-arc for height: reuses sunHeightFrac from above (0 at sunrise,
     // 1 at noon, 0 at sunset) so the arc positioning matches the sky
     // color. Do NOT redeclare sunHeightFrac here.
     const sunX = Math.cos(orbit) * HORIZONTAL_DIST;
-    const sunY = Math.sin(orbit) * 100;
+    const sunY = Math.sin(orbit) * 300;
     const sunZ = MIN_HEIGHT + sunHeightFrac * (PEAK_HEIGHT - MIN_HEIGHT);
     // Moon is "up" during the night portion of the cycle (when sun is low)
-    const moonHeightFrac = Math.sin((orbit + 1) * Math.PI);
+    // Keep the moon high when the sun is near the horizon, and low when
+    // the sun is near noon. The previous (orbit + 1) * PI expression mixed
+    // radians with a cycle offset and produced an unrelated moon arc.
+    const moonHeightFrac = 1 - sunHeightFrac;
     const moonX = -Math.cos(orbit) * HORIZONTAL_DIST;
-    const moonY = -Math.sin(orbit) * 100;
+    const moonY = -Math.sin(orbit) * 300;
     const moonZ = MIN_HEIGHT + moonHeightFrac * (PEAK_HEIGHT - MIN_HEIGHT);
 
     if (mode === 'day') {
       // Day mode also follows an arc — phase=0 is sunrise (horizon left),
       // phase=0.5 is noon (overhead), phase=1 is sunset (horizon right).
       // This way the user actually sees the sun rise and set, not a static sky.
-      sun.position.set(px + sunX, py + sunY, pz + sunZ);
+      sun.position.set(skyOriginX + sunX, skyOriginY + sunY, skyOriginZ + sunZ);
       // Moon stays below the horizon during day — push it underground.
-      moon.position.set(px + moonX, py + moonY, pz - 600);
+      moon.position.set(skyOriginX + moonX, skyOriginY + moonY, skyOriginZ - 600);
     } else if (mode === 'night') {
       // Night mode: phase drives the moon's rise/set, sun goes underground.
-      moon.position.set(px + moonX, py + moonY, pz + moonZ);
-      sun.position.set(px + sunX, py + sunY, pz - 600);
+      moon.position.set(skyOriginX + moonX, skyOriginY + moonY, skyOriginZ + moonZ);
+      sun.position.set(skyOriginX + sunX, skyOriginY + sunY, skyOriginZ - 600);
     } else {
-      sun.position.set(px + sunX, py + sunY, pz + sunZ);
-      moon.position.set(px + moonX, py + moonY, pz + moonZ);
+      sun.position.set(skyOriginX + sunX, skyOriginY + sunY, skyOriginZ + sunZ);
+      moon.position.set(skyOriginX + moonX, skyOriginY + moonY, skyOriginZ + moonZ);
     }
     // Move all halo layers + flares to follow the sun/moon
     sunHaloInner.position.copy(sun.position);

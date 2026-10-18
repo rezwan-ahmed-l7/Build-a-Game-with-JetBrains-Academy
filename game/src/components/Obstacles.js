@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { mulberry32 } from '../utils/rng.js';
+import { WORLD_RADIUS } from './WorldBounds.js';
 
 // Layout counts. Tuned for a forest you can SEE from the player but
 // not run into every two steps. We bias placement to the outer ring so
@@ -19,17 +20,14 @@ const SMALL_POND_SCALE_MIN = 0.45;
 const SMALL_POND_SCALE_MAX = 0.65;
 const HOUSE_COUNT = 3;
 
-// World is now ~700 wide (1400 diameter) so the trees form a far horizon
-// instead of crowding the player's play area.
-const WORLD_RADIUS = 700;
 // Player has a clear arena to move around — no trees, rocks or houses inside.
-const PLAYER_CLEARING_RADIUS = 70;
+const PLAYER_CLEARING_RADIUS = 90;
 // Trees should be a comfortable distance from each other (a real forest
 // has canopy gaps the player can see through).
 const TREE_SPACING_MIN = 22;
 // Inner forest ring — most of the trees live outside this radius so the
 // player can move freely, but they still form a visible forest border.
-const FOREST_INNER_RADIUS = 110;
+const FOREST_INNER_RADIUS = 115;
 // Outer band where 80% of the trees go (creates the horizon forest look).
 const FOREST_OUTER_BIAS = 0.8;
 const CLEARING_RADIUS = 40;

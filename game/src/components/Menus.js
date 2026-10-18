@@ -11,6 +11,7 @@ const NAME_MIN = 1;
 const NAME_MAX = 12;
 
 export function createMenus({ onStart, onResume, onRestart, onTogglePause, onToggleMute, onCycleMode, isMuted }) {
+  const leaderboardRenderVersions = new WeakMap();
   // Resolve once so all child builders (start menu, pause menu, game-over
   // hint) agree on whether to render keyboard or touch instructions.
   const isTouch = isTouchDevice();
@@ -419,12 +420,15 @@ export function createMenus({ onStart, onResume, onRestart, onTogglePause, onTog
 
   async function renderLeaderboardInto(target, rankEl, playCounterEl) {
     if (!target) return;
+    const renderVersion = (leaderboardRenderVersions.get(target) || 0) + 1;
+    leaderboardRenderVersions.set(target, renderVersion);
     clear(target);
     const top = await getTop();
     // Update the community play counter on every re-render. Hidden
     // until the count is > 0 — never shows "0 players have tried".
     if (playCounterEl) {
       const attempts = await getAttempts();
+      if (renderVersion !== leaderboardRenderVersions.get(target)) return;
       if (attempts > 0) {
         const formatted = attempts.toLocaleString('en-US');
         const noun = attempts === 1 ? 'game played' : 'games played';
@@ -435,6 +439,7 @@ export function createMenus({ onStart, onResume, onRestart, onTogglePause, onTog
         playCounterEl.style.display = 'none';
       }
     }
+    if (renderVersion !== leaderboardRenderVersions.get(target)) return;
     if (top.length === 0) {
       target.appendChild(el('p', { class: 'leaderboard-empty' }, ['No runs yet — be the first.']));
       if (rankEl) rankEl.style.display = 'none';

@@ -24,6 +24,7 @@ import { submitScore as leaderboardSubmit } from './components/Leaderboard.js';
 import { createDifficulty } from './components/Difficulty.js';
 import { createObstacles } from './components/Obstacles.js';
 import { createEnvironment } from './components/Environment.js';
+import { GROUND_RADIUS } from './components/WorldBounds.js';
 
 import { GameState } from './components/GameState.js';
 import { createHealth } from './components/Health.js';
@@ -52,7 +53,7 @@ document.body.appendChild(damageFlash);
 // -------- Scene --------
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x071024);
-scene.fog = new THREE.Fog(0x263c49, 380, 1500);
+scene.fog = new THREE.Fog(0x263c49, 560, 1900);
 
 // Sky dome: gradient sphere that follows the camera. Day side is warmer,
 // night side is cooler. This sits behind everything else and replaces the
@@ -139,8 +140,8 @@ function createMeadowTexture() {
     const radius = 18 + random() * 48;
     const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
     const tint = random() > 0.5
-      ? 'rgba(190, 192, 126, 0.055)'
-      : 'rgba(45, 83, 45, 0.045)';
+      ? 'rgba(190, 192, 126, 0.11)'
+      : 'rgba(45, 83, 45, 0.085)';
     gradient.addColorStop(0, tint);
     gradient.addColorStop(1, 'rgba(255,255,255,0)');
     ctx.fillStyle = gradient;
@@ -153,8 +154,8 @@ function createMeadowTexture() {
     const y = random() * size;
     const radius = 0.45 + random() * 0.8;
     ctx.fillStyle = random() > 0.5
-      ? 'rgba(72, 112, 48, 0.035)'
-      : 'rgba(180, 198, 126, 0.03)';
+      ? 'rgba(72, 112, 48, 0.075)'
+      : 'rgba(180, 198, 126, 0.065)';
     ctx.beginPath();
     ctx.ellipse(x, y, radius * 1.4, radius * 0.65, random() * Math.PI, 0, Math.PI * 2);
     ctx.fill();
@@ -163,13 +164,13 @@ function createMeadowTexture() {
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(18, 18);
+  texture.repeat.set(12, 12);
   texture.anisotropy = 4;
   texture.needsUpdate = true;
   return texture;
 }
 
-const groundGeometry = new THREE.CircleGeometry(14000, 128);
+const groundGeometry = new THREE.CircleGeometry(GROUND_RADIUS, 128);
 const groundMaterial = new THREE.MeshStandardMaterial({
   color: 0x344b2b, map: createMeadowTexture(), roughness: 1.0, metalness: 0
 });
@@ -178,9 +179,9 @@ ground.position.z = -0.5;
 ground.receiveShadow = true;
 scene.add(ground);
 
-// The dark edge falloff now starts well beyond the active arena, so the
-// camera cannot reveal a distracting black wedge at the edge of the ground.
-const vignetteGeometry = new THREE.RingGeometry(13500, 14000, 128);
+// The meadow ends shortly beyond the bounded playable arena: enough visual
+// margin to avoid a black edge in normal play, without implying an endless field.
+const vignetteGeometry = new THREE.RingGeometry(GROUND_RADIUS - 20, GROUND_RADIUS, 128);
 const vignetteMaterial = new THREE.MeshBasicMaterial({
   color: 0x05080d, side: THREE.DoubleSide,
   transparent: true, opacity: 0.72, depthWrite: false
@@ -195,7 +196,7 @@ scene.add(player.group);
 // Environment (depends on lights + player)
 const environment = createEnvironment(scene, {
   ambientLight, directionalLight, fillLight, rimLight
-}, groundMaterial, player.group);
+}, groundMaterial, player.group, skyMaterial);
 // Camera — child of player group so it follows the player naturally
 const camera = createCamera();
 scene.add(camera);

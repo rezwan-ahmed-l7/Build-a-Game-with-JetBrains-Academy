@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { lerpAngle } from '../utils/math.js';
 import { easeInOutCubic, easeInOutQuart, easeOutQuad, easeInQuad } from '../utils/easings.js';
+import { PLAYABLE_RADIUS } from './WorldBounds.js';
 
 const MOVE_DISTANCE = 40;
 const JUMP_HEIGHT = 28;
@@ -8,6 +9,13 @@ const JUMP_DURATION = 0.38;
 
 const _camDir = new THREE.Vector3();
 const _proposedPos = { x: 0, y: 0, z: 0 };
+
+function clampToPlayableRadius(x, y) {
+  const distance = Math.hypot(x, y);
+  if (distance <= PLAYABLE_RADIUS || distance === 0) return { x, y };
+  const scale = PLAYABLE_RADIUS / distance;
+  return { x: x * scale, y: y * scale };
+}
 
 // Coordinate system: Z is up (camera.up = (0, 0, 1))
 // Horizontal movement is on the X-Y plane; jump height is along Z.
@@ -74,14 +82,13 @@ export function createMovement(playerGroup, getModel, input, camera, canMoveCall
     // from +X is atan2(fwdY, fwdX) = pi/2 - camAngle. So the rotations below
     // express each desired facing direction as an angle CCW from +X.
     //
-    //   forward  -> face away from camera = camera forward
-    //   backward -> face toward camera
-    //   left     -> face camera-left (strafing left = facing the screen-left
-    //               side; this is camera-forward rotated +90 deg CCW)
-    //   right    -> face camera-right (camera-forward rotated -90 deg CCW)
+    // The model's observed front/back orientation is opposite to the
+    // assumed GLTF axis, so invert only forward/backward facing.
+    // W/forward -> face away from camera; S/backward -> face toward camera.
+    // Keep left/right facing behavior unchanged.
     switch (direction) {
-      case 'forward':  return Math.PI / 2 - camAngle;
-      case 'backward': return Math.PI / 2 - camAngle + Math.PI;
+      case 'forward':  return Math.PI / 2 - camAngle + Math.PI;
+      case 'backward': return Math.PI / 2 - camAngle;
       case 'left':     return Math.PI - camAngle;
       case 'right':    return -camAngle;
     }
@@ -133,6 +140,13 @@ export function createMovement(playerGroup, getModel, input, camera, canMoveCall
     _proposedPos.x = playerGroup.position.x + dirInfo.x;
     _proposedPos.y = playerGroup.position.y + dirInfo.y;
     _proposedPos.z = 0;
+
+    // Hard gameplay boundary: never let a normal move cross into the outer
+    // decorative margin where enemies/points could be farmed outside the arena.
+    if (Math.hypot(_proposedPos.x, _proposedPos.y) > PLAYABLE_RADIUS) {
+      input.dequeue();
+      return;
+    }
 
     // Block the move if it would land on top of an enemy; drop the bad input
     // so the player can press a different direction immediately.
@@ -194,8 +208,9 @@ export function createMovement(playerGroup, getModel, input, camera, canMoveCall
 
     if (progress >= 1) {
       progress = 1;
-      playerGroup.position.x = targetPos.x;
-      playerGroup.position.y = targetPos.y;
+      const boundedTarget = clampToPlayableRadius(targetPos.x, targetPos.y);
+      playerGroup.position.x = boundedTarget.x;
+      playerGroup.position.y = boundedTarget.y;
       playerGroup.position.z = 0;
 
       currentRotation = targetRotation;
@@ -214,8 +229,12 @@ export function createMovement(playerGroup, getModel, input, camera, canMoveCall
     }
 
     const easedProgress = easeInOutCubic(progress);
-    playerGroup.position.x = startPos.x + moveDelta.x * easedProgress;
-    playerGroup.position.y = startPos.y + moveDelta.y * easedProgress;
+    const interpolatedPos = clampToPlayableRadius(
+      startPos.x + moveDelta.x * easedProgress,
+      startPos.y + moveDelta.y * easedProgress
+    );
+    playerGroup.position.x = interpolatedPos.x;
+    playerGroup.position.y = interpolatedPos.y;
     playerGroup.position.z = Math.sin(progress * Math.PI) * JUMP_HEIGHT;
 
     if (progress < 0.2) {
@@ -253,12 +272,19 @@ export function createMovement(playerGroup, getModel, input, camera, canMoveCall
   // Without shifting startPos/targetPos, the next movement frame overwrites
   // dash displacement and makes the dash appear to do nothing.
   function translate(dx, dy) {
-    playerGroup.position.x += dx;
-    playerGroup.position.y += dy;
-    startPos.x += dx;
-    startPos.y += dy;
-    targetPos.x += dx;
-    targetPos.y += dy;
+    // Dash uses this path too, so clamp its displacement to the same arena.
+    const nextX = playerGroup.position.x + dx;
+    const nextY = playerGroup.position.y + dy;
+    const distance = Math.hypot(nextX, nextY);
+    const scale = distance > PLAYABLE_RADIUS ? PLAYABLE_RADIUS / distance : 1;
+    const actualDx = nextX * scale - playerGroup.position.x;
+    const actualDy = nextY * scale - playerGroup.position.y;
+    playerGroup.position.x += actualDx;
+    playerGroup.position.y += actualDy;
+    startPos.x += actualDx;
+    startPos.y += actualDy;
+    targetPos.x += actualDx;
+    targetPos.y += actualDy;
   }
 
   function applySquashStretch() {
