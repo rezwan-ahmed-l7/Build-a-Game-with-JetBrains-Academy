@@ -10,6 +10,13 @@ const JUMP_DURATION = 0.38;
 const _camDir = new THREE.Vector3();
 const _proposedPos = { x: 0, y: 0, z: 0 };
 
+function clampToPlayableRadius(x, y) {
+  const distance = Math.hypot(x, y);
+  if (distance <= PLAYABLE_RADIUS || distance === 0) return { x, y };
+  const scale = PLAYABLE_RADIUS / distance;
+  return { x: x * scale, y: y * scale };
+}
+
 // Coordinate system: Z is up (camera.up = (0, 0, 1))
 // Horizontal movement is on the X-Y plane; jump height is along Z.
 export function createMovement(playerGroup, getModel, input, camera, canMoveCallback) {
@@ -202,8 +209,9 @@ export function createMovement(playerGroup, getModel, input, camera, canMoveCall
 
     if (progress >= 1) {
       progress = 1;
-      playerGroup.position.x = targetPos.x;
-      playerGroup.position.y = targetPos.y;
+      const boundedTarget = clampToPlayableRadius(targetPos.x, targetPos.y);
+      playerGroup.position.x = boundedTarget.x;
+      playerGroup.position.y = boundedTarget.y;
       playerGroup.position.z = 0;
 
       currentRotation = targetRotation;
@@ -222,8 +230,12 @@ export function createMovement(playerGroup, getModel, input, camera, canMoveCall
     }
 
     const easedProgress = easeInOutCubic(progress);
-    playerGroup.position.x = startPos.x + moveDelta.x * easedProgress;
-    playerGroup.position.y = startPos.y + moveDelta.y * easedProgress;
+    const interpolatedPos = clampToPlayableRadius(
+      startPos.x + moveDelta.x * easedProgress,
+      startPos.y + moveDelta.y * easedProgress
+    );
+    playerGroup.position.x = interpolatedPos.x;
+    playerGroup.position.y = interpolatedPos.y;
     playerGroup.position.z = Math.sin(progress * Math.PI) * JUMP_HEIGHT;
 
     if (progress < 0.2) {
