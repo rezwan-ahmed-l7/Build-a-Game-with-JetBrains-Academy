@@ -82,14 +82,13 @@ export function createMovement(playerGroup, getModel, input, camera, canMoveCall
     // from +X is atan2(fwdY, fwdX) = pi/2 - camAngle. So the rotations below
     // express each desired facing direction as an angle CCW from +X.
     //
-    //   forward  -> face away from camera = camera forward
-    //   backward -> face toward camera
-    //   left     -> face camera-left (strafing left = facing the screen-left
-    //               side; this is camera-forward rotated +90 deg CCW)
-    //   right    -> face camera-right (camera-forward rotated -90 deg CCW)
+    // The model's observed front/back orientation is opposite to the
+    // assumed GLTF axis, so invert only forward/backward facing.
+    // W/forward -> face away from camera; S/backward -> face toward camera.
+    // Keep left/right facing behavior unchanged.
     switch (direction) {
-      case 'forward':  return Math.PI / 2 - camAngle;
-      case 'backward': return Math.PI / 2 - camAngle + Math.PI;
+      case 'forward':  return Math.PI / 2 - camAngle + Math.PI;
+      case 'backward': return Math.PI / 2 - camAngle;
       case 'left':     return Math.PI - camAngle;
       case 'right':    return -camAngle;
     }
