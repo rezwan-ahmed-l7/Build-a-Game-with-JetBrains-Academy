@@ -3,7 +3,9 @@
 
 import { GameState } from './GameState.js';
 import { load, save } from '../utils/persistence.js';
-import { isTouchDevice } from '../utils/dom.js';
+import { isTouchDevice, prefersReducedMotion } from '../utils/dom.js';
+import { easeOutCubic } from '../utils/easings.js';
+import { TODE_NEW_BEST } from '../events.js';
 
 const SCORE_PER_SECOND = 3;
 const SCORE_PER_KILL = 15;
@@ -37,6 +39,30 @@ export function getNextLevelScore(score = 0) {
 // mutually exclusive per-device — both render in the DOM, the wrong one
 // is hidden via the .is-touch class on the panel.
 const IS_TOUCH = isTouchDevice();
+
+// Animates a DOM element's textContent from 0 -> target over `duration` ms
+// using requestAnimationFrame. Skips animation in test/jsdom environments
+// (the rAF callback wouldn't fire synchronously, so the test assertion
+// would see the starting "0" rather than the final value) and when the
+// user prefers reduced motion.
+function animateCountUp(el, to, duration) {
+  if (prefersReducedMotion() || typeof process !== 'undefined') {
+    el.textContent = to;
+    return;
+  }
+  const start = performance.now();
+  let raf = 0;
+  function frame(now) {
+    // Bail if the element was removed (game restart, panel teardown)
+    // so we don't keep writing to a detached node.
+    if (!el.isConnected) return;
+    const t = Math.min(1, (now - start) / duration);
+    el.textContent = Math.round(to * easeOutCubic(t));
+    if (t < 1) raf = requestAnimationFrame(frame);
+    else el.textContent = to;
+  }
+  raf = requestAnimationFrame(frame);
+}
 
 export function createScore({ submitter = null } = {}) {
   let score = 0;
@@ -89,6 +115,26 @@ export function createScore({ submitter = null } = {}) {
   heartsEl.className = 'hearts';
   document.body.appendChild(heartsEl);
   const heartNodes = [];
+  // Inline "current/max" label. Shown only when max != default (3) or
+  // HP < max — keeps the row visually quiet at full health.
+  const hpLabelEl = document.createElement('span');
+  hpLabelEl.className = 'hearts-hp';
+  hpLabelEl.textContent = '';
+  heartsEl.appendChild(hpLabelEl);
+
+  // Inline SVG heart — base shape + a "crack" path layered on top that
+  // fades in when the heart is lost. Using SVG (not emoji) gives us
+  // per-element control over color, filter, and animation.
+  const HEART_SVG = `
+    <svg class="heart-svg heart-svg-base" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 21s-7.5-4.6-9.6-9.4C.8 7.4 3.4 3 7.4 3c2 0 3.6 1 4.6 2.5C13 4 14.6 3 16.6 3 20.6 3 23.2 7.4 21.6 11.6 19.5 16.4 12 21 12 21z"
+            fill="currentColor" />
+    </svg>
+    <svg class="heart-svg heart-svg-crack" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 4 L8.5 10 L11 12 L7 15 L10.5 17.5 L8 21 M12 4 L15.5 10 L13 12 L17 15 L13.5 17.5 L16 21"
+            fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+  `;
 
   function syncHeartNodes(max) {
     // Remove excess hearts
@@ -100,7 +146,7 @@ export function createScore({ submitter = null } = {}) {
     while (heartNodes.length < max) {
       const h = document.createElement('span');
       h.className = 'heart';
-      h.textContent = '\u2665';
+      h.innerHTML = HEART_SVG;
       heartsEl.appendChild(h);
       heartNodes.push(h);
     }
@@ -180,6 +226,13 @@ export function createScore({ submitter = null } = {}) {
         node.style.display = 'none';
       }
     }
+    // HP label is shown only when max != default (3) or HP < max.
+    // Hidden at full 3/3 to keep the row visually quiet.
+    if (max !== lastHeartsMax || hp < max) {
+      hpLabelEl.textContent = `${hp}/${max}`;
+    } else {
+      hpLabelEl.textContent = '';
+    }
     lastHeartsHp = hp;
     lastHeartsMax = max;
   }
@@ -241,7 +294,6 @@ export function createScore({ submitter = null } = {}) {
   }
 
   function showGameOver() {
-    console.log('[Score] showGameOver called, score:', score);
     const display = Math.floor(score);
     const finalLevel = getLevel(display);
     const prevBest = Math.floor(highScore);
@@ -255,9 +307,7 @@ export function createScore({ submitter = null } = {}) {
     // We fire-and-forget here so the game-over UI appears immediately;
     // the rank will be shown once the promise resolves.
     if (typeof submitter === 'function') {
-      console.log('[Score] Submitter function exists, calling...');
       submitter({ score, ts: Date.now() }).then((result) => {
-        console.log('[Score] Submitter result:', result);
         lastRank = (result && Number.isInteger(result)) ? result : null;
         if (lastRank) {
           rankEl.textContent = `You placed #${lastRank} on the leaderboard!`;
@@ -273,15 +323,20 @@ export function createScore({ submitter = null } = {}) {
         rankEl.style.display = 'none';
       });
     } else {
-      console.warn('[Score] No submitter function provided!');
       lastRank = null;
     }
-    finalScoreEl.textContent = display;
+    finalScoreEl.textContent = '0';
     finalLevelEl.textContent = finalLevel;
     highScoreEl.textContent = Math.floor(highScore);
+    animateCountUp(finalScoreEl, display, 900);
     if (isNewBest) {
       newBestEl.style.display = '';
       newBestEl.textContent = prevBest === 0 ? '\u2728 First best!' : '\u2728 New best!';
+      // Notify the main loop so it can spawn a confetti burst in world
+      // space. DOM event bus keeps Score.js decoupled from THREE/Particles.
+      window.dispatchEvent(new CustomEvent(TODE_NEW_BEST, {
+        detail: { score: display, prevBest }
+      }));
     } else {
       newBestEl.style.display = 'none';
     }
@@ -328,11 +383,19 @@ export function createScore({ submitter = null } = {}) {
   function getCombo() { return combo; }
   function getLastRank() { return lastRank; }
 
+  // Milestone pulse — fires when a combo crosses a 5-kill boundary. Owned
+  // by Score because the .combo-chip element is created here.
+  function pulseCombo() {
+    comboEl.classList.remove('milestone');
+    void comboEl.offsetWidth;
+    comboEl.classList.add('milestone');
+  }
+
   return {
     tick, addKillBonus, render,
     showGameOver, hideGameOver, reset,
     getScore, getHighScore, getCombo, getLastRank,
-    setHearts, setCombo,
+    setHearts, setCombo, pulseCombo,
     // Wired by main.js after GameManager is built (Score is constructed first).
     setOnRestart: (fn) => { onRestartRef = fn; }
   };

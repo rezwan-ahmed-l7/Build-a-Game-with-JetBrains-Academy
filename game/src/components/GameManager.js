@@ -1,6 +1,7 @@
 import { GameState } from './GameState.js';
 import { recordAttempt } from './PlayCounter.js';
-import { getLevel } from './Score.js';
+import { POWERUP_TYPES } from './PowerUp.js';
+import { TODE_TOAST, TODE_LEVEL_UP, TODE_COMBO_MILESTONE } from '../events.js';
 
 // Boost durations and multipliers
 const ATTACK_BOOST_DURATION = 10;
@@ -101,10 +102,15 @@ export function createGameManager({
   let flashTimer = 0;
   let currentLevel = 1;
   let lastDisplayedLevel = 0;
+  // Pause-menu stats — tracked per-run.
+  let killCount = 0;
+  let runStartTime = 0; // performance.now() when startGame fired
   let shieldRemaining = 0;       // invincibility from shield power-up
   let doubleAttackRemaining = 0; // 2x damage from double attack power-up
   let magnetRemaining = 0;       // auto-pickup radius from magnet power-up
   let freezeRemaining = 0;       // enemies frozen
+  let resumeCountdownTimer = 0;  // handle for the in-flight 3-2-1 chain
+  const RESUME_TICK_MS = 800;
 
   function getAttack() {
     return attackRef;
@@ -164,46 +170,55 @@ export function createGameManager({
     if (type === 'heal') {
       const eff = getPowerUpEffect('heal', lvl);
       health.heal(eff.amount);
-      damageNumbers.spawn(eff.label, pos.x, pos.y, pos.z + 6, '#ff7799');
+      damageNumbers.spawn(eff.label, pos.x, pos.y, pos.z + 6, '#7ee08a', { kind: 'heal' });
     } else if (type === 'score') {
       const eff = getPowerUpEffect('score', lvl);
       score.addKillBonus(eff.bonus);
-      damageNumbers.spawn(eff.label, pos.x, pos.y, pos.z + 6, '#ffd166');
+      damageNumbers.spawn(eff.label, pos.x, pos.y, pos.z + 6, '#ffd166', { kind: 'power' });
       particles.spawnBurst(pos.x, pos.y, pos.z, { count: 24, color: 0xffd166, speed: 90, life: 0.7, size: 7 });
     } else if (type === 'speed') {
       const eff = getPowerUpEffect('speed', lvl);
       speedBoostRemaining = eff.duration;
       movement.setSpeedMultiplier(eff.mult);
       score.addKillBonus(2);
-      damageNumbers.spawn(eff.label, pos.x, pos.y, pos.z + 6, '#4cc9f0');
+      damageNumbers.spawn(eff.label, pos.x, pos.y, pos.z + 6, '#4cc9f0', { kind: 'power' });
       particles.spawnBurst(pos.x, pos.y, pos.z, { count: 22, color: 0x4cc9f0, speed: 80, life: 0.7, size: 6 });
     } else if (type === 'attack') {
       const eff = getPowerUpEffect('attack', lvl);
       attackBoostRemaining = eff.duration;
       attackRef.setRadius(attackRef.getRadius() * eff.mult);
       score.addKillBonus(4);
-      damageNumbers.spawn(eff.label, pos.x, pos.y, pos.z + 6, '#9ee7ff');
+      damageNumbers.spawn(eff.label, pos.x, pos.y, pos.z + 6, '#9ee7ff', { kind: 'power' });
       particles.spawnBurst(pos.x, pos.y, pos.z, { count: 28, color: 0x9ee7ff, speed: 100, life: 0.8, size: 7 });
     } else if (type === 'shield') {
       const eff = getPowerUpEffect('shield', lvl);
       shieldRemaining = eff.duration;
-      damageNumbers.spawn(eff.label, pos.x, pos.y, pos.z + 6, '#ffffff');
+      damageNumbers.spawn(eff.label, pos.x, pos.y, pos.z + 6, '#ffffff', { kind: 'power' });
       particles.spawnBurst(pos.x, pos.y, pos.z, { count: 20, color: 0xffffff, speed: 80, life: 0.7, size: 6 });
     } else if (type === 'doubleAttack') {
       const eff = getPowerUpEffect('doubleAttack', lvl);
       doubleAttackRemaining = eff.duration;
-      damageNumbers.spawn(eff.label, pos.x, pos.y, pos.z + 6, '#ffdd44');
+      damageNumbers.spawn(eff.label, pos.x, pos.y, pos.z + 6, '#ffdd44', { kind: 'crit' });
       particles.spawnBurst(pos.x, pos.y, pos.z, { count: 20, color: 0xffdd44, speed: 80, life: 0.7, size: 6 });
     } else if (type === 'magnet') {
       const eff = getPowerUpEffect('magnet', lvl);
       magnetRemaining = eff.duration;
-      damageNumbers.spawn(eff.label, pos.x, pos.y, pos.z + 6, '#aa88ff');
+      damageNumbers.spawn(eff.label, pos.x, pos.y, pos.z + 6, '#aa88ff', { kind: 'power' });
       particles.spawnBurst(pos.x, pos.y, pos.z, { count: 20, color: 0xaa88ff, speed: 80, life: 0.7, size: 6 });
     } else if (type === 'freeze') {
       const eff = getPowerUpEffect('freeze', lvl);
       freezeRemaining = eff.duration;
-      damageNumbers.spawn(eff.label, pos.x, pos.y, pos.z + 6, '#88ddff');
+      damageNumbers.spawn(eff.label, pos.x, pos.y, pos.z + 6, '#88ddff', { kind: 'power' });
       particles.spawnBurst(pos.x, pos.y, pos.z, { count: 24, color: 0x88ddff, speed: 100, life: 0.8, size: 7 });
+    }
+    // Toast the pickup so the HUD shows what was grabbed. POWERUP_TYPES
+    // is the single source of truth for label/desc/color — keeps the
+    // toast in sync with the 3D shape definitions in PowerUp.js.
+    const def = POWERUP_TYPES[type];
+    if (def) {
+      window.dispatchEvent(new CustomEvent(TODE_TOAST, {
+        detail: { label: def.label, desc: def.desc, color: def.color }
+      }));
     }
   }
 
@@ -256,6 +271,9 @@ export function createGameManager({
       count: 30, color: 0xffd700, speed: 120, life: 1.0, size: 8
     });
     audio.playLevelUp();
+    // Notify the main loop so it can fire the full-screen vignette +
+    // "LEVEL UP" banner. Keeps GameManager decoupled from DOM.
+    window.dispatchEvent(new CustomEvent(TODE_LEVEL_UP, { detail: { level } }));
   }
 
   function resetGame() {
@@ -274,7 +292,9 @@ export function createGameManager({
     powerUps.removeAll();
     dash.reset();
     score.reset();
-    
+    killCount = 0;
+    runStartTime = performance.now();
+
     // Apply level-based stats
     currentLevel = 1;
     lastDisplayedLevel = 0;
@@ -309,10 +329,58 @@ export function createGameManager({
       dash.cancel();
       menusRef.showPause();
     } else if (currentState === GameState.PAUSED) {
+      // If a resume countdown is mid-flight, cancel it so a fresh pause
+      // doesn't overlap a stale tick firing after we hide the menu.
+      if (resumeCountdownTimer) {
+        clearTimeout(resumeCountdownTimer);
+        resumeCountdownTimer = 0;
+      }
       currentState = GameState.PLAYING;
       input.setEnabled(true);
       menusRef.hidePause();
     }
+  }
+
+  // 3-2-1 countdown before resuming. Gives the player a beat to
+  // re-orient after unpausing and prevents an instant re-engagement that
+  // can feel jarring. The countdown is just a visual + state transition;
+  // no game logic ticks while it's running because currentState stays
+  // PAUSED.
+  function beginResumeCountdown() {
+    if (currentState !== GameState.PAUSED) return;
+    if (resumeCountdownTimer) clearTimeout(resumeCountdownTimer);
+    let n = 3;
+    const tick = () => {
+      resumeCountdownTimer = 0;
+      if (currentState !== GameState.PAUSED) {
+        // Player paused again (Esc) or died during countdown — bail.
+        return;
+      }
+      if (n <= 0) {
+        currentState = GameState.PLAYING;
+        input.setEnabled(true);
+        menusRef.hidePause();
+        menusRef.clearResumeCountdown && menusRef.clearResumeCountdown();
+        return;
+      }
+      menusRef.showResumeCountdown && menusRef.showResumeCountdown(n);
+      n -= 1;
+      resumeCountdownTimer = setTimeout(tick, RESUME_TICK_MS);
+    };
+    tick();
+  }
+
+  // Snapshot of run stats — used by the pause menu so it can show
+  // current score, level, kills, and elapsed time without each subsystem
+  // having to expose its own getter to the menu layer.
+  function getRunStats() {
+    return {
+      score: score.getScore(),
+      level: currentLevel,
+      kills: killCount,
+      combo: combo.getCount(),
+      elapsedMs: runStartTime ? performance.now() - runStartTime : 0
+    };
   }
 
   function isPlaying() {
@@ -354,20 +422,36 @@ export function createGameManager({
   // Attack hooks — uses attackRef so it works even when attack is set later
   const attackHooks = {
     onHit(enemy, pos) {
-      const dmg = doubleAttackRemaining > 0 ? attackRef.getDamage() * 2 : attackRef.getDamage();
-      damageNumbers.spawn(String(dmg), pos.x, pos.y, pos.z + 8, '#ffdd66');
+      const isCrit = doubleAttackRemaining > 0;
+      const dmg = isCrit ? attackRef.getDamage() * 2 : attackRef.getDamage();
+      damageNumbers.spawn(String(dmg), pos.x, pos.y, pos.z + 8, isCrit ? '#ffdd66' : '#ffdd66', {
+        kind: isCrit ? 'crit' : 'default'
+      });
     },
     onKill(enemy, pos) {
       combo.register();
       const mul = combo.getMultiplier();
+      const count = combo.getCount();
+      killCount += 1;
       score.addKillBonus(mul);
-      score.setCombo(combo.getCount(), combo.getTimeLeft());
+      score.setCombo(count, combo.getTimeLeft());
       audio.playHit();
-      if (combo.getCount() >= 3) audio.playPowerUp();
+      if (count >= 3) audio.playPowerUp();
       screenShake.kick(1.5 + mul * 0.6);
       particles.spawnBurst(pos.x, pos.y, pos.z + 6, {
         count: 18, color: 0xff5577, speed: 90, life: 0.6, size: 7
       });
+      // Milestone every 5 kills — gold ring + bigger burst + SFX.
+      // Fires a custom event so the HUD can pulse the combo chip without
+      // GameManager knowing about Score's internals.
+      if (count > 0 && count % 5 === 0) {
+        particles.spawnBurst(pos.x, pos.y, pos.z + 10, {
+          count: 30, color: 0xffd166, speed: 130, life: 0.9, size: 8
+        });
+        window.dispatchEvent(new CustomEvent(TODE_COMBO_MILESTONE, {
+          detail: { count }
+        }));
+      }
     },
     onShake(amount) {
       screenShake.kick(amount);
@@ -386,10 +470,15 @@ export function createGameManager({
   const menuCallbacks = {
     onStart: startGame,
     onResume: () => {
-      if (currentState === GameState.PAUSED) togglePause();
+      if (currentState === GameState.PAUSED) beginResumeCountdown();
     },
     onTogglePause: () => {
-      if (currentState === GameState.PLAYING || currentState === GameState.PAUSED) {
+      if (currentState === GameState.PLAYING) {
+        // Populate the pause menu's mini-stats from a fresh snapshot so
+        // the numbers are current as of the moment the player paused.
+        if (menusRef.setPauseStats) menusRef.setPauseStats(getRunStats());
+        togglePause();
+      } else if (currentState === GameState.PAUSED) {
         togglePause();
       }
     },
@@ -420,6 +509,7 @@ export function createGameManager({
     checkPlayerEnemyContact,
     attackHooks,
     menuCallbacks,
+    getRunStats,
     getAttackBoostRemaining: () => attackBoostRemaining,
     setAttackBoostTimer: (v) => { attackBoostRemaining = v; },
     getSpeedBoostRemaining: () => speedBoostRemaining,

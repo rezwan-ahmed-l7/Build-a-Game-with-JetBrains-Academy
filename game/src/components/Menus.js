@@ -4,7 +4,6 @@
 import { el, clear, isTouchDevice } from '../utils/dom.js';
 import { loadProfile, saveProfile } from './Profile.js';
 import { getTop } from './Leaderboard.js';
-import { getAttempts } from './PlayCounter.js';
 import { COUNTRIES } from '../data/countries.js';
 
 const NAME_MIN = 1;
@@ -36,8 +35,12 @@ export function createMenus({ onStart, onResume, onRestart, onTogglePause, onTog
     ? 'Tap <strong>Resume</strong> to continue'
     : 'Press <kbd>Esc</kbd> to resume';
   const pauseClasses = 'menu menu-pause' + (isTouch ? ' is-touch' : '');
+  // Mini-stats panel — populated by `setPauseStats()` right before the
+  // pause menu shows. Kept as a 2x2 grid so it reads at a glance.
+  const statsGrid = el('div', { class: 'pause-stats' });
   const pause = el('div', { class: pauseClasses, id: 'menu-pause', style: { display: 'none' } }, [
     el('h1', {}, ['Paused']),
+    statsGrid,
     el('div', { class: 'menu-buttons' }, [
       el('button', { class: 'menu-button', id: 'btn-resume' }, ['Resume']),
       el('button', { class: 'menu-button', id: 'btn-restart' }, ['Restart']),
@@ -45,6 +48,12 @@ export function createMenus({ onStart, onResume, onRestart, onTogglePause, onTog
     el('p', { class: 'pause-hint', html: pauseHintHtml })
   ]);
   root.appendChild(pause);
+
+  // Resume countdown overlay — separate from the pause menu so it can
+  // sit on top of the menu (or anywhere) without altering the menu's
+  // layout. Toggled by showResumeCountdown / clearResumeCountdown.
+  const countdownEl = el('div', { class: 'resume-countdown', style: { display: 'none' } });
+  document.body.appendChild(countdownEl);
 
   // ----- HUD: icon buttons (top-right) -----
   const hud = el('div', { class: 'menu-hud' }, [
@@ -85,7 +94,6 @@ export function createMenus({ onStart, onResume, onRestart, onTogglePause, onTog
   const playBtn = start.querySelector('#btn-start');
   const leaderboardEl = start.querySelector('#menu-leaderboard');
   const rankBadge = start.querySelector('#menu-my-rank');
-  const playCounterEl = start.querySelector('#menu-play-counter');
 
   nameInput.value = profile.name;
   flagChip.textContent = profile.flag || '🏳️';  // placeholder
@@ -111,7 +119,7 @@ export function createMenus({ onStart, onResume, onRestart, onTogglePause, onTog
     }
   }
   refreshPlayState();
-  renderLeaderboardInto(leaderboardEl, rankBadge, playCounterEl);
+  renderLeaderboardInto(leaderboardEl, rankBadge);
 
   nameInput.addEventListener('input', () => {
     profile.name = nameInput.value;
@@ -159,58 +167,128 @@ export function createMenus({ onStart, onResume, onRestart, onTogglePause, onTog
     }
   });
 
+  // Toggle the .is-tall class so the menu can pick between center (when
+  // content fits) and top-aligned scroll (when it doesn't). Re-runs on
+  // resize so orientation changes / window resizes don't strand the
+  // user with clipped content.
+  function refitMenu(menuEl) {
+    if (!menuEl) return;
+    // Reset scroll first so the height check uses the un-scrolled state.
+    menuEl.scrollTop = 0;
+    const tall = menuEl.scrollHeight > menuEl.clientHeight + 1;
+    menuEl.classList.toggle('is-tall', !tall);
+  }
+  const refitAll = () => { refitMenu(start); refitMenu(pause); };
+  window.addEventListener('resize', refitAll);
+
   function showStart() {
     start.style.display = '';
     pause.style.display = 'none';
     // Re-render the leaderboard in case a run finished while we were away.
-    renderLeaderboardInto(leaderboardEl, rankBadge, playCounterEl);
+    renderLeaderboardInto(leaderboardEl, rankBadge);
     refreshPlayState();
+    // Defer to next frame so the leaderboard DOM has settled.
+    requestAnimationFrame(() => refitMenu(start));
   }
   function hideStart() {
     start.style.display = 'none';
   }
   function showPause() {
     pause.style.display = '';
+    requestAnimationFrame(() => refitMenu(pause));
   }
   function hidePause() {
     pause.style.display = 'none';
+    clearResumeCountdown();
+  }
+
+  // Paint the 4-up mini-stats panel. Called by main.js with a snapshot
+  // from GameManager.getRunStats() right before the pause menu shows,
+  // so the numbers are always current.
+  function setPauseStats(stats) {
+    if (!stats) return;
+    const fmt = (n) => String(Math.floor(n)).padStart(2, '0');
+    const elapsed = stats.elapsedMs || 0;
+    const mm = Math.floor(elapsed / 60000);
+    const ss = Math.floor((elapsed % 60000) / 1000);
+    clear(statsGrid);
+    const rows = [
+      { label: 'Score', value: String(Math.floor(stats.score || 0)).padStart(2, '0') },
+      { label: 'Level', value: `Lv. ${stats.level || 1}` },
+      { label: 'Kills', value: String(stats.kills || 0) },
+      { label: 'Time', value: `${fmt(mm)}:${fmt(ss)}` },
+    ];
+    for (const r of rows) {
+      statsGrid.appendChild(el('div', { class: 'pause-stat' }, [
+        el('span', { class: 'pause-stat-label' }, [r.label]),
+        el('span', { class: 'pause-stat-value' }, [r.value]),
+      ]));
+    }
+  }
+
+  // Resume countdown — a single big number that ticks 3 → 2 → 1 → Go!
+  // before the game resumes. Driven by GameManager.beginResumeCountdown.
+  function showResumeCountdown(n) {
+    const phase = n > 0 ? 'tick' : 'go';
+    countdownEl.textContent = n > 0 ? String(n) : 'Go!';
+    countdownEl.dataset.phase = phase;
+    countdownEl.style.display = '';
+    // Re-trigger the entrance animation by removing/re-adding the class.
+    countdownEl.classList.remove('resume-countdown-active');
+    void countdownEl.offsetWidth;
+    countdownEl.classList.add('resume-countdown-active');
+  }
+  function clearResumeCountdown() {
+    countdownEl.style.display = 'none';
+    countdownEl.classList.remove('resume-countdown-active');
   }
   function showHud(show) {
     hud.style.display = show ? '' : 'none';
     controlsStrip.style.display = show ? '' : 'none';
   }
-  function setEnvironmentMode(label, modeKey = 'auto') {
-    modePill.firstChild.nodeValue = label;
-    modePill.dataset.mode = modeKey;
+  function setEnvironmentMode({ label, mode = 'auto', timeText = '' } = {}) {
+    // Re-build the pill content so the time (e.g. "06:24") sits cleanly
+    // next to the label, with a thin separator. Using a single text node
+    // for the label keeps the ::before dot (driven by data-mode) anchored
+    // to the pill's left edge.
+    clear(modePill);
+    modePill.appendChild(document.createTextNode(label));
+    if (timeText) {
+      modePill.appendChild(el('span', { class: 'mode-pill-sep' }, ['·']));
+      modePill.appendChild(el('span', { class: 'mode-pill-clock' }, [timeText]));
+    }
+    modePill.dataset.mode = mode;
   }
 
   // Refresh the start-menu leaderboard without rebuilding the whole menu.
   // Called by main.js after a run ends so the new entry is visible.
   function refreshLeaderboard() {
-    renderLeaderboardInto(leaderboardEl, rankBadge, playCounterEl);
+    renderLeaderboardInto(leaderboardEl, rankBadge);
   }
 
   return {
     showStart, hideStart, showPause, hidePause, showHud, setEnvironmentMode,
-    refreshLeaderboard
+    refreshLeaderboard, setPauseStats, showResumeCountdown, clearResumeCountdown
   };
 
   // -----------------------------------------------------------------------
-  // Build the start menu contents (title, profile, leaderboard, hints).
-  // The profile row and the leaderboard are siblings of the existing
-  // title block so the visual hierarchy stays the same.
+  // Build the start menu contents (title, profile, leaderboard).
+  // The vertical stack is intentionally tight: every element earns its
+  // space, no duplicate messaging, no decorative filler. Order reads
+  // top-to-bottom: brand → actions → scoreboard.
   // -----------------------------------------------------------------------
   function buildStartMenu(container) {
+    const avatar = el('div', { class: 'profile-avatar', title: 'Your avatar' }, ['🐸']);
     const profileRow = el('div', { class: 'profile-row' }, [
-      el('label', { class: 'profile-label', for: 'profile-name' }, ['Player name']),
+      avatar,
       el('input', {
         class: 'profile-name', id: 'profile-name', type: 'text',
         maxlength: String(NAME_MAX), placeholder: 'Enter name…',
-        autocomplete: 'off', spellcheck: 'false'
+        autocomplete: 'off', spellcheck: 'false', 'aria-label': 'Player name'
       }),
       el('button', {
         class: 'profile-flag', id: 'profile-flag',
-        type: 'button', title: 'Pick a flag'
+        type: 'button', title: 'Pick a flag', 'aria-label': 'Pick a flag'
       }, ['🏳️']),
     ]);
     const profileErr = el('p', {
@@ -221,56 +299,51 @@ export function createMenus({ onStart, onResume, onRestart, onTogglePause, onTog
     }, ['Play']);
 
     const leaderboard = el('div', { class: 'leaderboard', id: 'menu-leaderboard' });
-    const rankBadgeEl = el('div', {
-      class: 'my-rank-badge', id: 'menu-my-rank', style: { display: 'none' }
-    });
-    // Community play counter — sits under the leaderboard list. Hidden
-    // until the count is > 0; updated by `renderLeaderboardInto` on
-    // every leaderboard re-render so a fresh Play press always shows
-    // up immediately.
-    const playCounterEl = el('p', {
-      class: 'play-counter', id: 'menu-play-counter', style: { display: 'none' }
-    });
+    // Rank is now rendered INSIDE the leaderboard title (e.g. "Top 5 — You #3")
+    // so the title and badge are a single line, no separate row.
+    const rankBadge = el('span', { class: 'lb-my-rank', id: 'menu-my-rank' });
 
-    // On touch devices show "tap Play" instead of "press Enter", and
-    // replace the WASD/Space/Esc hint grid with what the player will
-    // actually use: joystick + action buttons.
-    const enterHintHtml = isTouch
-      ? 'Tap <strong>Play</strong> to begin'
-      : 'Press <kbd>Enter</kbd> or click Play';
-    const hintsGrid = isTouch
-      ? el('div', { class: 'menu-hints menu-hints-touch' }, [
-          el('p', { html: '<span class="touch-hint-icon">🕹</span> Joystick Move' }),
-          el('p', { html: '<span class="touch-hint-chip">ATK</span> Attack' }),
-          el('p', { html: '<span class="touch-hint-chip">DASH</span> Dash' }),
-          el('p', { html: '<span class="touch-hint-icon">⏸</span> Pause (top-right)' }),
-          el('p', { html: '<span class="touch-hint-icon">🚩</span> Tap your flag to change' }),
+    // "How to play" — single inline pill row. Glyph + label only, no
+    // description text. The same info used to live in 3 stacked cards
+    // (200px); the pill compresses it to ~40px while staying scannable.
+    const stepMove = isTouch
+      ? el('div', { class: 'how-pill' }, [
+          el('span', { class: 'how-glyph' }, ['🕹']),
+          el('span', { class: 'how-label' }, ['Move']),
         ])
-      : el('div', { class: 'menu-hints' }, [
-          el('p', { html: '<kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Move' }),
-          el('p', { html: '<kbd>Space</kbd> Attack' }),
-          el('p', { html: '<kbd>Shift</kbd> Dash' }),
-          el('p', { html: '<kbd>Q</kbd><kbd>E</kbd> Rotate · <kbd>R</kbd><kbd>F</kbd> Pitch' }),
-          el('p', { html: 'Wheel Zoom' }),
-          el('p', { html: '<kbd>Esc</kbd> / <kbd>P</kbd> Pause' }),
+      : el('div', { class: 'how-pill' }, [
+          el('span', { class: 'how-glyph' }, ['🧭']),
+          el('span', { class: 'how-label' }, ['Move']),
         ]);
+    const stepAttack = el('div', { class: 'how-pill' }, [
+      el('span', { class: 'how-glyph' }, ['⚔']),
+      el('span', { class: 'how-label' }, ['Attack']),
+    ]);
+    const stepSurvive = el('div', { class: 'how-pill' }, [
+      el('span', { class: 'how-glyph' }, ['🌙']),
+      el('span', { class: 'how-label' }, ['Survive']),
+    ]);
+    const howToPlay = el('div', { class: 'how-to-play' }, [
+      stepMove, stepAttack, stepSurvive
+    ]);
 
     const items = [
-      el('p', { class: 'menu-kicker' }, ['MOONLIT MEADOW  /  SURVIVAL MODE']),
-      el('h1', { class: 'menu-title' }, ['Tode the Frog']),
-      el('p', { class: 'menu-subtitle' }, ['A little frog · A very long night']),
-      el('p', { class: 'menu-objective' }, ['Defeat the shades · Chain your attacks · Survive the night']),
+      el('div', { class: 'menu-brand' }, [
+        el('p', { class: 'menu-kicker' }, ['Moonlit Meadow · Survival']),
+        el('h1', { class: 'menu-title' }, ['Tode the Frog']),
+        el('p', { class: 'menu-subtitle' }, ['A little frog · A very long night']),
+      ]),
+      howToPlay,
       profileRow,
       profileErr,
       el('div', { class: 'menu-buttons' }, [playBtnEl]),
-      el('p', { class: 'menu-enter-hint', html: enterHintHtml }),
       el('div', { class: 'leaderboard-wrap' }, [
-        el('h3', { class: 'leaderboard-title' }, ['Top 5']),
-        rankBadgeEl,
+        el('div', { class: 'leaderboard-header' }, [
+          el('h3', { class: 'leaderboard-title' }, ['Top 5']),
+          rankBadge,
+        ]),
         leaderboard,
-        playCounterEl,
       ]),
-      hintsGrid,
     ];
     for (const item of items) container.appendChild(item);
   }
@@ -368,9 +441,10 @@ export function createMenus({ onStart, onResume, onRestart, onTogglePause, onTog
     }
     function confirm() {
       if (!pending) return;
-      // Commit: update profile + chip + play state, then close.
+      // Commit: update profile + chip + avatar + play state, then close.
       profile.flag = pending.emoji;
       flagChip.textContent = pending.emoji;
+      if (profile.flag) avatar.textContent = profile.flag;
       if (profile.name) saveProfile(profile.name, profile.flag);
       refreshPlayState();
       cancel();
@@ -418,31 +492,16 @@ export function createMenus({ onStart, onResume, onRestart, onTogglePause, onTog
     return Object.assign(backdrop, { prefill });
   }
 
-  async function renderLeaderboardInto(target, rankEl, playCounterEl) {
+  async function renderLeaderboardInto(target, rankEl) {
     if (!target) return;
     const renderVersion = (leaderboardRenderVersions.get(target) || 0) + 1;
     leaderboardRenderVersions.set(target, renderVersion);
     clear(target);
     const top = await getTop();
-    // Update the community play counter on every re-render. Hidden
-    // until the count is > 0 — never shows "0 players have tried".
-    if (playCounterEl) {
-      const attempts = await getAttempts();
-      if (renderVersion !== leaderboardRenderVersions.get(target)) return;
-      if (attempts > 0) {
-        const formatted = attempts.toLocaleString('en-US');
-        const noun = attempts === 1 ? 'game played' : 'games played';
-        playCounterEl.textContent = `${formatted} ${noun} on Tode the Frog`;
-        playCounterEl.style.display = '';
-      } else {
-        playCounterEl.textContent = '';
-        playCounterEl.style.display = 'none';
-      }
-    }
     if (renderVersion !== leaderboardRenderVersions.get(target)) return;
     if (top.length === 0) {
       target.appendChild(el('p', { class: 'leaderboard-empty' }, ['No runs yet — be the first.']));
-      if (rankEl) rankEl.style.display = 'none';
+      if (rankEl) rankEl.textContent = '';
       return;
     }
     const list = el('ol', { class: 'leaderboard-list' });
@@ -464,16 +523,11 @@ export function createMenus({ onStart, onResume, onRestart, onTogglePause, onTog
     });
     target.appendChild(list);
     if (rankEl) {
-      const myRank = top.findIndex((entry, i) => {
+      const myRank = top.findIndex((entry) => {
         if (!myProfile) return false;
         return entry.name === myProfile.name && entry.flag === myProfile.flag;
       });
-      if (myRank >= 0) {
-        rankEl.textContent = `You are #${myRank + 1} of ${top.length}`;
-        rankEl.style.display = '';
-      } else {
-        rankEl.style.display = 'none';
-      }
+      rankEl.textContent = myRank >= 0 ? `You #${myRank + 1}` : '';
     }
   }
 }
