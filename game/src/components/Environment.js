@@ -1,9 +1,10 @@
 import * as THREE from 'three';
 
-const CYCLE_SECONDS = 60;   // full day/night cycle in seconds (1 min)
+const CYCLE_SECONDS = 90;   // full day/night cycle in seconds (1.5 min) — slower feels more natural
 const STAR_COUNT = 260;
 const FIREFLY_COUNT = 46;
 const CLOUD_COUNT = 18;
+const BIRD_COUNT = 12;       // distant birds in the daytime sky
 
 function randomRange(min, max) {
   return min + Math.random() * (max - min);
@@ -166,11 +167,25 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
 
   const fireflyPositions = new Float32Array(FIREFLY_COUNT * 3);
   const fireflyOffsets = [];
+  // Each firefly has a fixed world anchor point; they drift randomly around
+  // that point at night. The anchor is chosen once at creation and never
+  // follows the player, so fireflies stay scattered across the meadow.
   for (let i = 0; i < FIREFLY_COUNT; i++) {
-    fireflyPositions[i * 3] = randomRange(-260, 260);
-    fireflyPositions[i * 3 + 1] = randomRange(-260, 260);
+    const anchorX = randomRange(-350, 350);
+    const anchorY = randomRange(-350, 350);
+    fireflyPositions[i * 3] = anchorX;
+    fireflyPositions[i * 3 + 1] = anchorY;
     fireflyPositions[i * 3 + 2] = randomRange(8, 55);
-    fireflyOffsets.push(Math.random() * Math.PI * 2);
+    fireflyOffsets.push({
+      anchorX,
+      anchorY,
+      anchorZ: fireflyPositions[i * 3 + 2],
+      phase: Math.random() * Math.PI * 2,
+      driftRadius: randomRange(15, 45),
+      speedX: randomRange(0.15, 0.45),
+      speedY: randomRange(0.12, 0.38),
+      speedZ: randomRange(0.8, 2.0)
+    });
   }
   const fireflyGeometry = new THREE.BufferGeometry();
   fireflyGeometry.setAttribute('position', new THREE.BufferAttribute(fireflyPositions, 3));
@@ -185,6 +200,292 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
   });
   const fireflies = new THREE.Points(fireflyGeometry, fireflyMaterial);
   scene.add(fireflies);
+
+  // ----- Distant birds: simple V-shaped silhouettes in the daytime sky -----
+  // Birds are far away, small, and move slowly across the sky. They have
+  // animated wings that flap periodically. They are purely decorative and
+  // do not interact with gameplay (no collision, no damage).
+  const birds = [];
+  for (let i = 0; i < BIRD_COUNT; i++) {
+    // Create realistic bird wing texture using canvas
+    const wingCanvas = document.createElement('canvas');
+    wingCanvas.width = 256;
+    wingCanvas.height = 128;
+    const wCtx = wingCanvas.getContext('2d');
+    wCtx.clearRect(0, 0, 256, 128);
+    // Realistic wing shape: curved leading edge, long pointed tip, feathered trailing edge
+    wCtx.fillStyle = '#1a1a1a';
+    wCtx.beginPath();
+    // Leading edge (top) — smooth curve from body to tip
+    wCtx.moveTo(10, 90);
+    wCtx.quadraticCurveTo(30, 50, 80, 20);
+    wCtx.quadraticCurveTo(140, 5, 200, 8);
+    wCtx.quadraticCurveTo(230, 10, 250, 20);
+    // Wing tip — pointed
+    wCtx.quadraticCurveTo(248, 25, 240, 30);
+    // Trailing edge (bottom) — feathered notches
+    wCtx.lineTo(225, 38);
+    wCtx.lineTo(218, 32);
+    wCtx.lineTo(210, 40);
+    wCtx.lineTo(200, 34);
+    wCtx.lineTo(190, 42);
+    wCtx.lineTo(178, 36);
+    wCtx.lineTo(165, 44);
+    wCtx.lineTo(150, 38);
+    wCtx.lineTo(135, 46);
+    wCtx.lineTo(118, 40);
+    wCtx.lineTo(100, 48);
+    wCtx.lineTo(80, 44);
+    wCtx.lineTo(60, 52);
+    wCtx.lineTo(40, 50);
+    wCtx.lineTo(20, 60);
+    wCtx.lineTo(8, 70);
+    wCtx.closePath();
+    wCtx.fill();
+    // Primary feather lines (long, from tip inward)
+    wCtx.strokeStyle = 'rgba(50,50,50,0.5)';
+    wCtx.lineWidth = 1;
+    for (let f = 0; f < 10; f++) {
+      const x1 = 150 + f * 12;
+      const y1 = 12 + f * 0.5;
+      const x2 = x1 - 8 - f * 2;
+      const y2 = 35 + f * 1.5;
+      wCtx.beginPath();
+      wCtx.moveTo(x1, y1);
+      wCtx.lineTo(x2, y2);
+      wCtx.stroke();
+    }
+    // Secondary feather lines (shorter, closer to body)
+    wCtx.strokeStyle = 'rgba(60,60,60,0.35)';
+    wCtx.lineWidth = 0.7;
+    for (let f = 0; f < 12; f++) {
+      const x1 = 30 + f * 10;
+      const y1 = 45 + f * 0.3;
+      const x2 = x1 - 5;
+      const y2 = 55 + f * 0.8;
+      wCtx.beginPath();
+      wCtx.moveTo(x1, y1);
+      wCtx.lineTo(x2, y2);
+      wCtx.stroke();
+    }
+    // Subtle lighter edge on leading edge for depth
+    wCtx.strokeStyle = 'rgba(80,80,80,0.2)';
+    wCtx.lineWidth = 1.5;
+    wCtx.beginPath();
+    wCtx.moveTo(10, 90);
+    wCtx.quadraticCurveTo(30, 50, 80, 20);
+    wCtx.quadraticCurveTo(140, 5, 200, 8);
+    wCtx.quadraticCurveTo(230, 10, 250, 20);
+    wCtx.stroke();
+    const wingTexture = new THREE.CanvasTexture(wingCanvas);
+    wingTexture.needsUpdate = true;
+
+    const birdGroup = new THREE.Group();
+    const birdMat = new THREE.MeshStandardMaterial({
+      color: 0x3a3a3a,
+      roughness: 0.8,
+      metalness: 0.1,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      fog: false
+    });
+
+    // 3D bird body — tapered shape using lathe geometry
+    const bodyPoints = [];
+    for (let p = 0; p <= 12; p++) {
+      const t = p / 12;
+      let r;
+      if (t < 0.15) r = t / 0.15 * 0.6;           // tail taper
+      else if (t < 0.5) r = 0.6 + (t - 0.15) / 0.35 * 0.4;  // body swell
+      else if (t < 0.8) r = 1.0 - (t - 0.5) / 0.3 * 0.5;    // chest
+      else r = 0.5 - (t - 0.8) / 0.2 * 0.4;                  // neck/head
+      bodyPoints.push(new THREE.Vector2(r, t * 8 - 4));
+    }
+    const bodyGeo = new THREE.LatheGeometry(bodyPoints, 8);
+    const body = new THREE.Mesh(bodyGeo, birdMat);
+    body.rotation.z = Math.PI / 2;
+    birdGroup.add(body);
+
+    // Left wing — with realistic texture
+    const leftWingGeo = new THREE.PlaneGeometry(14, 5);
+    const leftWingMat = new THREE.MeshStandardMaterial({
+      map: wingTexture, roughness: 0.85, metalness: 0.05,
+      transparent: true, opacity: 0, depthWrite: false, fog: false, side: THREE.DoubleSide
+    });
+    const leftWing = new THREE.Mesh(leftWingGeo, leftWingMat);
+    leftWing.position.set(-7, 0.3, 0.7);
+    leftWing.rotation.z = -Math.PI / 5;
+    birdGroup.add(leftWing);
+
+    // Right wing — mirrored texture
+    const rightWingGeo = new THREE.PlaneGeometry(14, 5);
+    const rightWingMat = new THREE.MeshStandardMaterial({
+      map: wingTexture, roughness: 0.85, metalness: 0.05,
+      transparent: true, opacity: 0, depthWrite: false, fog: false, side: THREE.DoubleSide
+    });
+    const rightWing = new THREE.Mesh(rightWingGeo, rightWingMat);
+    rightWing.position.set(7, 0.3, 0.7);
+    rightWing.rotation.z = Math.PI / 5;
+    rightWing.rotation.y = Math.PI;  // mirror the texture
+    birdGroup.add(rightWing);
+
+    // Head — small sphere
+    const headGeo = new THREE.SphereGeometry(0.9, 8, 6);
+    const head = new THREE.Mesh(headGeo, birdMat);
+    head.position.set(4.8, 0.4, 0);
+    birdGroup.add(head);
+
+    // Eyes — tiny white dots
+    const eyeGeo = new THREE.SphereGeometry(0.15, 4, 4);
+    const eyeMat = new THREE.MeshBasicMaterial({
+      color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, fog: false
+    });
+    const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+    leftEye.position.set(5.3, 0.6, 0.4);
+    birdGroup.add(leftEye);
+    const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
+    rightEye.position.set(5.3, 0.6, -0.4);
+    birdGroup.add(rightEye);
+
+    // Beak — thin cone
+    const beakGeo = new THREE.ConeGeometry(0.25, 2, 4);
+    const beakMat = new THREE.MeshStandardMaterial({
+      color: 0x997744, roughness: 0.6, metalness: 0.1,
+      transparent: true, opacity: 0, depthWrite: false, fog: false
+    });
+    const beak = new THREE.Mesh(beakGeo, beakMat);
+    beak.position.set(6.8, 0.4, 0);
+    beak.rotation.z = -Math.PI / 2;
+    birdGroup.add(beak);
+
+    // Tail — narrow flat plane with slight angle
+    const tailGeo = new THREE.PlaneGeometry(5, 1.5);
+    const tailMat = new THREE.MeshStandardMaterial({
+      color: 0x2a2a2a, roughness: 0.85, metalness: 0.05,
+      transparent: true, opacity: 0, depthWrite: false, fog: false, side: THREE.DoubleSide
+    });
+    const tail = new THREE.Mesh(tailGeo, tailMat);
+    tail.position.set(-4.5, 0, 0.3);
+    tail.rotation.z = Math.PI / 7;
+    birdGroup.add(tail);
+
+    // Birds in the distant sky — far enough to look natural, close enough to see
+    const birdHeight = randomRange(120, 250);
+    const birdDistance = randomRange(200, 450);
+    const birdAngle = randomRange(0, Math.PI * 2);
+    const birdSpeed = randomRange(5, 15);
+    const birdFlapSpeed = randomRange(3, 6);
+    const birdFlapPhase = randomRange(0, Math.PI * 2);
+    const birdWobble = randomRange(0.5, 2);
+    const birdWobbleSpeed = randomRange(0.3, 0.8);
+
+    birdGroup.userData = {
+      height: birdHeight,
+      distance: birdDistance,
+      angle: birdAngle,
+      speed: birdSpeed,
+      flapSpeed: birdFlapSpeed,
+      flapPhase: birdFlapPhase,
+      wobble: birdWobble,
+      wobbleSpeed: birdWobbleSpeed,
+      leftWing,
+      rightWing,
+      tail,
+      bodyMat: birdMat,
+      wingMatL: leftWingMat,
+      wingMatR: rightWingMat,
+      beakMat,
+      tailMat,
+      eyeMat,
+      wingTexture
+    };
+
+    scene.add(birdGroup);
+    birds.push(birdGroup);
+  }
+
+  // ----- Butterflies: small colorful shapes fluttering near the ground -----
+  // Butterflies appear during daytime, moving randomly around fixed world
+  // anchor points. They are small, decorative, and do not interact with gameplay.
+  const BUTTERFLY_COUNT = 15;
+  const butterflies = [];
+  for (let i = 0; i < BUTTERFLY_COUNT; i++) {
+    const bfGroup = new THREE.Group();
+    const bfColor = [0xff9ecb, 0xffd166, 0xa8e6cf, 0xd4a5ff, 0xffaaa5, 0x87ceeb][i % 6];
+
+    // Create a butterfly wing shape using canvas texture
+    const bfCanvas = document.createElement('canvas');
+    bfCanvas.width = 64;
+    bfCanvas.height = 64;
+    const bfCtx = bfCanvas.getContext('2d');
+    const r = (bfColor >> 16) & 0xff;
+    const g = (bfColor >> 8) & 0xff;
+    const b = bfColor & 0xff;
+    // Draw butterfly wings with gradient
+    const grad = bfCtx.createRadialGradient(32, 32, 2, 32, 32, 30);
+    grad.addColorStop(0, `rgba(${r},${g},${b},0.95)`);
+    grad.addColorStop(0.6, `rgba(${r},${g},${b},0.7)`);
+    grad.addColorStop(1, `rgba(${r},${g},${b},0.1)`);
+    bfCtx.fillStyle = grad;
+    // Left wing
+    bfCtx.beginPath();
+    bfCtx.moveTo(32, 32);
+    bfCtx.bezierCurveTo(20, 5, 2, 10, 5, 28);
+    bfCtx.bezierCurveTo(8, 40, 25, 42, 32, 32);
+    bfCtx.fill();
+    // Right wing
+    bfCtx.beginPath();
+    bfCtx.moveTo(32, 32);
+    bfCtx.bezierCurveTo(44, 5, 62, 10, 59, 28);
+    bfCtx.bezierCurveTo(56, 40, 39, 42, 32, 32);
+    bfCtx.fill();
+    // Body
+    bfCtx.fillStyle = '#333';
+    bfCtx.beginPath();
+    bfCtx.ellipse(32, 32, 2, 10, 0, 0, Math.PI * 2);
+    bfCtx.fill();
+    // Antennae
+    bfCtx.strokeStyle = '#333';
+    bfCtx.lineWidth = 1;
+    bfCtx.beginPath();
+    bfCtx.moveTo(32, 22);
+    bfCtx.quadraticCurveTo(28, 14, 24, 12);
+    bfCtx.moveTo(32, 22);
+    bfCtx.quadraticCurveTo(36, 14, 40, 12);
+    bfCtx.stroke();
+    const bfTexture = new THREE.CanvasTexture(bfCanvas);
+    bfTexture.needsUpdate = true;
+
+    const bfMat = new THREE.MeshBasicMaterial({
+      map: bfTexture, transparent: true, opacity: 0,
+      depthWrite: false, fog: false, side: THREE.DoubleSide
+    });
+    const bfWing = new THREE.Mesh(new THREE.PlaneGeometry(8, 8), bfMat);
+    bfGroup.add(bfWing);
+
+    // Fixed world anchor point near the ground
+    const anchorX = randomRange(-300, 300);
+    const anchorY = randomRange(-300, 300);
+    const anchorZ = randomRange(3, 18);
+    const driftRadius = randomRange(10, 30);
+    const speedX = randomRange(0.3, 0.8);
+    const speedY = randomRange(0.25, 0.7);
+    const speedZ = randomRange(0.5, 1.5);
+    const phase = randomRange(0, Math.PI * 2);
+
+    bfGroup.userData = {
+      anchorX, anchorY, anchorZ,
+      driftRadius, speedX, speedY, speedZ, phase,
+      flutterTime: randomRange(0, 100),
+      material: bfMat,
+      texture: bfTexture
+    };
+
+    bfGroup.position.set(anchorX, anchorY, anchorZ);
+    scene.add(bfGroup);
+    butterflies.push(bfGroup);
+  }
 
   // Soft, layered low-poly clouds float across the entire sky and follow
   // the player. Clouds are scattered over a wide X and Y range so they
@@ -254,7 +555,9 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
   }
 
   let mode = 'auto';
-  let phase = 0.08;
+  // phase = 0.5 is midnight (moon overhead, sun below horizon).
+  // The spec requires the cycle to start at moonlit night after countdown.
+  let phase = 0.5;
   let elapsed = 0;
 
   function cycleMode() {
@@ -345,55 +648,58 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
     //
     // The arc: as phase goes 0→1, sin(phase*2π) goes -1→1→-1, giving a
     // smooth rise-overhead-set. Cos gives the east/west sweep.
+    //
+    // CRITICAL: Sun and moon are PLAYER-RELATIVE so they always appear in the
+    // same part of the sky regardless of where the player moves. They rise from
+    // and set into the visual sky horizon, not the ground surface.
     const orbit = phase * Math.PI * 2;
     const px = playerGroup.position.x;
     const py = playerGroup.position.y;
     const pz = playerGroup.position.z;
-    // Celestial bodies stay world-anchored; only clouds, stars, and fireflies
-    // use player-relative offsets to maintain sky coverage during exploration.
-    const skyOriginX = 0;
-    const skyOriginY = 0;
-    const skyOriginZ = 0;
 
-    // Arc parameters — placed so the sun/moon always stay in the sky
-    // (never touching the ground) while still arcing visibly across the
-    // camera view. The Z (height) varies from MIN_HEIGHT at sunrise/sunset
-    // to PEAK_HEIGHT at noon/midnight, never dropping below MIN_HEIGHT.
+    // The camera sits at ~21° elevation, distance 138 from the player.
+    // The visual horizon from this angle is roughly 50 units above ground.
+    // The sky dome shader gradient horizon is at a similar height.
+    // Sun/moon must rise from BELOW this horizon (negative relative to it)
+    // and peak well above it, so they cross the horizon naturally.
     //
-    // Distance is large enough that the sun/moon read as far away in the
-    // sky, not as nearby objects hovering over the player.
-    const HORIZONTAL_DIST = 620;   // wide east/west sweep keeps sun and moon apart
-    const MIN_HEIGHT = 110;        // sun/moon height at sunrise/sunset
-    const PEAK_HEIGHT = 260;       // sun/moon height at noon/midnight
+    // HORIZONTAL_DIST: how far east/west the sun sweeps — large enough that
+    // the sun reads as distant, not hovering over the player.
+    // PEAK_HEIGHT: maximum height above the horizon at noon/midnight.
+    // HORIZON_HEIGHT: the visual horizon line the sun/moon cross.
+    const HORIZONTAL_DIST = 1400;  // far away so sun/moon appear distant
+    const PEAK_HEIGHT = 500;        // high above horizon at noon/midnight
+    const HORIZON_HEIGHT = 60;      // visual horizon from camera perspective
+
     // Half-arc for height: reuses sunHeightFrac from above (0 at sunrise,
     // 1 at noon, 0 at sunset) so the arc positioning matches the sky
     // color. Do NOT redeclare sunHeightFrac here.
-    const sunX = Math.cos(orbit) * HORIZONTAL_DIST;
-    const sunY = Math.sin(orbit) * 300;
-    const sunZ = MIN_HEIGHT + sunHeightFrac * (PEAK_HEIGHT - MIN_HEIGHT);
+    const sunX = px + Math.cos(orbit) * HORIZONTAL_DIST;
+    const sunY = py + Math.sin(orbit) * 300;
+    const sunZ = HORIZON_HEIGHT + sunHeightFrac * (PEAK_HEIGHT - HORIZON_HEIGHT);
     // Moon is "up" during the night portion of the cycle (when sun is low)
     // Keep the moon high when the sun is near the horizon, and low when
     // the sun is near noon. The previous (orbit + 1) * PI expression mixed
     // radians with a cycle offset and produced an unrelated moon arc.
     const moonHeightFrac = 1 - sunHeightFrac;
-    const moonX = -Math.cos(orbit) * HORIZONTAL_DIST;
-    const moonY = -Math.sin(orbit) * 300;
-    const moonZ = MIN_HEIGHT + moonHeightFrac * (PEAK_HEIGHT - MIN_HEIGHT);
+    const moonX = px - Math.cos(orbit) * HORIZONTAL_DIST;
+    const moonY = py - Math.sin(orbit) * 300;
+    const moonZ = HORIZON_HEIGHT + moonHeightFrac * (PEAK_HEIGHT - HORIZON_HEIGHT);
 
     if (mode === 'day') {
       // Day mode also follows an arc — phase=0 is sunrise (horizon left),
       // phase=0.5 is noon (overhead), phase=1 is sunset (horizon right).
       // This way the user actually sees the sun rise and set, not a static sky.
-      sun.position.set(skyOriginX + sunX, skyOriginY + sunY, skyOriginZ + sunZ);
+      sun.position.set(sunX, sunY, sunZ);
       // Moon stays below the horizon during day — push it underground.
-      moon.position.set(skyOriginX + moonX, skyOriginY + moonY, skyOriginZ - 600);
+      moon.position.set(moonX, moonY, HORIZON_HEIGHT - 600);
     } else if (mode === 'night') {
       // Night mode: phase drives the moon's rise/set, sun goes underground.
-      moon.position.set(skyOriginX + moonX, skyOriginY + moonY, skyOriginZ + moonZ);
-      sun.position.set(skyOriginX + sunX, skyOriginY + sunY, skyOriginZ - 600);
+      moon.position.set(moonX, moonY, moonZ);
+      sun.position.set(sunX, sunY, HORIZON_HEIGHT - 600);
     } else {
-      sun.position.set(skyOriginX + sunX, skyOriginY + sunY, skyOriginZ + sunZ);
-      moon.position.set(skyOriginX + moonX, skyOriginY + moonY, skyOriginZ + moonZ);
+      sun.position.set(sunX, sunY, sunZ);
+      moon.position.set(moonX, moonY, moonZ);
     }
     // Move all halo layers + flares to follow the sun/moon
     sunHaloInner.position.copy(sun.position);
@@ -429,14 +735,16 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
     // Star coordinates are local offsets, so only move the Points object with the player.
     stars.position.set(px, py, 0);
 
-    // Fireflies only update when visible to save GPU bandwidth
+    // Fireflies drift around fixed world anchor points — they do NOT follow
+    // the player. Each firefly has its own speed, radius, and phase so the
+    // swarm looks organic and independent.
     if (dayFactor < 0.58) {
       const fireflyAttr = fireflyGeometry.getAttribute('position');
       for (let i = 0; i < FIREFLY_COUNT; i++) {
-        const offset = fireflyOffsets[i];
-        fireflyAttr.array[i * 3] = px + Math.cos(elapsed * 0.23 + offset) * (100 + (i % 7) * 23);
-        fireflyAttr.array[i * 3 + 1] = py + Math.sin(elapsed * 0.19 + offset) * (90 + (i % 5) * 25);
-        fireflyAttr.array[i * 3 + 2] = 8 + (Math.sin(elapsed * 1.6 + offset) + 1) * 22;
+        const ff = fireflyOffsets[i];
+        fireflyAttr.array[i * 3] = ff.anchorX + Math.cos(elapsed * ff.speedX + ff.phase) * ff.driftRadius;
+        fireflyAttr.array[i * 3 + 1] = ff.anchorY + Math.sin(elapsed * ff.speedY + ff.phase) * ff.driftRadius;
+        fireflyAttr.array[i * 3 + 2] = ff.anchorZ + Math.sin(elapsed * ff.speedZ + ff.phase) * 12;
       }
       fireflyAttr.needsUpdate = true;
     }
@@ -481,6 +789,75 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
       }
     }
 
+    // ----- Update distant birds -----
+    // Birds fly in the sky around the player's view area. Each bird is a 3D
+    // model with body, wings, head, beak, and tail. They circle independently
+    // in the distant sky, staying visible but far from the camera lens.
+    const birdVisibility = Math.max(0, Math.min(1, (dayFactor - 0.2) / 0.3));
+    for (let i = 0; i < birds.length; i++) {
+      const bird = birds[i];
+      const data = bird.userData;
+
+      // Each bird has its own fixed flight path
+      data.angle += data.speed * delta * 0.005;
+      const wobbleOffset = Math.sin(elapsed * data.wobbleSpeed + i) * data.wobble;
+      
+      // Position relative to player so birds stay in camera view
+      const bx = px + Math.cos(data.angle) * data.distance + wobbleOffset;
+      const by = py + Math.sin(data.angle) * data.distance;
+      const bz = pz + data.height + Math.sin(elapsed * 0.5 + i * 2) * 10;
+      bird.position.set(bx, by, bz);
+
+      // Face the direction of movement
+      bird.rotation.y = data.angle + Math.PI / 2;
+
+      // Wing flapping animation — rotate wings up and down
+      const flapAngle = Math.sin(elapsed * data.flapSpeed + data.flapPhase) * 0.5;
+      data.leftWing.rotation.x = flapAngle;
+      data.rightWing.rotation.x = -flapAngle;
+      // Tail slight bob
+      data.tail.rotation.x = Math.sin(elapsed * data.flapSpeed * 0.5 + data.flapPhase) * 0.15;
+
+      // Fade in/out based on time of day — set all materials
+      const opacity = birdVisibility * 0.85;
+      data.bodyMat.opacity = opacity;
+      data.wingMatL.opacity = opacity;
+      data.wingMatR.opacity = opacity;
+      data.beakMat.opacity = opacity;
+      data.tailMat.opacity = opacity;
+    }
+
+    // ----- Update butterflies -----
+    // Butterflies flutter near the ground during daytime, moving randomly
+    // around fixed world anchor points. They are small, colorful, and purely
+    // decorative — no collision or damage.
+    const butterflyVisibility = Math.max(0, Math.min(1, (dayFactor - 0.15) / 0.25));
+    for (let i = 0; i < butterflies.length; i++) {
+      const bf = butterflies[i];
+      const fd = bf.userData;
+
+      // Flutter around anchor point with organic, erratic movement
+      fd.flutterTime += delta * 0.5;
+      const flutterX = Math.sin(fd.flutterTime * fd.speedX + fd.phase) * fd.driftRadius;
+      const flutterY = Math.cos(fd.flutterTime * fd.speedY + fd.phase * 1.3) * fd.driftRadius;
+      const flutterZ = Math.sin(fd.flutterTime * fd.speedZ + fd.phase * 0.7) * 8;
+
+      bf.position.set(
+        fd.anchorX + flutterX,
+        fd.anchorY + flutterY,
+        fd.anchorZ + flutterZ
+      );
+      // Rotate butterfly to face movement direction
+      bf.rotation.y = Math.atan2(flutterY, flutterX);
+
+      // Wing flapping (scale oscillation to simulate wings)
+      const wingFlap = Math.sin(elapsed * 0.015 + fd.phase) * 0.4;
+      bf.scale.y = 1.0 + wingFlap;
+
+      // Fade in/out based on time of day
+      fd.material.opacity = butterflyVisibility * 0.8;
+    }
+
     // External listeners (e.g. audio ambient brightness) — called after
     // all visual state is settled.
     for (const fn of onCycle) fn(dayFactor);
@@ -509,7 +886,7 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
     const allObjects = [
       sun, sunHaloInner, sunHaloMid, sunHaloOuter, sunFlare,
       moon, moonHaloInner, moonHaloOuter, moonFlare,
-      stars, fireflies, ...clouds
+      stars, fireflies, ...clouds, ...birds, ...butterflies
     ];
     for (const object of allObjects) {
       scene.remove(object);
@@ -521,9 +898,34 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
           object.material.dispose();
         }
       }
+      // Clean up child meshes (bird/butterfly wings) and textures
+      if (object.children) {
+        for (const child of object.children) {
+          if (child.geometry) child.geometry.dispose();
+          if (child.material) {
+            if (Array.isArray(child.material)) {
+              child.material.forEach((m) => m.dispose());
+            } else {
+              child.material.dispose();
+            }
+          }
+        }
+      }
+      // Dispose canvas textures if present
+      if (object.userData?.texture) {
+        object.userData.texture.dispose();
+      }
+      // Dispose 3D bird materials and textures
+      if (object.userData?.bodyMat) object.userData.bodyMat.dispose();
+      if (object.userData?.wingMatL) object.userData.wingMatL.dispose();
+      if (object.userData?.wingMatR) object.userData.wingMatR.dispose();
+      if (object.userData?.beakMat) object.userData.beakMat.dispose();
+      if (object.userData?.tailMat) object.userData.tailMat.dispose();
+      if (object.userData?.eyeMat) object.userData.eyeMat.dispose();
+      if (object.userData?.wingTexture) object.userData.wingTexture.dispose();
     }
     if (flareTex) flareTex.dispose();
   }
 
-  return { update, cycleMode, setMode, setPhase, getMode, dispose, onUpdate };
+  return { update, cycleMode, setMode, setPhase, getPhase: () => phase, getMode, dispose, onUpdate };
 }

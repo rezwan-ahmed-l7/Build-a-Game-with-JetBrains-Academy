@@ -53,7 +53,7 @@ document.body.appendChild(damageFlash);
 // -------- Scene --------
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x071024);
-scene.fog = new THREE.Fog(0x263c49, 560, 1900);
+scene.fog = new THREE.Fog(0x263c49, 700, 2400);
 
 // Sky dome: gradient sphere that follows the camera. Day side is warmer,
 // night side is cooler. This sits behind everything else and replaces the
@@ -66,7 +66,7 @@ const skyMaterial = new THREE.ShaderMaterial({
     topColor: { value: new THREE.Color(0x1b3a78) },     // upper sky
     bottomColor: { value: new THREE.Color(0x80b6e8) },  // horizon
     offset: { value: 200 },
-    exponent: { value: 0.6 }
+    exponent: { value: 0.5 }
   },
   vertexShader: /* glsl */`
     varying vec3 vWorldPosition;
@@ -84,7 +84,9 @@ const skyMaterial = new THREE.ShaderMaterial({
     varying vec3 vWorldPosition;
     void main() {
       float h = normalize(vWorldPosition + vec3(0.0, 0.0, offset)).z;
-      gl_FragColor = vec4(mix(bottomColor, topColor, max(pow(max(h, 0.0), exponent), 0.0)), 1.0);
+      // Smooth step for more natural gradient transition
+      float t = smoothstep(-0.1, 1.0, pow(max(h, 0.0), exponent));
+      gl_FragColor = vec4(mix(bottomColor, topColor, t), 1.0);
     }
   `
 });
@@ -133,31 +135,43 @@ function createMeadowTexture() {
     seed = (seed * 1664525 + 1013904223) >>> 0;
     return seed / 4294967296;
   };
-  // A restrained, softly mottled meadow: large quiet patches, almost no speckling.
-  for (let i = 0; i < 70; i++) {
+  // Large, soft color patches that create a natural meadow feel.
+  for (let i = 0; i < 120; i++) {
     const x = random() * size;
     const y = random() * size;
-    const radius = 18 + random() * 48;
+    const radius = 30 + random() * 70;
     const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
     const tint = random() > 0.5
-      ? 'rgba(190, 192, 126, 0.11)'
-      : 'rgba(45, 83, 45, 0.085)';
+      ? 'rgba(190, 192, 126, 0.08)'
+      : 'rgba(45, 83, 45, 0.06)';
     gradient.addColorStop(0, tint);
     gradient.addColorStop(1, 'rgba(255,255,255,0)');
     ctx.fillStyle = gradient;
     ctx.fillRect(x - radius, y - radius, radius * 2, radius * 2);
   }
 
-  // A few subtle grass strokes add texture without making the floor look noisy.
-  for (let i = 0; i < 4200; i++) {
+  // Subtle grass strokes for texture without noise.
+  for (let i = 0; i < 3000; i++) {
     const x = random() * size;
     const y = random() * size;
-    const radius = 0.45 + random() * 0.8;
+    const radius = 0.35 + random() * 0.6;
     ctx.fillStyle = random() > 0.5
-      ? 'rgba(72, 112, 48, 0.075)'
-      : 'rgba(180, 198, 126, 0.065)';
+      ? 'rgba(72, 112, 48, 0.05)'
+      : 'rgba(180, 198, 126, 0.04)';
     ctx.beginPath();
     ctx.ellipse(x, y, radius * 1.4, radius * 0.65, random() * Math.PI, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Tiny bright specks — wildflowers scattered sparsely across the meadow.
+  for (let i = 0; i < 180; i++) {
+    const x = random() * size;
+    const y = random() * size;
+    const r = 0.5 + random() * 0.8;
+    const hue = random() > 0.5 ? 'rgba(255,240,180,0.12)' : 'rgba(200,220,255,0.08)';
+    ctx.fillStyle = hue;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
     ctx.fill();
   }
 
@@ -179,12 +193,31 @@ ground.position.z = -0.5;
 ground.receiveShadow = true;
 scene.add(ground);
 
-// The meadow ends shortly beyond the bounded playable arena: enough visual
-// margin to avoid a black edge in normal play, without implying an endless field.
-const vignetteGeometry = new THREE.RingGeometry(GROUND_RADIUS - 20, GROUND_RADIUS, 128);
+// The meadow fades to darkness beyond the bounded playable arena: a wide,
+// soft transition ring that avoids a hard black edge while still signaling
+// the world boundary. Uses a canvas texture for a smooth radial gradient.
+function createVignetteTexture() {
+  const size = 512;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  // Radial gradient: transparent at inner edge, dark at outer edge
+  const gradient = ctx.createRadialGradient(size/2, size/2, size * 0.3, size/2, size/2, size/2);
+  gradient.addColorStop(0, 'rgba(5,8,13,0)');
+  gradient.addColorStop(0.5, 'rgba(5,8,13,0.3)');
+  gradient.addColorStop(0.8, 'rgba(5,8,13,0.7)');
+  gradient.addColorStop(1, 'rgba(5,8,13,0.95)');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, size, size);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.needsUpdate = true;
+  return texture;
+}
+const vignetteGeometry = new THREE.RingGeometry(GROUND_RADIUS - 60, GROUND_RADIUS, 128);
 const vignetteMaterial = new THREE.MeshBasicMaterial({
-  color: 0x05080d, side: THREE.DoubleSide,
-  transparent: true, opacity: 0.72, depthWrite: false
+  map: createVignetteTexture(), side: THREE.DoubleSide,
+  transparent: true, opacity: 1.0, depthWrite: false
 });
 const vignette = new THREE.Mesh(vignetteGeometry, vignetteMaterial);
 vignette.position.z = -0.3;
@@ -277,8 +310,8 @@ const gameManager = createGameManager({
 });
 
 // Wire the game-over panel's visible Restart button. Touch users tap
-// the button; keyboard users can still press Space (the existing
-// keydown handler in main.js also calls gameManager.resetGame()).
+// the button; keyboard users press Space or Enter (the keydown handler in
+// main.js also calls gameManager.resetGame()).
 score.setOnRestart(() => gameManager.resetGame());
 
 // ----- Attack (with hooks from game manager) -----
@@ -312,18 +345,15 @@ if (isTouchDevice()) {
   });
 }
 
-// Attach click-to-move on the canvas for non-touch
-input.attachClickToMove(canvas, () => movement.getCameraBasis());
+// Attach click-to-attack on the canvas for non-touch
+input.attachClickToAttack(canvas, () => {
+  if (gameManager.isPlaying()) attack.attack(performance.now());
+});
 
 // ----- Global keybinds -----
 window.addEventListener('keydown', (e) => {
   if (e.repeat) return;
-  if (e.code === 'Space') {
-    e.preventDefault();
-    if (gameManager.isPlaying()) {
-      attack.attack(performance.now());
-    }
-  } else if (e.code === 'Enter') {
+  if (e.code === 'Enter') {
     e.preventDefault();
     if (gameManager.isMenu()) {
       gameManager.startGame();
@@ -332,6 +362,16 @@ window.addEventListener('keydown', (e) => {
     if (gameManager.isGameOver()) {
       gameManager.resetGame();
       return;
+    }
+    if (gameManager.isPaused()) {
+      gameManager.togglePause();
+      return;
+    }
+  } else if (e.code === 'Space') {
+    e.preventDefault();
+    // Space is ONLY for attacking during gameplay; Enter handles restart/pause.
+    if (gameManager.isPlaying()) {
+      attack.attack(performance.now());
     }
   } else if (e.code === 'Escape' || e.code === 'KeyP') {
     if (gameManager.isPlaying() || gameManager.isPaused()) {
@@ -398,7 +438,12 @@ function animate(currentTime) {
     gameManager.setFlashTimer(Math.max(0, gameManager.getFlashTimer() - delta));
   }
 
-  if (gameManager.currentState() === GameState.PLAYING) {
+  if (gameManager.currentState() === GameState.PLAYING || gameManager.currentState() === GameState.COUNTDOWN) {
+    // During countdown, only update visuals — skip all gameplay logic
+    const isCountdown = gameManager.currentState() === GameState.COUNTDOWN;
+    if (isCountdown) {
+      // Still render the scene and update visuals, but skip gameplay
+    } else {
     if (gameManager.checkPlayerEnemyContact(PLAYER_VS_ENEMY_DIST)) {
       // damage handled inside health onChange
     }
@@ -489,6 +534,7 @@ function animate(currentTime) {
     powerUps.update(delta, currentTime / 1000, gameManager.onPowerUpPickup, gameManager.getMagnetRemaining() > 0);
     score.tick(delta);
     score.render();
+    } // end else (not countdown)
   } else if (gameManager.currentState() === GameState.PAUSED) {
     // Nothing simulates; only visual systems run
   } else if (gameManager.currentState() === GameState.GAMEOVER) {
@@ -496,8 +542,21 @@ function animate(currentTime) {
   }
 
   // Environment always runs (day/night keeps cycling through pause/over)
-  const environmentState = environment.update(delta);
-  menus.setEnvironmentMode(environmentState.label, environment.getMode());
+  // When paused or counting down, freeze the phase so the cycle doesn't advance.
+  let environmentState;
+  if (gameManager.isPaused() || gameManager.isCountdown()) {
+    const savedPhase = environment.getPhase && environment.getPhase();
+    environmentState = environment.update(delta);
+    if (savedPhase != null && environment.setPhase) {
+      environment.setPhase(savedPhase);
+    }
+  } else {
+    environmentState = environment.update(delta);
+  }
+  menus.setEnvironmentMode({
+    label: environmentState.label,
+    mode: environment.getMode()
+  });
 
   // Sky dome follows the player so the gradient is always centered.
   sky.position.set(

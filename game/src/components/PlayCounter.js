@@ -1,146 +1,90 @@
-// Community play counter — shared across all devices via JSONBin.io.
-//
-// JSONBin.io is a free cloud JSON storage service — stores the play count
-// as a single number in the cloud. Any device/browser can read/write to it.
-//
-// Storage shape (JSONBin record):
-//   { "leaderboard": [...], "attempts": 123 }
-//
-// Rules:
-//   - Increments exactly once per `resetGame()` call, which is the single
-//     funnel point for "the player is starting a fresh run" (startGame,
-//     onRestart from game-over, etc.). Pause/resume do NOT count.
-//   - Falls back to localStorage if network is unavailable.
+// Community play counter — shared across all devices via the leaderboard
+// server-side proxy. The proxy is the only place that holds the JSONBin
+// master key; this file never embeds credentials in the client bundle.
 //
 // `getAttempts()` returns the current total count (async).
-// `recordAttempt()` increments and returns the new count (async).
+// `recordAttempt()` atomically increments and returns the new count
+// (async). The atomic CAS happens server-side, so concurrent players
+// don't lose increments.
 
 import { load, save } from '../utils/persistence.js';
 
-// ---- JSONBin.io Configuration (same bin as Leaderboard.js) ----
-const JSONBIN_API_KEY = '$2a$10$JEmUTran3DtFAKce1qSmWu8DKyiD5FADULRM7RnEg0H3N6VcP7NDK';
-const JSONBIN_BIN_ID = '6ad32ef4ffd5d16053730958';
-const JSONBIN_BASE_URL = 'https://api.jsonbin.io/v3';
+// Server-side proxy URL (the same one used by Leaderboard.js). Configured
+// at build time via Vite's env injection. Falls back to localStorage when
+// the API is not configured or unreachable.
+const LEADERBOARD_API_URL = (import.meta.env.VITE_LEADERBOARD_API_URL || '').replace(/\/+$/, '');
 
-// LocalStorage fallback key
 const KEY = 'attempts';
 
-// ---- JSONBin.io Cloud Functions ----
-
 async function readFromCloud() {
+  if (!LEADERBOARD_API_URL) return null;
   try {
-    console.log('[PlayCounter] Reading from JSONBin.io...');
-    const response = await fetch(`${JSONBIN_BASE_URL}/b/${JSONBIN_BIN_ID}/latest`, {
+    const response = await fetch(`${LEADERBOARD_API_URL}/attempts`, {
       method: 'GET',
-      headers: {
-        'X-Master-Key': JSONBIN_API_KEY
-      }
+      headers: { 'Accept': 'application/json' },
+      signal: AbortSignal.timeout(8000),
     });
-
-    if (!response.ok) {
-      console.warn('[PlayCounter] JSONBin read failed:', response.status);
-      return null;
-    }
-
+    if (!response.ok) return null;
     const data = await response.json();
-    const record = data.record || {};
-    const attempts = record.attempts;
-    console.log('[PlayCounter] Read attempts from cloud:', attempts);
-    if (Number.isFinite(attempts) && attempts >= 0) {
-      return attempts;
-    }
-    return 0;
+    const attempts = Number.isFinite(data?.attempts) ? Math.floor(data.attempts) : 0;
+    return attempts >= 0 ? attempts : 0;
   } catch (err) {
-    console.warn('[PlayCounter] JSONBin read failed:', err.message);
+    console.warn('[PlayCounter] API read failed:', err.message);
     return null;
   }
 }
 
-async function writeToCloud(attempts) {
+async function incrementOnCloud() {
+  if (!LEADERBOARD_API_URL) return null;
   try {
-    console.log('[PlayCounter] Writing attempts to JSONBin.io:', attempts);
-    // First, read the current bin data to preserve leaderboard
-    const readResponse = await fetch(`${JSONBIN_BASE_URL}/b/${JSONBIN_BIN_ID}/latest`, {
-      method: 'GET',
-      headers: {
-        'X-Master-Key': JSONBIN_API_KEY
-      }
+    const response = await fetch(`${LEADERBOARD_API_URL}/attempts`, {
+      method: 'POST',
+      headers: { 'Accept': 'application/json' },
+      signal: AbortSignal.timeout(8000),
     });
-
-    if (!readResponse.ok) {
-      console.warn('[PlayCounter] JSONBin read before write failed:', readResponse.status);
-      return false;
-    }
-
-    const data = await readResponse.json();
-    const record = data.record || {};
-    // Preserve leaderboard, update attempts
-    record.attempts = attempts;
-
-    const writeResponse = await fetch(`${JSONBIN_BASE_URL}/b/${JSONBIN_BIN_ID}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Master-Key': JSONBIN_API_KEY
-      },
-      body: JSON.stringify(record)
-    });
-
-    if (!writeResponse.ok) {
-      console.warn('[PlayCounter] JSONBin write failed:', writeResponse.status);
-      return false;
-    }
-    console.log('[PlayCounter] Write successful!');
-    return true;
+    if (!response.ok) return null;
+    const data = await response.json();
+    const attempts = Number.isFinite(data?.attempts) ? Math.floor(data.attempts) : 0;
+    return attempts >= 0 ? attempts : null;
   } catch (err) {
-    console.warn('[PlayCounter] JSONBin write failed:', err.message);
-    return false;
+    console.warn('[PlayCounter] API increment failed:', err.message);
+    return null;
   }
 }
 
-// ---- LocalStorage Fallback Functions ----
-
+// LocalStorage fallback functions — used when the API is unavailable
+// (offline, blocked, or not yet configured).
 function readLocal() {
   const raw = load(KEY, 0);
-  return Number.isFinite(raw) && raw >= 0 ? raw : 0;
+  return Number.isFinite(raw) && raw >= 0 ? Math.floor(raw) : 0;
 }
 
 function writeLocal(value) {
   save(KEY, value);
 }
 
-// ---- Unified Read/Write (Cloud first, fallback to local) ----
-
 export async function getAttempts() {
   const cloud = await readFromCloud();
   if (cloud !== null) {
-    // Sync local cache
     writeLocal(cloud);
-    console.log('[PlayCounter] getAttempts returned:', cloud);
     return cloud;
   }
-  // Fallback to localStorage
-  const local = readLocal();
-  console.log('[PlayCounter] getAttempts fallback to local:', local);
-  return local;
+  return readLocal();
 }
 
 export async function recordAttempt() {
-  const current = await getAttempts();
-  const next = current + 1;
-  console.log('[PlayCounter] recordAttempt: current=', current, 'next=', next);
-
-  // Try cloud first
-  const success = await writeToCloud(next);
-  if (success) {
-    console.log('[PlayCounter] recordAttempt success, returned:', next);
+  // Try the atomic server-side increment first. This is the only path
+  // that can guarantee a durable count across devices.
+  const next = await incrementOnCloud();
+  if (next !== null) {
+    writeLocal(next);
     return next;
   }
-
-  // Fallback to localStorage
-  console.warn('[PlayCounter] recordAttempt fallback to localStorage');
-  writeLocal(next);
-  return next;
+  // Fallback: best-effort local increment. This will not be shared with
+  // other devices, but it preserves the UI counter when offline.
+  const local = readLocal() + 1;
+  writeLocal(local);
+  return local;
 }
 
 export function clearAttempts() {

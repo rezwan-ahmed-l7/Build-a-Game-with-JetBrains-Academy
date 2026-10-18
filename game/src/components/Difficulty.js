@@ -1,9 +1,9 @@
 // Difficulty scales linearly with score, with caps on every parameter
 // so the game never becomes unfair or broken.
-const DIFFICULTY_GROWTH = 0.018;
+const DIFFICULTY_GROWTH = 0.008;
 
-const BASE_SPAWN_INTERVAL = 2.4;
-const BASE_ENEMY_SPEED = 16;
+const BASE_SPAWN_INTERVAL = 4.0;
+const BASE_ENEMY_SPEED = 12;
 const BASE_PLAYER_SPEED_MULT = 1.0;
 const BASE_ATTACK_COOLDOWN = 0.85;
 const BASE_ATTACK_RADIUS = 38;

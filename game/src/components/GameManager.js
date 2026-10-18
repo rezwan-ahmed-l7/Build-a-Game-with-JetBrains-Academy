@@ -12,6 +12,7 @@ const PLAYER_PUSHBACK = 18;
 
 let attackRef = null;
 let menusRef = null;
+let countdownTimer = 0; // handle for the in-flight 3-2-1 start countdown
 
 // Level-based frog stat scaling config
 // { maxHp, attackDamage, attackCooldown, moveSpeedMult, dashCooldownMs }
@@ -173,7 +174,7 @@ export function createGameManager({
       damageNumbers.spawn(eff.label, pos.x, pos.y, pos.z + 6, '#7ee08a', { kind: 'heal' });
     } else if (type === 'score') {
       const eff = getPowerUpEffect('score', lvl);
-      score.addKillBonus(eff.bonus);
+      score.addFlatBonus(eff.bonus);
       damageNumbers.spawn(eff.label, pos.x, pos.y, pos.z + 6, '#ffd166', { kind: 'power' });
       particles.spawnBurst(pos.x, pos.y, pos.z, { count: 24, color: 0xffd166, speed: 90, life: 0.7, size: 7 });
     } else if (type === 'speed') {
@@ -237,24 +238,33 @@ export function createGameManager({
   function applyLevelStats(level) {
     const stats = getLevelStats(level);
     currentLevel = level;
-    
-    // Health: set max HP and reset to full
+
+    // Health: set max HP without resetting current HP
+    // (on initial game start, reset() is called before this, so HP is already full)
+    // (on level up, only adjust max and clamp current HP if needed)
+    const oldMax = health.getMax();
     health.setMax(stats.maxHp);
-    health.reset();
-    
+    if (stats.maxHp < oldMax) {
+      // Max decreased — clamp current HP
+      const currentHp = health.getHp();
+      if (currentHp > stats.maxHp) {
+        health.damage(currentHp - stats.maxHp);
+      }
+    }
+
     // Attack: set cooldown and damage
     attackRef.setCooldown(stats.attackCooldown);
     attackRef.setDamage(stats.attackDamage);
-    
+
     // Movement: set base speed multiplier
     movement.setSpeedMultiplier(stats.moveSpeedMult);
-    
+
     // Dash: set cooldown
     dash.setCooldown(stats.dashCooldownMs);
-    
-    // Update hearts UI
-    score.setHearts(stats.maxHp, stats.maxHp);
-    
+
+    // Update hearts UI with actual current HP, not max
+    score.setHearts(health.getHp(), stats.maxHp);
+
     // Update power-up manager level
     if (typeof powerUps.setLevel === 'function') {
       powerUps.setLevel(level);
@@ -276,13 +286,40 @@ export function createGameManager({
     window.dispatchEvent(new CustomEvent(TODE_LEVEL_UP, { detail: { level } }));
   }
 
+  // 3-2-1 countdown before gameplay begins. During countdown the player
+  // cannot move, enemies don't spawn, and no damage or score accumulates.
+  const COUNTDOWN_TICK_MS = 800;
+  function beginCountdown() {
+    if (countdownTimer) clearTimeout(countdownTimer);
+    let n = 3;
+    const tick = () => {
+      countdownTimer = 0;
+      if (currentState !== GameState.COUNTDOWN) {
+        // Player died or something else interrupted — bail.
+        return;
+      }
+      if (n <= 0) {
+        // Countdown finished — start the actual game
+        currentState = GameState.PLAYING;
+        input.setEnabled(true);
+        menusRef.clearResumeCountdown && menusRef.clearResumeCountdown();
+        runStartTime = performance.now();
+        return;
+      }
+      menusRef.showResumeCountdown && menusRef.showResumeCountdown(n);
+      n -= 1;
+      countdownTimer = setTimeout(tick, COUNTDOWN_TICK_MS);
+    };
+    tick();
+  }
+
   function resetGame() {
     // Bump the community play counter. This is the single funnel point
     // for "player is starting a fresh run" (startGame + onRestart from
     // game-over both route through here), so pause/resume won't double
     // count and every Play press contributes exactly once.
     recordAttempt().catch(() => {}); // fire-and-forget, don't block game start
-    input.setEnabled(true);
+    input.setEnabled(false); // disabled during countdown
     player.group.position.set(0, 0, 0);
     movement.reset();
     player.group.visible = true;
@@ -293,22 +330,23 @@ export function createGameManager({
     dash.reset();
     score.reset();
     killCount = 0;
-    runStartTime = performance.now();
+    // runStartTime is set when countdown finishes, not here
 
     // Apply level-based stats
     currentLevel = 1;
     lastDisplayedLevel = 0;
     applyLevelStats(1);
-    
+
     attackBoostRemaining = 0;
     speedBoostRemaining = 0;
     shieldRemaining = 0;
     doubleAttackRemaining = 0;
     magnetRemaining = 0;
     freezeRemaining = 0;
-    
-    currentState = GameState.PLAYING;
+
+    currentState = GameState.COUNTDOWN;
     score.hideGameOver();
+    beginCountdown();
   }
 
   function startGame() {
@@ -399,6 +437,10 @@ export function createGameManager({
     return currentState === GameState.MENU;
   }
 
+  function isCountdown() {
+    return currentState === GameState.COUNTDOWN;
+  }
+
   // Player-enemy contact check
   function checkPlayerEnemyContact(playerVsEnemyDist) {
     if (health.isInvulnerable() || dash.isInvulnerable() || shieldRemaining > 0) return false;
@@ -409,7 +451,9 @@ export function createGameManager({
       const dy = player.group.position.y - enemy.group.position.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
       if (dist < playerVsEnemyDist) {
-        health.damage(1);
+        // Use the enemy type's attackContact damage (chaser=1, sprinter=1, brute=2)
+        const dmg = enemy.def && enemy.def.attackContact ? enemy.def.attackContact : 1;
+        health.damage(dmg);
         const nx = dx / (dist || 1);
         const ny = dy / (dist || 1);
         movement.translate(nx * PLAYER_PUSHBACK, ny * PLAYER_PUSHBACK);
@@ -433,7 +477,7 @@ export function createGameManager({
       const mul = combo.getMultiplier();
       const count = combo.getCount();
       killCount += 1;
-      score.addKillBonus(mul);
+      score.addKillBonus(mul, enemy.type);
       score.setCombo(count, combo.getTimeLeft());
       audio.playHit();
       if (count >= 3) audio.playPowerUp();
@@ -504,6 +548,7 @@ export function createGameManager({
     isPaused,
     isGameOver,
     isMenu,
+    isCountdown,
     setAttack,
     setMenus,
     checkPlayerEnemyContact,

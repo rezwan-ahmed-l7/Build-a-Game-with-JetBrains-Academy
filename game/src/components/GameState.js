@@ -3,6 +3,7 @@
 
 export const GameState = Object.freeze({
   MENU: 'menu',
+  COUNTDOWN: 'countdown',
   PLAYING: 'playing',
   PAUSED: 'paused',
   GAMEOVER: 'gameover',

@@ -42,28 +42,6 @@ export function createInput() {
     }
   }
 
-  // Click-to-move: a click on the canvas converts to a direction in
-  // camera-relative space. Movement's getCameraBasis already handles this
-  // — Input only knows about keyboard.
-  function handleCanvasClick(e, getCameraBasis) {
-    if (!enabled) return;
-    // No-op: the click-to-move logic lives in Movement itself via
-    // (targetPos) => canPlayerMoveTo. We expose a "click" queue for the
-    // click-to-move path here.
-    const rect = e.currentTarget.getBoundingClientRect();
-    const nx = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-    const ny = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-    const basis = getCameraBasis();
-    if (!basis.valid) return;
-
-    // Convert to world X/Y by projecting the click direction onto the
-    // camera basis. Store the raw (un-normalized) offset so Movement can
-    // scale it — clicking farther from center moves the player farther.
-    const tx = nx * basis.fwdX + ny * basis.rightX;
-    const ty = nx * basis.fwdY + ny * basis.rightY;
-    queue.push({ click: { x: tx, y: ty } });
-    if (queue.length > maxQueueSize) queue.shift();
-  }
 
   window.addEventListener('keydown', handleKeyDown);
   window.addEventListener('keyup', handleKeyUp);
@@ -97,14 +75,15 @@ export function createInput() {
     return { ...held };
   }
 
-  // Register a click-to-move handler on a canvas. Returns a cleanup function.
-  // On touch devices, skip — the virtual joystick handles movement instead.
-  function attachClickToMove(canvas, getCameraBasis) {
+  // Register a click-to-attack handler on the canvas. Returns a cleanup function.
+  // On touch devices, skip — the virtual joystick handles attack instead.
+  function attachClickToAttack(canvas, onAttack) {
     if (typeof navigator !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0)) {
       return () => {}; // no-op on touch devices
     }
     function onClick(e) {
-      handleCanvasClick(e, getCameraBasis);
+      if (!enabled) return;
+      onAttack();
     }
     canvas.addEventListener('pointerdown', onClick);
     return () => canvas.removeEventListener('pointerdown', onClick);
@@ -112,6 +91,6 @@ export function createInput() {
 
   return {
     dequeue, peek, isEmpty, clear, setEnabled,
-    getHeldDirection, attachClickToMove
+    getHeldDirection, attachClickToAttack
   };
 }

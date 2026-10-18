@@ -6,15 +6,16 @@ import { WORLD_RADIUS } from './WorldBounds.js';
 // Layout counts. Tuned for a forest you can SEE from the player but
 // not run into every two steps. We bias placement to the outer ring so
 // the immediate play area stays open and the trees form a horizon line.
-const TREE_COUNT = 180;          // balanced forest — fewer trees for better performance
-const BUSH_COUNT = 50;
-const BIG_ROCK_COUNT = 28;
-const SMALL_ROCK_COUNT = 40;
-const STUMP_COUNT = 14;
-const GRASS_TUFT_COUNT = 90;
-const MUSHROOM_COUNT = 30;
+// Counts increased to fill the expanded playable area (840 radius).
+const TREE_COUNT = 240;          // more trees to fill expanded edges
+const BUSH_COUNT = 65;
+const BIG_ROCK_COUNT = 38;
+const SMALL_ROCK_COUNT = 55;
+const STUMP_COUNT = 18;
+const GRASS_TUFT_COUNT = 110;
+const MUSHROOM_COUNT = 35;
 const LILY_PAD_COUNT = 9;        // around the pond
-const POND_COUNT = 3;            // multiple ponds scattered across the meadow
+const POND_COUNT = 6;            // 3 main ponds + 3 small ponds scattered across the meadow
 // How much smaller the additional ponds are compared to the main one
 const SMALL_POND_SCALE_MIN = 0.45;
 const SMALL_POND_SCALE_MAX = 0.65;
@@ -27,9 +28,10 @@ const PLAYER_CLEARING_RADIUS = 90;
 const TREE_SPACING_MIN = 22;
 // Inner forest ring — most of the trees live outside this radius so the
 // player can move freely, but they still form a visible forest border.
-const FOREST_INNER_RADIUS = 115;
-// Outer band where 80% of the trees go (creates the horizon forest look).
-const FOREST_OUTER_BIAS = 0.8;
+const FOREST_INNER_RADIUS = 150;
+// Outer band where 75% of the trees go (creates the horizon forest look).
+// Lower bias than before because the expanded area needs more inner trees too.
+const FOREST_OUTER_BIAS = 0.75;
 const CLEARING_RADIUS = 40;
 const POND_EXCLUSION_RADIUS = 48;  // keep other obstacles away from pond
 
@@ -674,13 +676,13 @@ export function createObstacles(scene) {
   const playerAvoid = [{ x: 0, y: 0, r: PLAYER_CLEARING_RADIUS }];
 
   // ----- Ponds (placed first; other obstacles avoid them) -----
-  // One large main pond + two smaller satellite ponds scattered in
+  // Three large main ponds + three smaller satellite ponds scattered in
   // different parts of the meadow. Each pond placement enforces a
   // minimum spacing from previously placed ponds so they never bunch up.
-  const POND_MIN_SPACING = 360;  // world units between pond centers
+  const POND_MIN_SPACING = 300;  // world units between pond centers (reduced for 6 ponds)
   const ponds = [];
   for (let p = 0; p < POND_COUNT; p++) {
-    const isMain = p === 0;
+    const isMain = p < 3;  // first 3 are main ponds, rest are small
     const scale = isMain
       ? 1.0
       : SMALL_POND_SCALE_MIN + rand() * (SMALL_POND_SCALE_MAX - SMALL_POND_SCALE_MIN);
@@ -693,7 +695,7 @@ export function createObstacles(scene) {
       // Also keep the ponds outside the player clearing so the player
       // spawn area stays dry.
       const minR = Math.max(CLEARING_RADIUS + POND_EXCLUSION_RADIUS, PLAYER_CLEARING_RADIUS + 60);
-      const maxR = isMain ? 220 : 480;
+      const maxR = isMain ? 280 : 600;  // small ponds can go further out with expanded playable area
       const r = minR + rand() * (maxR - minR);
       const x = Math.cos(angle) * r;
       const y = Math.sin(angle) * r;

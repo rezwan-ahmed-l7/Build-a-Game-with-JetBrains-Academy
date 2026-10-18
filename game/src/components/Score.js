@@ -7,13 +7,14 @@ import { isTouchDevice, prefersReducedMotion } from '../utils/dom.js';
 import { easeOutCubic } from '../utils/easings.js';
 import { TODE_NEW_BEST } from '../events.js';
 
-const SCORE_PER_SECOND = 3;
-const SCORE_PER_KILL = 15;
+const SCORE_PER_SECOND = 2;
+// Kill scores by enemy type (spec: small=25, medium=50, strong=100)
+const KILL_SCORES = { chaser: 25, sprinter: 50, brute: 100 };
 const COMBO_WINDOW = 1.5; // kept here as reference; Combo owns the actual window
 
-// Level thresholds — progressive difficulty scaling.
-// Level 1: 0-1000, Level 2: 1001-2500, Level 3: 2501-5000, Level 4: 5001-8500, ...
-export const LEVEL_THRESHOLDS = [0, 1000, 2500, 5000, 8500, 13000, 18500, 25000, 32500, 41000];
+// Level thresholds — 500-point intervals.
+// Level 1: 0–500, Level 2: 501–1000, Level 3: 1001–1500, etc.
+export const LEVEL_THRESHOLDS = [0, 500, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 5500, 6000, 6500, 7000, 7500, 8000, 8500, 9000, 9500, 10000];
 
 export function getLevel(score) {
   // Find the highest threshold the score has reached.
@@ -29,13 +30,15 @@ export function getLevel(score) {
 
 export function getNextLevelScore(score = 0) {
   // Return the threshold for the next level, or null at the maximum level.
-  const nextThreshold = LEVEL_THRESHOLDS[getLevel(Math.max(0, Number(score) || 0))];
-  return nextThreshold ?? null;
+  const currentLevel = getLevel(Math.max(0, Number(score) || 0));
+  const nextIdx = currentLevel; // LEVEL_THRESHOLDS is 0-indexed; level 1 → index 1
+  if (nextIdx >= LEVEL_THRESHOLDS.length) return null;
+  return LEVEL_THRESHOLDS[nextIdx];
 }
 
 // Whether this device is a touchscreen. The game-over panel adapts:
-// keyboard users see "Press Space to restart", touch users see a visible
-// Restart button (since they can't press Space). Hint + button are
+// keyboard users see "Press Enter to restart", touch users see a visible
+// Restart button. Hint + button are
 // mutually exclusive per-device — both render in the DOM, the wrong one
 // is hidden via the .is-touch class on the panel.
 const IS_TOUCH = isTouchDevice();
@@ -73,7 +76,7 @@ export function createScore({ submitter = null } = {}) {
   let lastRank = null;
   // Restart callback — wired by main.js after the GameManager exists
   // (Score is constructed first). Click handler on the visible Restart
-  // button invokes this so a tap restarts the run without needing Space.
+  // button invokes this so a tap restarts the run.
   let onRestartRef = null;
 
   // Combo state — owned by Score for HUD; the Combo system mirrors the
@@ -154,8 +157,7 @@ export function createScore({ submitter = null } = {}) {
 
   // Game-over overlay. The panel carries an `is-touch` class on
   // touchscreens so CSS can swap the keyboard hint for a visible
-  // Restart button — touch users can't press Space, so the button is
-  // the only way to restart a run.
+  // Restart button — touch users tap the button to restart.
   const gameOverEl = document.createElement('div');
   gameOverEl.className = 'game-over';
   if (IS_TOUCH) gameOverEl.classList.add('is-touch');
@@ -171,7 +173,7 @@ export function createScore({ submitter = null } = {}) {
         <span class="label">Best</span><span class="value dim high-score-value">0</span>
       </div>
       <p class="new-best" style="display:none">\u2728 New best!</p>
-      <p class="game-over-hint">Press <kbd>Space</kbd> to restart</p>
+      <p class="game-over-hint">Press <kbd>Space</kbd> or <kbd>Enter</kbd> to restart</p>
       <button class="menu-button primary game-over-restart" id="btn-game-over-restart" type="button">Restart</button>
     </div>
   `;
@@ -241,9 +243,18 @@ export function createScore({ submitter = null } = {}) {
     score += SCORE_PER_SECOND * delta;
   }
 
-  function addKillBonus(comboMultiplier = 1) {
-    score += SCORE_PER_KILL * comboMultiplier;
+  function addKillBonus(comboMultiplier = 1, enemyType = 'chaser') {
+    const baseScore = KILL_SCORES[enemyType] ?? KILL_SCORES.chaser;
+    score += baseScore * comboMultiplier;
     // Trigger the strong kill bump on the score chip.
+    el.classList.remove('bump-kill');
+    void el.offsetWidth;
+    el.classList.add('bump-kill');
+  }
+
+  function addFlatBonus(amount) {
+    score += amount;
+    // Trigger a subtle bump for power-up bonus.
     el.classList.remove('bump-kill');
     void el.offsetWidth;
     el.classList.add('bump-kill');
@@ -392,7 +403,7 @@ export function createScore({ submitter = null } = {}) {
   }
 
   return {
-    tick, addKillBonus, render,
+    tick, addKillBonus, addFlatBonus, render,
     showGameOver, hideGameOver, reset,
     getScore, getHighScore, getCombo, getLastRank,
     setHearts, setCombo, pulseCombo,

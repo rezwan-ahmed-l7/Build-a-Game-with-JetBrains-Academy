@@ -4,18 +4,21 @@ import { getLevel, getNextLevelScore } from '../src/components/Score.js';
 import { createHealth } from '../src/components/Health.js';
 
 test('getNextLevelScore returns the next threshold for the current score', () => {
-  assert.equal(getNextLevelScore(0), 1000);
-  assert.equal(getNextLevelScore(999), 1000);
-  assert.equal(getNextLevelScore(1000), 2500);
-  assert.equal(getNextLevelScore(5000), 8500);
-  assert.equal(getNextLevelScore(41000), null);
+  assert.equal(getNextLevelScore(0), 500);
+  assert.equal(getNextLevelScore(499), 500);
+  assert.equal(getNextLevelScore(500), 1000);
+  assert.equal(getNextLevelScore(1000), 1500);
+  assert.equal(getNextLevelScore(5000), 5500);
+  assert.equal(getNextLevelScore(10000), null);
   assert.equal(getNextLevelScore(999999), null);
 });
 
 test('getLevel remains consistent with next-level thresholds', () => {
   assert.equal(getLevel(0), 1);
-  assert.equal(getLevel(1000), 2);
-  assert.equal(getLevel(41000), 10);
+  assert.equal(getLevel(500), 2);
+  assert.equal(getLevel(1000), 3);
+  assert.equal(getLevel(5000), 11);
+  assert.equal(getLevel(10000), 21);
 });
 
 test('setMax notifies HUD listeners and clamps HP when maximum decreases', () => {

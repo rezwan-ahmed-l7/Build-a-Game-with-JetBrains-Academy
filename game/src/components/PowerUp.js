@@ -321,33 +321,35 @@ export function createPowerUp(type, x, y) {
   shapeMesh.castShadow = true;
   group.add(shapeMesh);
 
-  // ----- Halo ring on the ground (sits under the floating icon) -----
+  // ----- Halo ring hidden — user prefers no visible circle -----
   const halo = new THREE.Mesh(
     new THREE.RingGeometry(9, 12, 32),
     new THREE.MeshBasicMaterial({
       color: def.accent,
       transparent: true,
-      opacity: 0.55,
+      opacity: 0,
       side: THREE.DoubleSide,
       depthWrite: false
     })
   );
   halo.rotation.x = Math.PI / 2;
-  halo.position.z = -7; // sit below the icon
+  halo.position.z = -7;
+  halo.visible = false;
   group.add(halo);
 
-  // ----- Small ground shadow disc (so it reads as floating) -----
+  // ----- Ground shadow disc hidden -----
   const shadow = new THREE.Mesh(
     new THREE.CircleGeometry(8, 24),
     new THREE.MeshBasicMaterial({
       color: 0x000000,
       transparent: true,
-      opacity: 0.25,
+      opacity: 0,
       depthWrite: false
     })
   );
   shadow.rotation.x = Math.PI / 2;
   shadow.position.z = -7.5;
+  shadow.visible = false;
   group.add(shadow);
 
   // Glow comes from the emissive material above — no PointLight needed
@@ -374,10 +376,6 @@ export function createPowerUp(type, x, y) {
     shapeMesh.rotation.y += delta * 1.2;
     // Subtle tilt so the shape never looks pasted on flat.
     shapeMesh.rotation.x = Math.sin(time * 1.4) * 0.08;
-
-    // Halo pulses softly.
-    const pulse = 0.45 + 0.25 * Math.sin(time * 3.2);
-    halo.material.opacity = pulse;
 
 
     // Last 3 seconds: blink the icon (not the halo, so it's still findable).

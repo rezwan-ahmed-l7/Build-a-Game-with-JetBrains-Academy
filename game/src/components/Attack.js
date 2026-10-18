@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-const BASE_ATTACK_COOLDOWN = 0.85;
+const BASE_ATTACK_COOLDOWN = 0.50;
 const BASE_ATTACK_RADIUS = 38;
 const ATTACK_VISUAL_LIFETIME = 0.32;
 const HITSTOP_DURATION = 0.05;

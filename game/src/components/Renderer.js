@@ -15,7 +15,7 @@ export function createRenderer(canvas) {
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.2;
+  renderer.toneMappingExposure = 1.1;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
 
   return renderer;
