@@ -24,6 +24,7 @@ import { submitScore as leaderboardSubmit } from './components/Leaderboard.js';
 import { createDifficulty } from './components/Difficulty.js';
 import { createObstacles } from './components/Obstacles.js';
 import { createEnvironment } from './components/Environment.js';
+import { GROUND_RADIUS } from './components/WorldBounds.js';
 
 import { GameState } from './components/GameState.js';
 import { createHealth } from './components/Health.js';
@@ -169,7 +170,7 @@ function createMeadowTexture() {
   return texture;
 }
 
-const groundGeometry = new THREE.CircleGeometry(14000, 128);
+const groundGeometry = new THREE.CircleGeometry(GROUND_RADIUS, 128);
 const groundMaterial = new THREE.MeshStandardMaterial({
   color: 0x344b2b, map: createMeadowTexture(), roughness: 1.0, metalness: 0
 });
@@ -178,10 +179,9 @@ ground.position.z = -0.5;
 ground.receiveShadow = true;
 scene.add(ground);
 
-// Keep the ground far beyond the obstacle field so players who roam outside
-// the forest never step onto a black void. The vignette only appears at the
-// distant world boundary, well beyond the normal playable area.
-const vignetteGeometry = new THREE.RingGeometry(13500, 14000, 128);
+// The meadow ends shortly beyond the bounded playable arena: enough visual
+// margin to avoid a black edge in normal play, without implying an endless field.
+const vignetteGeometry = new THREE.RingGeometry(GROUND_RADIUS - 20, GROUND_RADIUS, 128);
 const vignetteMaterial = new THREE.MeshBasicMaterial({
   color: 0x05080d, side: THREE.DoubleSide,
   transparent: true, opacity: 0.72, depthWrite: false
