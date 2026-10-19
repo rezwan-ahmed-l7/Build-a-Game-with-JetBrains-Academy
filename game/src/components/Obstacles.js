@@ -989,26 +989,6 @@ function makePond(rand, scale = 1.0) {
   return { group, radius, water, ripple, rippleSecondary, rippleTertiary, lilyPads };
 }
 
-function placeRandomlyWithRadii(rand, avoid, minDist) {
-  for (let attempt = 0; attempt < 80; attempt++) {
-    const angle = rand() * Math.PI * 2;
-    const r = Math.sqrt(CLEARING_RADIUS ** 2 + rand() * (WORLD_RADIUS ** 2 - CLEARING_RADIUS ** 2));
-    const x = Math.cos(angle) * r;
-    const y = Math.sin(angle) * r;
-    let ok = true;
-    for (const p of avoid) {
-      if (Math.hypot(x - p.x, y - p.y) < minDist + (p.r || 0)) {
-        ok = false;
-        break;
-      }
-    }
-    if (ok) return { x, y };
-  }
-  const angle = rand() * Math.PI * 2;
-  const r = FOREST_INNER_RADIUS + rand() * (WORLD_RADIUS - FOREST_INNER_RADIUS);
-  return { x: Math.cos(angle) * r, y: Math.sin(angle) * r };
-}
-
 function placeRandomly(rand, avoid, minDist) {
   for (let attempt = 0; attempt < 30; attempt++) {
     const angle = rand() * Math.PI * 2;
