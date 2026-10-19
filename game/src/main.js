@@ -835,7 +835,9 @@ function animate(currentTime) {
     // jump finishes, so holding the stick keeps moving without flooding input.
     if (touch && touch.getMoveDirection && !movement.isCurrentlyMoving()) {
       const joystickDirection = touch.getMoveDirection();
-      if (joystickDirection) input.enqueueDirection(joystickDirection);
+      if (joystickDirection && input.enqueueDirection(joystickDirection)) {
+        touch.markMoveQueued?.(joystickDirection);
+      }
     }
 
     movement.update(effectiveDelta);
