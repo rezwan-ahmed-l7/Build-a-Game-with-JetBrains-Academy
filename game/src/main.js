@@ -25,6 +25,7 @@ import { createDifficulty } from './components/Difficulty.js';
 import { createObstacles } from './components/Obstacles.js';
 import { createEnvironment } from './components/Environment.js';
 import { GROUND_RADIUS } from './components/WorldBounds.js';
+import { createSeaShips } from './components/SeaShips.js';
 
 import { GameState } from './components/GameState.js';
 import { createHealth } from './components/Health.js';
@@ -282,6 +283,9 @@ const sea = new THREE.Mesh(seaGeometry, seaMaterial);
 sea.position.z = -2;
 sea.receiveShadow = true;
 scene.add(sea);
+
+// Decorative ships remain well offshore and do not participate in collisions.
+const seaShips = createSeaShips(scene);
 
 // Store original sea vertex positions for wave animation
 const seaPositions = seaGeometry.attributes.position.array.slice();
@@ -959,6 +963,8 @@ function animate(currentTime) {
   }
   pos.needsUpdate = true;
   seaGeometry.computeVertexNormals();
+  // Ships use the same wave field as the ocean mesh so their hulls rise and fall with the swell.
+  seaShips.update(delta, time);
 
   // Sea ripple rings — expanding from shore inward
   for (const ripple of seaRipples) {
