@@ -41,8 +41,29 @@ export function createAttack(scene, playerGroup, enemyManager, callbacks = {}) {
     if (!Number.isFinite(value) || value <= 0) return;
     radius = value;
     if (attackVisual) {
-      attackVisual.geometry.dispose();
-      attackVisual.geometry = new THREE.RingGeometry(radius * 0.8, radius, 32);
+      for (const child of attackVisual.children) {
+        if (child.userData?.ringRatios) {
+          child.geometry.dispose();
+          child.geometry = new THREE.RingGeometry(
+            radius * child.userData.ringRatios[0],
+            radius * child.userData.ringRatios[1],
+            48
+          );
+        } else if (child.userData?.slashRatios) {
+          child.geometry.dispose();
+          const positions = [];
+          const [inner, outer] = child.userData.slashRatios;
+          for (let i = 0; i < 12; i++) {
+            const a = (i / 12) * Math.PI * 2;
+            positions.push(
+              Math.cos(a) * radius * inner, Math.sin(a) * radius * inner, 0,
+              Math.cos(a) * radius * outer, Math.sin(a) * radius * outer, 0
+            );
+          }
+          child.geometry = new THREE.BufferGeometry();
+          child.geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+        }
+      }
     }
   }
 
@@ -53,29 +74,85 @@ export function createAttack(scene, playerGroup, enemyManager, callbacks = {}) {
   function createAttackVisual() {
     if (attackVisual) {
       scene.remove(attackVisual);
-      attackVisual.geometry.dispose();
-      attackVisual.material.dispose();
+      attackVisual.traverse((child) => {
+        if (child.geometry) child.geometry.dispose();
+        if (child.material) {
+          if (Array.isArray(child.material)) child.material.forEach((m) => m.dispose());
+          else child.material.dispose();
+        }
+      });
       attackVisual = null;
     }
-    const geometry = new THREE.RingGeometry(radius * 0.8, radius, 32);
-    const material = new THREE.MeshBasicMaterial({
-      color: 0xffee44,
-      transparent: true,
-      opacity: 0.9,
-      depthWrite: false,
-      side: THREE.DoubleSide
-    });
-    attackVisual = new THREE.Mesh(geometry, material);
-    attackVisual.position.copy(playerGroup.position);
-    attackVisual.position.z = 0.3;
+
+    // A layered shockwave: warm impact core, bright outer sweep, and radial
+    // energy slashes. All are lightweight Three.js geometry (no textures or
+    // post-processing), designed to read clearly from the gameplay camera.
+    attackVisual = new THREE.Group();
+    attackVisual.position.set(playerGroup.position.x, playerGroup.position.y, 0.45);
     attackVisual.userData.life = 0;
+    attackVisual.userData.layers = [];
+
+    const ringLayers = [
+      { inner: 0.82, outer: 1.0, color: 0xfff4a3, opacity: 0.98, delay: 0.0, scale: 0.28 },
+      { inner: 0.58, outer: 0.65, color: 0xffb52e, opacity: 0.9, delay: 0.08, scale: 0.38 },
+      { inner: 0.30, outer: 0.36, color: 0x8cf5ff, opacity: 0.88, delay: 0.02, scale: 0.22 }
+    ];
+    for (const layer of ringLayers) {
+      const geometry = new THREE.RingGeometry(radius * layer.inner, radius * layer.outer, 48);
+      const material = new THREE.MeshBasicMaterial({
+        color: layer.color,
+        transparent: true,
+        opacity: layer.opacity,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+        blending: THREE.AdditiveBlending
+      });
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.scale.setScalar(layer.scale);
+      mesh.userData = {
+        ringRatios: [layer.inner, layer.outer],
+        baseScale: layer.scale,
+        delay: layer.delay,
+        baseOpacity: layer.opacity
+      };
+      attackVisual.add(mesh);
+      attackVisual.userData.layers.push(mesh);
+    }
+
+    // Short radial streaks give the pulse a punchy, arcade-like impact read.
+    const slashPositions = [];
+    for (let i = 0; i < 12; i++) {
+      const angle = (i / 12) * Math.PI * 2;
+      const inner = radius * 0.72;
+      const outer = radius * (i % 2 === 0 ? 1.08 : 0.98);
+      slashPositions.push(
+        Math.cos(angle) * inner, Math.sin(angle) * inner, 0.02,
+        Math.cos(angle) * outer, Math.sin(angle) * outer, 0.02
+      );
+    }
+    const slashGeometry = new THREE.BufferGeometry();
+    slashGeometry.setAttribute('position', new THREE.Float32BufferAttribute(slashPositions, 3));
+    const slashMaterial = new THREE.LineBasicMaterial({
+      color: 0xffe9a3,
+      transparent: true,
+      opacity: 0.95,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending
+    });
+    const slashes = new THREE.LineSegments(slashGeometry, slashMaterial);
+    slashes.userData.slashRatios = [0.72, 1.08];
+    slashes.userData.baseOpacity = 0.95;
+    slashes.scale.setScalar(0.35);
+    attackVisual.add(slashes);
+    attackVisual.userData.layers.push(slashes);
+
     scene.add(attackVisual);
 
-    // Spark burst at the player's feet
+    // A compact spark burst anchors the shockwave to the frog's position.
     onParticles('sparks',
       playerGroup.position.x,
       playerGroup.position.y,
-      playerGroup.position.z,
+      playerGroup.position.z + 1,
       0xffd166
     );
   }
@@ -86,18 +163,26 @@ export function createAttack(scene, playerGroup, enemyManager, callbacks = {}) {
     const progress = attackVisual.userData.life / ATTACK_VISUAL_LIFETIME;
     if (progress >= 1) {
       scene.remove(attackVisual);
-      attackVisual.geometry.dispose();
-      attackVisual.material.dispose();
+      attackVisual.traverse((child) => {
+        if (child.geometry) child.geometry.dispose();
+        if (child.material) {
+          if (Array.isArray(child.material)) child.material.forEach((m) => m.dispose());
+          else child.material.dispose();
+        }
+      });
       attackVisual = null;
       return;
     }
-    if (progress < 0.2) {
-      const t = progress / 0.2;
-      attackVisual.scale.setScalar(0.5 + t * 0.5);
-      attackVisual.material.opacity = 0.9;
-    } else {
-      const t = (progress - 0.2) / 0.8;
-      attackVisual.material.opacity = 0.9 * (1 - t);
+
+    const eased = 1 - Math.pow(1 - progress, 2.4);
+    attackVisual.rotation.z += delta * (1.8 + progress * 3.2);
+    for (const layer of attackVisual.userData.layers) {
+      const delay = layer.userData.delay || 0;
+      const local = THREE.MathUtils.clamp((progress - delay) / (1 - delay), 0, 1);
+      const baseScale = layer.userData.baseScale ?? 1;
+      const scale = baseScale + eased * (1.0 - baseScale);
+      layer.scale.setScalar(scale);
+      layer.material.opacity = (layer.userData.baseOpacity || 0.9) * (1 - local) * (progress < delay ? 0 : 1);
     }
   }
 
