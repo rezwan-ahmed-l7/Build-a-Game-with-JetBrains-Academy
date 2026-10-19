@@ -25,6 +25,7 @@ import { createDifficulty } from './components/Difficulty.js';
 import { createObstacles } from './components/Obstacles.js';
 import { createEnvironment } from './components/Environment.js';
 import { GROUND_RADIUS } from './components/WorldBounds.js';
+import { createSeaShips } from './components/SeaShips.js';
 
 import { GameState } from './components/GameState.js';
 import { createHealth } from './components/Health.js';
@@ -230,36 +231,61 @@ sand.position.z = -0.4;
 sand.receiveShadow = true;
 scene.add(sand);
 
-// Sea — dark water ring surrounding the island, visible beyond the sand beach
-// Uses a canvas texture for a gradient: lighter near shore, darker far out.
+// Sea — layered island water with a soft coastal gradient and restrained surface detail.
 function createSeaTexture() {
-  const size = 512;
+  const size = 768;
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext('2d');
-  // Radial gradient: light turquoise near shore, deep navy far out
-  const gradient = ctx.createRadialGradient(size/2, size/2, size * 0.1, size/2, size/2, size/2);
-  gradient.addColorStop(0, '#63d9d1');
-  gradient.addColorStop(0.12, '#28a9b5');
-  gradient.addColorStop(0.34, '#167b9b');
-  gradient.addColorStop(0.68, '#105071');
-  gradient.addColorStop(1, '#08283f');
+
+  // The shore starts in clear turquoise and gradually deepens into ocean blue.
+  const gradient = ctx.createRadialGradient(size / 2, size / 2, size * 0.08, size / 2, size / 2, size * 0.53);
+  gradient.addColorStop(0, '#b0f0df');
+  gradient.addColorStop(0.08, '#63d5ca');
+  gradient.addColorStop(0.22, '#2baab8');
+  gradient.addColorStop(0.43, '#167c9d');
+  gradient.addColorStop(0.70, '#105574');
+  gradient.addColorStop(1, '#092c49');
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, size, size);
+
+  // Fine, low-contrast curved streaks catch the light without looking like stripes.
+  // Their subtle opacity keeps the water attractive even when the texture is minified.
+  for (let i = 0; i < 96; i++) {
+    const y = (i / 96) * size;
+    const wave = 3 + (i % 5) * 1.4;
+    ctx.beginPath();
+    ctx.moveTo(-20, y);
+    ctx.bezierCurveTo(size * 0.24, y - wave, size * 0.64, y + wave * 1.6, size + 20, y - wave * 0.4);
+    ctx.strokeStyle = i % 3 === 0 ? 'rgba(196,255,244,0.055)' : 'rgba(4,45,75,0.045)';
+    ctx.lineWidth = i % 4 === 0 ? 2 : 1;
+    ctx.stroke();
+  }
+
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = THREE.ClampToEdgeWrapping;
+  texture.wrapT = THREE.ClampToEdgeWrapping;
   texture.needsUpdate = true;
   return texture;
 }
-const seaGeometry = new THREE.RingGeometry(1000, 2000, 128, 8);
+const seaGeometry = new THREE.RingGeometry(1000, 2000, 256, 24);
 const seaMaterial = new THREE.MeshStandardMaterial({
-  color: 0x4caeb7, map: createSeaTexture(), roughness: 0.22, metalness: 0.18,
-  transparent: true, opacity: 0.85, depthWrite: false
+  color: 0xffffff, map: createSeaTexture(), roughness: 0.34, metalness: 0.04,
+  transparent: true, opacity: 0.97, depthWrite: false,
+  side: THREE.DoubleSide
 });
+const seaDayTint = new THREE.Color(0xe8ffff);
+const seaDuskTint = new THREE.Color(0xffc4a0);
+const seaNightTint = new THREE.Color(0x7896c8);
+const seaTint = new THREE.Color();
 const sea = new THREE.Mesh(seaGeometry, seaMaterial);
 sea.position.z = -2;
 sea.receiveShadow = true;
 scene.add(sea);
+
+// Decorative ships remain well offshore and do not participate in collisions.
+const seaShips = createSeaShips(scene);
 
 // Store original sea vertex positions for wave animation
 const seaPositions = seaGeometry.attributes.position.array.slice();
@@ -614,6 +640,14 @@ if (isTouchDevice()) {
   });
 }
 
+// Mobile browsers may suspend WebAudio after tab switching or screen lock.
+// Resume from a real pointer gesture so music and frog/action sounds recover.
+window.addEventListener('pointerdown', () => {
+  audio.resume().then(() => {
+    if (gameManager.isPlaying()) audio.startAmbient();
+  }).catch(() => {});
+}, { capture: true, passive: true });
+
 // Attach click-to-attack on the canvas for non-touch
 input.attachClickToAttack(canvas, () => {
   if (gameManager.isPlaying()) attack.attack(performance.now());
@@ -722,6 +756,11 @@ function animate(currentTime) {
   particles.update(delta);
   damageNumbers.update(delta, camera);
   audio.update && audio.update(delta);
+  // The sea surrounds the island: bring in surf ambience smoothly only
+  // when the frog approaches the shoreline, and fade it back out inland.
+  if (audio.setShoreProximity) {
+    audio.setShoreProximity(Math.hypot(player.group.position.x, player.group.position.y));
+  }
   if (gameManager.getFlashTimer() > 0) {
     gameManager.setFlashTimer(Math.max(0, gameManager.getFlashTimer() - delta));
   }
@@ -879,14 +918,16 @@ function animate(currentTime) {
   for (const foam of shoreFoam) {
     const d = foam.userData;
     const swell = Math.sin(time * d.speed + d.phase);
-    // The wet edge travels across the overlapping sand/water boundary:
-    // the crest reaches up the beach, then drains back into the sea.
-    const radius = 1015 + swell * 55;
-    const driftAngle = d.angle + Math.sin(time * 0.35 + d.phase) * 0.018;
-    foam.position.set(Math.cos(driftAngle) * radius, Math.sin(driftAngle) * radius, -0.12 + Math.max(0, swell) * 0.22);
+    const crest = Math.max(0, swell);
+    // Smaller shoreline travel and eased opacity make the wash feel continuous,
+    // rather than making bright foam jump visibly across the beach.
+    const easedCrest = crest * crest * (3 - 2 * crest);
+    const radius = 1012 + swell * 22;
+    const driftAngle = d.angle + Math.sin(time * 0.22 + d.phase) * 0.012;
+    foam.position.set(Math.cos(driftAngle) * radius, Math.sin(driftAngle) * radius, -0.10 + easedCrest * 0.08);
     foam.rotation.z = driftAngle + Math.PI / 2;
-    foam.material.opacity = 0.12 + (0.5 + 0.5 * swell) * 0.38;
-    foam.scale.x = 9 + Math.max(0, swell) * 7;
+    foam.material.opacity = 0.08 + easedCrest * 0.25;
+    foam.scale.x = 8 + easedCrest * 5;
   }
   for (const crab of crabGroup.children) {
     const d = crab.userData;
@@ -901,19 +942,29 @@ function animate(currentTime) {
     for (const leg of d.legs || []) leg.rotation.z = leg.userData.baseRotation + Math.sin(t * 7 + leg.userData.phase) * 0.16;
     for (const claw of d.claws || []) claw.rotation.z = Math.sin(t * 2.3 + claw.userData.side) * 0.09;
   }
+  // Blend ocean color continuously with the same day/dusk/night state as the sky.
+  // The tint is intentionally restrained so the shore-to-deep-water gradient remains visible.
+  seaTint.copy(seaNightTint).lerp(seaDayTint, environmentState?.dayFactor ?? 0.5);
+  seaTint.lerp(seaDuskTint, Math.min(0.55, (environmentState?.duskFactor ?? 0) * 0.42));
+  seaMaterial.color.copy(seaTint);
+
   const pos = seaGeometry.attributes.position;
   for (let i = 0; i < pos.count; i++) {
     const ox = seaPositions[i * 3];
     const oy = seaPositions[i * 3 + 1];
     const dist = Math.sqrt(ox * ox + oy * oy);
     const angle = Math.atan2(oy, ox);
-    // Three overlapping wave layers for big, visible waves
-    const wave = Math.sin(dist * 0.008 - time * 1.0) * 12.0
-               + Math.sin(dist * 0.004 + time * 0.6 + angle * 1.5) * 8.0
-               + Math.sin(dist * 0.015 - time * 1.8 + angle * 3) * 4.0;
+    // Three low-amplitude, different-frequency layers create broad rolling motion
+    // without lifting the ocean into the beach or causing a visibly jagged surface.
+    const wave = Math.sin(dist * 0.008 - time * 0.72) * 2.8
+               + Math.sin(dist * 0.004 + time * 0.46 + angle * 1.5) * 1.7
+               + Math.sin(dist * 0.015 - time * 1.05 + angle * 3) * 0.65;
     pos.setZ(i, wave);
   }
   pos.needsUpdate = true;
+  seaGeometry.computeVertexNormals();
+  // Ships use the same wave field as the ocean mesh so their hulls rise and fall with the swell.
+  seaShips.update(delta, time);
 
   // Sea ripple rings — expanding from shore inward
   for (const ripple of seaRipples) {
@@ -924,7 +975,9 @@ function animate(currentTime) {
     ripple.position.x = Math.cos(ripple.userData.angle) * dist;
     ripple.position.y = Math.sin(ripple.userData.angle) * dist;
     ripple.scale.setScalar(1 + t * 30);
-    ripple.material.opacity = 0.5 * (1 - t) * Math.min(1, t * 5);
+    const fadeIn = Math.min(1, t * 4);
+    const fadeOut = (1 - t) * (1 - t);
+    ripple.material.opacity = 0.22 * fadeIn * fadeOut;
   }
 
   // Player visual update always runs (idle breathing continues during game over)

@@ -72,6 +72,145 @@ function distortGeometry(geo, rand, flatness) {
 
 // ---------- Tree builders ----------
 
+
+// Five ornamental red-leaf tree silhouettes, each with its own canopy profile.
+// A separate seeded RNG is used for these models so existing forest placement
+// and the other 200 trees keep their previous deterministic layout.
+const RED_LEAF_PALETTE = [
+  0x9f1239, // deep crimson
+  0xc21e3a, // ruby red
+  0x7f1d35, // burgundy
+  0xe04455, // scarlet
+  0xb83250, // rose crimson
+  0x8f243f
+];
+const RED_LEAF_MATERIALS = RED_LEAF_PALETTE.map((color) => new THREE.MeshStandardMaterial({
+  color,
+  roughness: 0.88,
+  metalness: 0,
+  flatShading: true,
+  emissive: 0x18030a,
+  emissiveIntensity: 0.08
+}));
+const RED_LEAF_GEOMETRIES = [
+  new THREE.IcosahedronGeometry(1, 1),
+  new THREE.DodecahedronGeometry(1, 0),
+  new THREE.SphereGeometry(1, 8, 6)
+];
+
+function makeRedLeafTree(rand, style) {
+  const group = new THREE.Group();
+  const height = 34 + rand() * 13;
+  const trunkHeight = height * ([0.48, 0.43, 0.56, 0.40, 0.50][style]);
+  const trunkRadius = 1.35 + rand() * 0.65;
+  const trunk = new THREE.Mesh(
+    new THREE.CylinderGeometry(trunkRadius * 0.55, trunkRadius, trunkHeight, 7),
+    new THREE.MeshStandardMaterial({ color: 0x563522, roughness: 0.96, flatShading: true })
+  );
+  trunk.rotation.x = Math.PI / 2;
+  trunk.position.z = trunkHeight / 2;
+  trunk.castShadow = true;
+  trunk.receiveShadow = true;
+  group.add(trunk);
+
+  // Visible branching gives the red crown a tree-like silhouette rather than
+  // a single generic ball. Branch direction is calculated in this Z-up world.
+  const branchCount = 5 + Math.floor(rand() * 3);
+  for (let i = 0; i < branchCount; i++) {
+    const angle = (i / branchCount) * Math.PI * 2 + (rand() - 0.5) * 0.35;
+    const start = new THREE.Vector3(
+      Math.cos(angle) * 0.35,
+      Math.sin(angle) * 0.35,
+      trunkHeight * (0.48 + rand() * 0.30)
+    );
+    const length = 5 + rand() * 4;
+    const end = new THREE.Vector3(
+      start.x + Math.cos(angle) * length,
+      start.y + Math.sin(angle) * length,
+      start.z + 2 + rand() * 5
+    );
+    const direction = end.clone().sub(start);
+    const branch = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.18, 0.48, direction.length(), 5),
+      new THREE.MeshStandardMaterial({ color: 0x654027, roughness: 1, flatShading: true })
+    );
+    branch.position.copy(start).add(end).multiplyScalar(0.5);
+    branch.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.normalize());
+    branch.castShadow = true;
+    group.add(branch);
+  }
+
+  // Each style distributes the foliage differently: layered maple, wide
+  // umbrella crown, upright column, weeping crown, and multi-tier fan crown.
+  const clusterCount = [17, 19, 15, 18, 20][style];
+  const crownWidth = [10.5, 14.5, 8.2, 12.0, 13.0][style];
+  const crownHeight = height - trunkHeight;
+  for (let i = 0; i < clusterCount; i++) {
+    const angle = rand() * Math.PI * 2;
+    const layer = i / Math.max(1, clusterCount - 1);
+    let x = 0, y = 0, z = 0;
+    let sx = 0, sy = 0, sz = 0;
+
+    if (style === 0) { // Japanese maple: layered, spreading crown
+      const ring = i % 3;
+      const radius = ring === 0 ? crownWidth * 0.28 : crownWidth * (0.48 + rand() * 0.16);
+      x = Math.cos(angle) * radius;
+      y = Math.sin(angle) * radius;
+      z = crownHeight * (0.35 + (Math.floor(i / 3) / Math.ceil(clusterCount / 3)) * 0.55);
+      sx = 3.0 + rand() * 1.5; sy = 2.8 + rand() * 1.3; sz = 2.5 + rand() * 1.4;
+    } else if (style === 1) { // broad umbrella-shaped crimson tree
+      const radius = crownWidth * Math.sqrt(rand()) * 0.72;
+      x = Math.cos(angle) * radius; y = Math.sin(angle) * radius;
+      z = crownHeight * (0.55 + rand() * 0.30) - radius * 0.10;
+      sx = 3.2 + rand() * 1.8; sy = 3.0 + rand() * 1.7; sz = 2.0 + rand() * 1.1;
+    } else if (style === 2) { // upright columnar red ornamental tree
+      const radius = crownWidth * (0.22 + rand() * 0.25);
+      x = Math.cos(angle) * radius; y = Math.sin(angle) * radius;
+      z = crownHeight * (0.16 + layer * 0.78);
+      sx = 2.7 + rand() * 1.1; sy = 2.5 + rand() * 1.0; sz = 3.0 + rand() * 1.5;
+    } else if (style === 3) { // cascading / weeping red crown
+      const radius = crownWidth * (0.22 + rand() * 0.46);
+      x = Math.cos(angle) * radius; y = Math.sin(angle) * radius;
+      z = crownHeight * (0.52 + rand() * 0.26) - radius * (0.12 + rand() * 0.12);
+      sx = 2.8 + rand() * 1.4; sy = 2.7 + rand() * 1.4; sz = 2.6 + rand() * 1.3;
+    } else { // sculpted multi-tier fan crown
+      const tier = i % 4;
+      const radius = crownWidth * (0.20 + tier * 0.17) * (0.82 + rand() * 0.28);
+      x = Math.cos(angle) * radius; y = Math.sin(angle) * radius;
+      z = crownHeight * (0.30 + tier * 0.16) + (rand() - 0.5) * 3;
+      sx = 3.1 + rand() * 1.6; sy = 2.7 + rand() * 1.5; sz = 2.4 + rand() * 1.2;
+    }
+
+    const geometry = RED_LEAF_GEOMETRIES[Math.floor(rand() * RED_LEAF_GEOMETRIES.length)];
+    const material = RED_LEAF_MATERIALS[Math.floor(rand() * RED_LEAF_MATERIALS.length)];
+    const leaves = new THREE.Mesh(geometry, material);
+    leaves.position.set(x, y, trunkHeight + z);
+    leaves.scale.set(sx, sy, sz);
+    leaves.rotation.z = rand() * Math.PI * 2;
+    leaves.castShadow = true;
+    leaves.receiveShadow = true;
+    group.add(leaves);
+  }
+
+  // Small hanging clusters make the weeping variety visibly distinct.
+  if (style === 3) {
+    for (let i = 0; i < 5; i++) {
+      const angle = (i / 5) * Math.PI * 2;
+      const radius = crownWidth * 0.55;
+      const drop = 4 + rand() * 4;
+      const tip = new THREE.Mesh(
+        RED_LEAF_GEOMETRIES[1],
+        RED_LEAF_MATERIALS[i % RED_LEAF_MATERIALS.length]
+      );
+      tip.position.set(Math.cos(angle) * radius, Math.sin(angle) * radius, trunkHeight + crownHeight * 0.62 - drop);
+      tip.scale.set(1.7, 1.7, 3.0 + rand() * 1.5);
+      group.add(tip);
+    }
+  }
+
+  return { group, totalHeight: height };
+}
+
 // Pine / fir — tall conifer with visible trunk, layered conical
 // canopy, and slight color variation per layer for realism.
 function makePineTree(rand) {
@@ -741,28 +880,87 @@ export function createObstacles(scene) {
   }
   // Ponds have no collision (player walks around them visually)
 
-  // ----- Trees (mixed pine + broadleaf) -----
-  // Trees live primarily in the outer ring so the player has breathing room.
-  // In addition, every tree must stay clear of pond water and (lightly)
-  // clear of other trees so canopy gaps remain visible.
+  // ----- Trees: 40 spaced red-leaf ornamentals + 200 original trees -----
+  // Generate all original tree choices/positions first, using the existing
+  // seeded RNG sequence. This preserves the old placement/layout for the
+  // remaining 200 trees and for all other world props.
+  const treeRecords = [];
   for (let i = 0; i < TREE_COUNT; i++) {
     const isBroadleaf = rand() < 0.4;
-    const { group, totalHeight } = isBroadleaf
-      ? makeBroadleafTree(rand)
-      : makePineTree(rand);
-    // Combine: keep clear of player spawn, of pond water, and of other trees.
+    const originalTree = isBroadleaf ? makeBroadleafTree(rand) : makePineTree(rand);
     const avoid = playerAvoid.concat(pondAvoid, placed);
     const pos = placeTree(rand, avoid, TREE_SPACING_MIN);
     placed.push(pos);
-    group.position.x = pos.x;
-    group.position.y = pos.y;
-    group.rotation.z = rand() * Math.PI * 2;
-    snapToGround(group);
-    scene.add(group);
+    treeRecords.push({
+      index: i,
+      group: originalTree.group,
+      pos,
+      rotation: rand() * Math.PI * 2
+    });
     obstacles.push({
       position: { x: pos.x, y: pos.y },
       radius: TREE_COLLISION_RADIUS
     });
+  }
+
+  // Pick 40 tree locations spread across the existing forest. Farthest-point
+  // selection prevents the red trees from bunching together; every position
+  // already lies within WORLD_RADIUS (840), inside GROUND_RADIUS (900).
+  const redTreeIndices = new Set();
+  const redTreeRecords = [];
+  if (treeRecords.length > 0) {
+    let first = 0;
+    let farthestFromSpawn = -1;
+    for (let i = 0; i < treeRecords.length; i++) {
+      const p = treeRecords[i].pos;
+      const distance = Math.hypot(p.x, p.y);
+      if (distance > farthestFromSpawn) {
+        farthestFromSpawn = distance;
+        first = i;
+      }
+    }
+    redTreeIndices.add(first);
+    redTreeRecords.push(treeRecords[first]);
+
+    while (redTreeIndices.size < Math.min(40, treeRecords.length)) {
+      let bestIndex = -1;
+      let bestDistance = -1;
+      for (let i = 0; i < treeRecords.length; i++) {
+        if (redTreeIndices.has(i)) continue;
+        const candidate = treeRecords[i].pos;
+        let nearestRedDistance = Infinity;
+        for (const selected of redTreeRecords) {
+          const dx = candidate.x - selected.pos.x;
+          const dy = candidate.y - selected.pos.y;
+          nearestRedDistance = Math.min(nearestRedDistance, Math.hypot(dx, dy));
+        }
+        if (nearestRedDistance > bestDistance) {
+          bestDistance = nearestRedDistance;
+          bestIndex = i;
+        }
+      }
+      if (bestIndex < 0) break;
+      redTreeIndices.add(bestIndex);
+      redTreeRecords.push(treeRecords[bestIndex]);
+    }
+  }
+
+  // Separate seeded stream means different red-leaf silhouettes never shift
+  // the established world layout. Five ornamental forms rotate across the
+  // selected positions for visible variety rather than repeated copies.
+  const redDesignRand = mulberry32(982451653);
+  const redStyleOrder = [0, 2, 1, 4, 3];
+  for (const record of treeRecords) {
+    let group = record.group;
+    if (redTreeIndices.has(record.index)) {
+      const style = redStyleOrder[redTreeIndices.size ? redTreeRecords.findIndex((r) => r.index === record.index) % redStyleOrder.length : 0];
+      group = makeRedLeafTree(redDesignRand, style).group;
+    }
+    group.position.x = record.pos.x;
+    group.position.y = record.pos.y;
+    group.rotation.z = record.rotation;
+    snapToGround(group);
+    scene.add(group);
   }
 
   // ----- Bushes (low, dense, non-colliding) -----

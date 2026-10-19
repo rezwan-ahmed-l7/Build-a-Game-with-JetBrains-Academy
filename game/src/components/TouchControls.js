@@ -35,7 +35,7 @@ export function createTouchControls({ onPause, onAttack, onDash }) {
     pointerId: null,
     baseX: 0, baseY: 0,
     dx: 0, dy: 0,
-    radius: 50
+    radius: 42
   };
 
   // Retain the last intentional direction across joystick release.
@@ -44,15 +44,28 @@ export function createTouchControls({ onPause, onAttack, onDash }) {
   function setKnob() {
     const x = Math.max(-state.radius, Math.min(state.radius, state.dx));
     const y = Math.max(-state.radius, Math.min(state.radius, state.dy));
-    stickKnob.style.transform = `translate(${x}px, ${y}px)`;
+    // CSS centers the knob with translate(-50%, -50%); keep joystick offset
+    // separate so changing device sizes never shifts its resting position.
+    stickKnob.style.setProperty('--stick-x', `${x}px`);
+    stickKnob.style.setProperty('--stick-y', `${y}px`);
   }
 
   stickBase.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if (state.active && state.pointerId !== e.pointerId) return;
     state.active = true;
     state.pointerId = e.pointerId;
     const rect = stickBase.getBoundingClientRect();
+    const knobRect = stickKnob.getBoundingClientRect();
     state.baseX = rect.left + rect.width / 2;
     state.baseY = rect.top + rect.height / 2;
+    // Adapt the travel radius to the actual responsive joystick size. The
+    // previous fixed 50px radius exceeded the compact landscape base and
+    // made edge input unreliable on smaller phones.
+    state.radius = Math.max(18, rect.width / 2 - knobRect.width / 2 - 5);
+    state.dx = 0;
+    state.dy = 0;
+    setKnob();
     stickBase.setPointerCapture(e.pointerId);
     e.preventDefault();
   });
@@ -88,6 +101,7 @@ export function createTouchControls({ onPause, onAttack, onDash }) {
   };
   stickBase.addEventListener('pointerup', endHandler);
   stickBase.addEventListener('pointercancel', endHandler);
+  stickBase.addEventListener('lostpointercapture', endHandler);
 
   // Buttons
   document.getElementById('touch-attack').addEventListener('click', (e) => {
