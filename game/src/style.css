@@ -2033,9 +2033,14 @@ body:has(.touch-root) .controls-strip { display: none; }
   .toast-label, .toast-desc { font-size: 10px; }
 }
 
-/* Prevent browser double-tap zoom from stealing game control taps. */
+/* Prevent browser gestures from stealing joystick drags.
+   The joystick must keep touch-action:none so pointermove continues to fire
+   while the thumb is dragging; action buttons only need manipulation. */
+body:has(.touch-root) .joystick-base {
+  touch-action: none;
+}
+
 body:has(.touch-root) .touch-button,
-body:has(.touch-root) .joystick-base,
 body:has(.touch-root) .menu-hud button {
   touch-action: manipulation;
 }
