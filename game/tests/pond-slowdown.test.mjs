@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { createMovement } from '../src/components/Movement.js';
+import { isPositionOverAnyPond } from '../src/components/Obstacles.js';
 
 function makeMovement() {
   const player = new THREE.Group();
@@ -19,6 +20,16 @@ function makeMovement() {
   const movement = createMovement(player, () => null, input, camera, null);
   return { player, movement };
 }
+
+test('pond footprint includes water and lily-pad positions but excludes the outside', () => {
+  const ponds = [{ x: 100, y: 50, ref: { radius: 80 } }];
+
+  assert.equal(isPositionOverAnyPond(100, 50, ponds), true); // water center
+  assert.equal(isPositionOverAnyPond(156, 50, ponds), true); // inner pond / lily-pad area
+  assert.equal(isPositionOverAnyPond(172, 50, ponds), true); // within water radius
+  assert.equal(isPositionOverAnyPond(174, 50, ponds), false); // beyond water radius
+  assert.equal(isPositionOverAnyPond(500, 500, ponds), false);
+});
 
 test('pond slowdown applies a 0.7 environmental factor without overwriting level or power-up speed', () => {
   const { movement } = makeMovement();
