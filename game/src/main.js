@@ -780,6 +780,14 @@ function animate(currentTime) {
       gameManager.setFreezeTimer(Math.max(0, gameManager.getFreezeRemaining() - delta));
     }
 
+    // Feed the held virtual joystick direction into the same one-step
+    // movement queue as keyboard input. Re-queue only after the current
+    // jump finishes, so holding the stick keeps moving without flooding input.
+    if (touch && touch.getMoveDirection && !movement.isCurrentlyMoving()) {
+      const joystickDirection = touch.getMoveDirection();
+      if (joystickDirection) input.enqueueDirection(joystickDirection);
+    }
+
     movement.update(effectiveDelta);
     // Apply dash after normal movement for this frame, while Movement's
     // translate() shifts the active interpolation anchors to preserve it.
