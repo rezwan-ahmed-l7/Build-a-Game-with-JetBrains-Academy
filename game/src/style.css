@@ -1698,7 +1698,6 @@ canvas.game {
   .game-over-stats .value { font-size: 16px; }
   .game-over-stats .value.dim { font-size: 14px; }
   .game-over-buttons { margin-top: 5px; }
-  .game-over-buttons .menu-button { padding: 7px 14px; font-size: 13px; }
   /* Landscape start menu remains scrollable; keep its existing compact mode. */
   .how-to-play, .profile-row, .leaderboard-wrap { display: none; }
   .menu-title { font-size: 30px; }
@@ -1743,9 +1742,6 @@ canvas.game {
   .new-best { margin-bottom: 7px; padding: 3px 9px; font-size: 10px; }
   .game-over-rank { margin: 4px 0; font-size: 11px; }
   .game-over-buttons { gap: 8px; margin-top: 8px; flex-wrap: wrap; }
-  .game-over-restart { min-width: 0; }
-  .game-over-back { min-width: 0; }
-  .game-over-buttons .menu-button { font-size: 14px; padding: 9px 16px; }
   .game-over-stats .value { font-size: 22px; }
   .game-over-stats .value.dim { font-size: 18px; }
   .menu.menu-pause h1 { font-size: 40px; letter-spacing: 2px; }
