@@ -51,22 +51,22 @@ function snapToGround(mesh) {
   return box;
 }
 
-// Give each boulder an irregular footprint and a lower, grounded silhouette.
-// Soft distortion: small per-vertex jitter so rocks don't look like
-// perfectly-smooth balls, but nothing so aggressive that the silhouette
-// reads as jagged/spiky.
+// Weathering breaks up the perfect primitive silhouette: broad uneven planes,
+// flattened bases, slightly asymmetric sides, and softened but non-spherical edges.
 function distortGeometry(geo, rand, flatness) {
   const pos = geo.attributes.position;
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i);
     const y = pos.getY(i);
     const z = pos.getZ(i);
-    const lower = z < 0 ? 0.72 : 1.0;
+    const lower = z < 0 ? 0.78 : 1.0;
+    const sideVariation = 0.82 + rand() * 0.30;
+    const verticalVariation = 0.80 + rand() * 0.32;
     pos.setXYZ(
       i,
-      x * (0.95 + rand() * 0.10),     // mild X jitter
-      y * (0.95 + rand() * 0.10),     // mild Y jitter
-      z * (0.85 + rand() * 0.10) * lower * (flatness / 0.55)
+      x * sideVariation,
+      y * (0.84 + rand() * 0.28),
+      z * verticalVariation * lower * (flatness / 0.55)
     );
   }
   geo.computeVertexNormals();
@@ -463,60 +463,71 @@ function makeBush(rand) {
   return { group };
 }
 
-// Big boulder — smooth gray with a top "moss" cap. Higher subdivision +
-// gentle distortion = no jagged facets, just a rounded weathered stone.
+// Large weathered boulders use varied mineral colors, asymmetric silhouettes,
+// non-uniform proportions, and small moss patches instead of identical round balls.
 function makeBigRock(rand) {
   const group = new THREE.Group();
-  const size = 4.0 + rand() * 3.2;
-  // 2 subdivisions → ~162 verts vs 12 for 1 subdivision. Smooth silhouette.
+  const size = 3.6 + rand() * 4.0;
   const geo = new THREE.IcosahedronGeometry(size, 2);
   distortGeometry(geo, rand, 0.52);
-  const baseGray = 0.25 + rand() * 0.07;
+  const palette = [0x777b78, 0x89877d, 0x6f7779, 0x938b7b, 0x686f70, 0x81766b];
   const rockMat = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(baseGray - 0.02, baseGray, baseGray + 0.02),
-    roughness: 0.95,
+    color: palette[Math.floor(rand() * palette.length)],
+    roughness: 0.98,
     metalness: 0,
-    flatShading: false  // smooth shading — clean curves, not facets
+    flatShading: true
   });
   const rock = new THREE.Mesh(geo, rockMat);
+  rock.scale.set(0.88 + rand() * 0.42, 0.78 + rand() * 0.48, 0.62 + rand() * 0.35);
+  rock.rotation.set((rand() - 0.5) * 0.18, (rand() - 0.5) * 0.18, rand() * Math.PI * 2);
   rock.castShadow = true;
   rock.receiveShadow = true;
   group.add(rock);
 
-  // Moss cap (top half): a slightly smaller copy in a mossy green
-  const mossGeo = new THREE.SphereGeometry(size * 0.60, 12, 8);
+  // Small, uneven moss patches sit on only part of the boulder, not as a perfect cap.
   const mossMat = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(0x2f512b),
+    color: [0x3d5b32, 0x536a3b, 0x66754a][Math.floor(rand() * 3)],
     roughness: 1.0,
     metalness: 0,
-    flatShading: false
+    flatShading: true
   });
-  const moss = new THREE.Mesh(mossGeo, mossMat);
-  moss.position.z = size * 0.22;
-  moss.scale.set(1.0 + rand() * 0.12, 0.9 + rand() * 0.10, 0.24);
-  moss.castShadow = false;
-  moss.receiveShadow = true;
-  group.add(moss);
-
+  const patchCount = 1 + Math.floor(rand() * 3);
+  for (let i = 0; i < patchCount; i++) {
+    const patch = new THREE.Mesh(
+      new THREE.IcosahedronGeometry(size * (0.17 + rand() * 0.12), 1),
+      mossMat
+    );
+    distortGeometry(patch.geometry, rand, 0.42);
+    const a = rand() * Math.PI * 2;
+    patch.position.set(
+      Math.cos(a) * size * (0.22 + rand() * 0.24),
+      Math.sin(a) * size * (0.22 + rand() * 0.24),
+      size * (0.25 + rand() * 0.28)
+    );
+    patch.scale.set(1.3 + rand() * 0.6, 0.8 + rand() * 0.5, 0.28);
+    patch.castShadow = false;
+    patch.receiveShadow = true;
+    group.add(patch);
+  }
   return { group, size };
 }
 
 function makeSmallRock(rand) {
-  const size = 0.8 + rand() * 1.0;
-  // Higher subdivision + smooth shading for the small pebbles too —
-  // they read as clean river stones rather than shards.
-  const geo = new THREE.IcosahedronGeometry(size, 2);
+  const size = 0.65 + rand() * 1.35;
+  const geo = new THREE.IcosahedronGeometry(size, 1);
   distortGeometry(geo, rand, 0.48);
-  const baseGray = 0.42 + rand() * 0.16;
+  const palette = [0xaaa394, 0x827f77, 0x6c7777, 0xb3a68d, 0x77716a, 0x8d9996];
   const rock = new THREE.Mesh(
     geo,
     new THREE.MeshStandardMaterial({
-      color: new THREE.Color(baseGray, baseGray, baseGray + 0.01),
-      roughness: 0.95,
+      color: palette[Math.floor(rand() * palette.length)],
+      roughness: 0.98,
       metalness: 0,
-      flatShading: false
+      flatShading: true
     })
   );
+  rock.scale.set(0.72 + rand() * 0.65, 0.68 + rand() * 0.7, 0.48 + rand() * 0.68);
+  rock.rotation.set((rand() - 0.5) * 0.2, (rand() - 0.5) * 0.2, rand() * Math.PI * 2);
   rock.castShadow = true;
   rock.receiveShadow = true;
   return { mesh: rock, size };
@@ -851,26 +862,27 @@ function makePond(rand, scale = 1.0) {
     lilyPads.push(pad);
   }
 
-  // Edge rocks (lighter warm gray so they read as stones, not black blobs
-  // in low light / at dusk).
-  const edgeRockMat = new THREE.MeshStandardMaterial({
-    color: 0x6e6358,
-    roughness: 0.92,
-    metalness: 0,
-    flatShading: true
-  });
+  // Pond-edge stones vary in hue, size, height and rotation like naturally
+  // weathered pebbles embedded unevenly around the shoreline.
+  const edgeRockMats = [0x8e8779, 0x777c79, 0xa39882, 0x646f70, 0x7d7063].map((color) =>
+    new THREE.MeshStandardMaterial({
+      color, roughness: 0.98, metalness: 0, flatShading: true
+    })
+  );
   for (let i = 0; i < 14; i++) {
     const ang = (i / 14) * Math.PI * 2 + (rand() - 0.5) * 0.18;
-    const r = radius + 1 + rand() * 2;
-    const sz = 1.4 + rand() * 1.4;
+    const sz = 1.0 + rand() * 2.0;
+    const r = radius + 0.4 + rand() * 2.8;
     const stone = new THREE.Mesh(
-      new THREE.IcosahedronGeometry(sz, 0),
-      edgeRockMat
+      new THREE.IcosahedronGeometry(sz, 1),
+      edgeRockMats[Math.floor(rand() * edgeRockMats.length)]
     );
     distortGeometry(stone.geometry, rand, 0.45);
+    stone.scale.set(0.7 + rand() * 0.7, 0.7 + rand() * 0.65, 0.42 + rand() * 0.65);
+    stone.rotation.set((rand() - 0.5) * 0.16, (rand() - 0.5) * 0.16, rand() * Math.PI * 2);
     stone.position.x = Math.cos(ang) * r;
     stone.position.y = Math.sin(ang) * r;
-    stone.position.z = sz * 0.4;
+    stone.position.z = sz * 0.35;
     stone.castShadow = true;
     stone.receiveShadow = true;
     group.add(stone);
