@@ -6,8 +6,10 @@
 </p>
 
 <p align="center">
+  <a href="https://confluence.jetbrains.com/display/ALL/JetBrains+on+GitHub"><img src="http://jb.gg/badges/official.svg" alt="Official JetBrains project badge for the original course project" /></a>
   <a href="https://build-a-game-with-jet-brains-academ.vercel.app/"><img src="https://img.shields.io/badge/PLAY-Live%20Game-6d5dfc?style=for-the-badge" alt="Play the live game" /></a>
   <a href="https://www.coursera.org/learn/jb-build-game-with-ai-agent/"><img src="https://img.shields.io/badge/COURSE-JetBrains%20Academy-0056D2?style=for-the-badge&logo=coursera&logoColor=white" alt="JetBrains Academy course" /></a>
+  <a href="https://plugins.jetbrains.com/plugin/30327-build-a-game-with-ai-coding-agent/versions"><img src="https://img.shields.io/badge/JetBrains%20Marketplace-Course-6b59fe?style=for-the-badge&logo=jetbrains&logoColor=white" alt="JetBrains Marketplace course" /></a>
   <img src="https://img.shields.io/badge/JavaScript-ES%20Modules-f7df1e?style=for-the-badge&logo=javascript&logoColor=222" alt="JavaScript" />
   <img src="https://img.shields.io/badge/Three.js-3D%20Rendering-black?style=for-the-badge&logo=threedotjs&logoColor=white" alt="Three.js" />
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-2ea44f?style=for-the-badge" alt="MIT License" /></a>
@@ -159,7 +161,9 @@ The separate `leaderboard-api` service reads and writes the configured JSONBin r
 
 ## Original project, authorship, and attribution
 
-This repository builds on the educational **Build a Game with an AI Coding Agent** project published by **JetBrains Academy / JetBrains s.r.o.** The course provides the original learning foundation and project structure; the game-world extensions, gameplay refinements, responsive UI work, camera interaction, leaderboard integration, and presentation in this repository are my own ongoing customizations.
+This repository builds on the educational **Build a Game with an AI Coding Agent** project published by **JetBrains Academy / JetBrains s.r.o.** The original course teaches you to plan, build, and polish a 3D browser game inside **WebStorm or another JetBrains IDE**, using an AI coding agent to turn ideas into working code. It follows Tode the Frog and encourages learners to customize the visuals and make the game their own.
+
+The original course and its official JetBrains project badge are retained here as attribution to the upstream learning project. The game-world extensions, gameplay refinements, responsive UI work, camera interaction, leaderboard integration, and portfolio presentation in this repository are my own ongoing customizations. This customized repository is not a separate official JetBrains product.
 
 - **Portfolio project maintainer:** [Rezwan Ahmed](https://github.com/rezwan-ahmed-l7)
 - **Original course publisher:** [JetBrains Academy](https://github.com/jetbrains-academy/game-course)
@@ -168,7 +172,11 @@ This repository builds on the educational **Build a Game with an AI Coding Agent
 - **Original course issues and discussions:** [jetbrains-academy/game-course](https://github.com/jetbrains-academy/game-course/issues)
 - **Contribution guidelines for the original project:** [JetBrains Academy contributing guidelines](https://github.com/jetbrains-academy/.github/blob/main/contributing_guidelines.md)
 
-The original course repository carries the official JetBrains project badge; this customized portfolio repository is **not an official JetBrains product**. Original course materials and project attribution remain credited to JetBrains Academy.
+The official badge above refers to the original JetBrains Academy course project. This repository presents my customizations of that learning project; it should not be mistaken for a separate official JetBrains product.
+
+## Questions and contributions
+
+For questions about the original course tasks or issues in the upstream learning materials, use the [original course issue tracker](https://github.com/jetbrains-academy/game-course/issues). Before contributing to the upstream project, review the [JetBrains Academy contribution guidelines](https://github.com/jetbrains-academy/.github/blob/main/contributing_guidelines.md).
 
 ## License
 
