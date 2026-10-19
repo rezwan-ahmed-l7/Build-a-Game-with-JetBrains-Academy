@@ -62,28 +62,6 @@ async function readRecord() {
   return { record: record && typeof record === 'object' && !Array.isArray(record) ? record : {}, leaderboard: cleanBoard(leaderboard) };
 }
 
-async function writeRecord(leaderboard, attempts) {
-  const current = await readRecord();
-  const nextAttempts = Number.isFinite(attempts)
-    ? Math.max(0, Math.floor(attempts))
-    : (Number.isFinite(current.record.attempts) ? current.record.attempts : 0);
-  const response = await fetch(`${JSONBIN_BASE_URL}/b/${encodeURIComponent(JSONBIN_BIN_ID)}`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Master-Key': JSONBIN_MASTER_KEY,
-    },
-    body: JSON.stringify({
-      ...current.record,
-      leaderboard: cleanBoard(leaderboard),
-      attempts: nextAttempts,
-    }),
-    signal: AbortSignal.timeout(8000),
-  });
-  if (!response.ok) throw new Error(`JSONBin write failed (${response.status})`);
-  return { leaderboard: cleanBoard(leaderboard), attempts: nextAttempts };
-}
-
 // Atomic increment with compare-and-swap semantics: re-reads the record
 // until the local copy of `attempts` matches the server's, then writes
 // `attempts + 1`. Bounded retries prevent infinite loops when many
@@ -113,8 +91,11 @@ async function incrementAttempts() {
   throw new Error('Attempts increment lost the CAS race too many times');
 }
 
-async function writeRecord(leaderboard) {
+async function writeRecord(leaderboard, attempts) {
   const current = await readRecord();
+  const nextAttempts = Number.isFinite(attempts)
+    ? Math.max(0, Math.floor(attempts))
+    : (Number.isFinite(current.record.attempts) ? current.record.attempts : 0);
   const response = await fetch(`${JSONBIN_BASE_URL}/b/${encodeURIComponent(JSONBIN_BIN_ID)}`, {
     method: 'PUT',
     headers: {
@@ -124,12 +105,12 @@ async function writeRecord(leaderboard) {
     body: JSON.stringify({
       ...current.record,
       leaderboard: cleanBoard(leaderboard),
-      attempts: Number.isFinite(current.record.attempts) ? current.record.attempts : 0,
+      attempts: nextAttempts,
     }),
     signal: AbortSignal.timeout(8000),
   });
   if (!response.ok) throw new Error(`JSONBin write failed (${response.status})`);
-  return cleanBoard(leaderboard);
+  return { leaderboard: cleanBoard(leaderboard), attempts: nextAttempts };
 }
 
 function isRateLimited(req) {
