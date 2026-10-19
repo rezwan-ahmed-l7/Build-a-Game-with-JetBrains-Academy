@@ -53,11 +53,18 @@ export function createCameraFollow(camera, playerGroup, canvas) {
   }
 
   function onPointerDown(e) {
+    // Only begin camera gestures on the game canvas. Touches on the
+    // joystick, DASH/ATK buttons, and menus must remain dedicated to those controls.
     if (canvas && e.target !== canvas) return;
-    // On touch devices, skip camera drag — the virtual joystick handles
-    // movement, and camera drag would conflict with it.
-    if (e.pointerType === 'touch') return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+
     beginDrag(e);
+
+    // Capture touch drags on the canvas so camera rotation continues when
+    // the finger moves beyond the canvas edge. canvas has touch-action:none.
+    if (e.pointerType === 'touch' && canvas?.setPointerCapture) {
+      try { canvas.setPointerCapture(e.pointerId); } catch {}
+    }
   }
   function onPointerMove(e) {
     if (activePointerId == null) return;
