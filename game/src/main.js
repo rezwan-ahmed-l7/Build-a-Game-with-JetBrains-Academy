@@ -502,7 +502,8 @@ const movement = createMovement(
       return canPlayerMoveTo(targetPos, enemyManager.getEnemies(), []);
     }
     return canPlayerMoveTo(targetPos, enemyManager.getEnemies(), obstacles.getObstacles());
-  }
+  },
+  audio
 );
 // Score / Health / Combo / Difficulty
 // `submitScore` is the single swap-point for a future backend. It reads
