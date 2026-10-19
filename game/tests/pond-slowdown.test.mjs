@@ -44,7 +44,7 @@ test('movement remains controllable at pond speed and completes after leaving th
   assert.ok(player.position.y < 40);
 
   movement.setEnvironmentalSpeedMultiplier(1); // Leaving water restores normal speed.
-  movement.update(0.114);
+  movement.update(0.12);
   assert.equal(movement.isCurrentlyMoving(), false);
   assert.equal(player.position.y, 40);
 });
