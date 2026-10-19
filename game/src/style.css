@@ -1033,6 +1033,37 @@ canvas.game {
   100% { transform: translateX(20px) scale(0.96); opacity: 0; }
 }
 
+/* Mobile start-screen orientation hint. It is rendered only in the
+   touch start menu and appears while the device is in portrait mode. */
+.rotate-prompt {
+  display: none;
+  position: fixed;
+  top: max(12px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 45;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  margin: 0;
+  padding: 10px 16px;
+  border: 1px solid rgba(255, 226, 122, 0.55);
+  border-radius: 999px;
+  background: rgba(7, 16, 36, 0.9);
+  color: var(--gold-soft);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.32);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-align: center;
+  pointer-events: none;
+}
+
+@media (orientation: portrait) and (max-width: 900px) {
+  .rotate-prompt {
+    display: block;
+  }
+}
+
 /* ---------- Touch controls ---------- */
 .touch-root {
   position: fixed;
