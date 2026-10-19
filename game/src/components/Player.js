@@ -38,21 +38,31 @@ export function createPlayer() {
       model.position.z -= box.min.z;
 
       model.traverse((child) => {
-        if (child.isMesh) {
-          child.castShadow = true;
-          child.receiveShadow = true;
-          // Remember original emissive so we can flash and restore
-          if (child.material) {
-            if (Array.isArray(child.material)) {
-              child.material.forEach((m) => {
-                if (!m.emissive) m.emissive = new THREE.Color(0x000000);
-                baseEmissives.push(m);
-              });
-            } else {
-              if (!child.material.emissive) child.material.emissive = new THREE.Color(0x000000);
-              baseEmissives.push(child.material);
-            }
-          }
+        if (!child.isMesh) return;
+
+        child.castShadow = true;
+        child.receiveShadow = true;
+
+        // Keep the frog solid and readable under bright daylight and night
+        // lighting. Some exported GLB materials can arrive with partial
+        // opacity; the player should not look ghosted during normal play.
+        const materials = Array.isArray(child.material)
+          ? child.material
+          : child.material ? [child.material] : [];
+
+        for (const material of materials) {
+          if ('opacity' in material) material.opacity = 1;
+          if ('transparent' in material) material.transparent = false;
+          if ('depthWrite' in material) material.depthWrite = true;
+          if ('blending' in material) material.blending = THREE.NormalBlending;
+
+          // A natural, non-metallic finish keeps the existing model textures
+          // and colors intact while reducing the overly plastic look.
+          if ('roughness' in material) material.roughness = Math.max(material.roughness ?? 0, 0.68);
+          if ('metalness' in material) material.metalness = 0;
+          if (!material.emissive) material.emissive = new THREE.Color(0x000000);
+          baseEmissives.push(material);
+          material.needsUpdate = true;
         }
       });
 
