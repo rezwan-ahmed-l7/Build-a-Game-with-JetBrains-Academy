@@ -139,9 +139,10 @@ async function readBody(req) {
   return JSON.parse(body || 'null');
 }
 
-const server = http.createServer(async (req, res) => {
+export async function handler(req, res) {
   const origin = req.headers.origin;
   const url = new URL(req.url || '/', 'http://localhost');
+  const pathname = url.pathname.replace(/^\/api(?=\/|$)/, '') || '/';
 
   if (req.method === 'OPTIONS') {
     if (ALLOWED_ORIGIN && origin !== ALLOWED_ORIGIN) return send(res, 403, { error: 'Origin not allowed' }, null);
@@ -161,12 +162,12 @@ const server = http.createServer(async (req, res) => {
     return send(res, 503, { error: 'Leaderboard API is not configured' }, origin);
   }
   if (origin && origin !== ALLOWED_ORIGIN) return send(res, 403, { error: 'Origin not allowed' }, null);
-  if (url.pathname === '/health' && req.method === 'GET') return send(res, 200, { ok: true }, origin);
+  if (pathname === '/health' && req.method === 'GET') return send(res, 200, { ok: true }, origin);
 
   // /attempts: GET reads the counter, POST increments it.
   // Mutations are serialized within this API process; JSONBin does not provide
   // cross-instance atomicity. The client never sees the JSONBin master key.
-  if (url.pathname === '/attempts') {
+  if (pathname === '/attempts') {
     if (!['GET', 'POST'].includes(req.method || '')) return send(res, 405, { error: 'Method not allowed' }, origin);
     if (isRateLimited(req)) return send(res, 429, { error: 'Too many requests; try again shortly' }, origin);
     try {
@@ -182,7 +183,7 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
-  if (url.pathname !== '/leaderboard') return send(res, 404, { error: 'Not found' }, origin);
+  if (pathname !== '/leaderboard') return send(res, 404, { error: 'Not found' }, origin);
   if (!['GET', 'PUT'].includes(req.method || '')) return send(res, 405, { error: 'Method not allowed' }, origin);
   if (isRateLimited(req)) return send(res, 429, { error: 'Too many requests; try again shortly' }, origin);
 
@@ -206,8 +207,11 @@ const server = http.createServer(async (req, res) => {
     const status = error?.message === 'BODY_TOO_LARGE' ? 413 : error instanceof SyntaxError ? 400 : 502;
     return send(res, status, { error: status === 502 ? 'Leaderboard storage is temporarily unavailable' : 'Invalid request body' }, origin);
   }
-});
+}
 
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Leaderboard API listening on port ${PORT}`);
-});
+if (!process.env.VERCEL) {
+  const server = http.createServer(handler);
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log(`Leaderboard API listening on port ${PORT}`);
+  });
+}
