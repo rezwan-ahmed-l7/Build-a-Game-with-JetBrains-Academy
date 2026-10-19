@@ -1281,5 +1281,16 @@ export function createObstacles(scene) {
     return obstacles;
   }
 
-  return { getObstacles, updatePond, ponds };
+  // Pond movement area matches the actual water disc. Lily pads are placed
+  // within the inner 70% of this radius, so standing on a pad gets the same
+  // environmental movement effect as standing on the water.
+  function isPositionOverPond(x, y) {
+    return ponds.some((pond) => {
+      const dx = x - pond.x;
+      const dy = y - pond.y;
+      return Math.hypot(dx, dy) <= pond.ref.radius * 0.91;
+    });
+  }
+
+  return { getObstacles, updatePond, ponds, isPositionOverPond };
 }
