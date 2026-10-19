@@ -1867,13 +1867,15 @@ body:has(.touch-root) .controls-strip { display: none; }
   .hearts-hp { font-size: 9px; }
 
   .level-badge {
-    /* Keep the level chip below the two-row pause/audio/environment HUD. */
-    top: 76px;
-    left: auto;
-    right: max(8px, env(safe-area-inset-right));
-    padding: 4px 8px;
-    font-size: 11px;
-    letter-spacing: 0.02em;
+    /* Compact level indicator directly beneath the health HUD. */
+    top: 44px;
+    left: max(8px, env(safe-area-inset-left));
+    right: auto;
+    padding: 3px 7px;
+    max-width: 110px;
+    font-size: 9px;
+    line-height: 1.15;
+    letter-spacing: 0.01em;
   }
   .combo-chip {
     top: 43px;
@@ -1905,20 +1907,30 @@ body:has(.touch-root) .controls-strip { display: none; }
   .mode-pill-clock { font-size: 8px; }
 
   .joystick-base {
-    left: max(14px, env(safe-area-inset-left));
-    bottom: max(14px, env(safe-area-inset-bottom));
-    width: 100px;
-    height: 100px;
+    left: max(16px, env(safe-area-inset-left));
+    bottom: max(16px, env(safe-area-inset-bottom));
+    width: 124px;
+    height: 124px;
     border-width: 2px;
-    background: rgba(7, 16, 36, 0.50);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.20), inset 0 0 0 1px rgba(255,255,255,0.04);
+    background: rgba(7, 16, 36, 0.54);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.22), inset 0 0 0 1px rgba(255,255,255,0.05);
+    -webkit-tap-highlight-color: transparent;
   }
   .joystick-knob {
-    top: 26px;
-    left: 26px;
-    width: 44px;
-    height: 44px;
-    box-shadow: 0 0 12px rgba(255, 226, 122, 0.40);
+    top: 50%;
+    left: 50%;
+    width: 54px;
+    height: 54px;
+    transform: translate(-50%, -50%);
+    --stick-x: 0px;
+    --stick-y: 0px;
+    margin: 0;
+    box-shadow: 0 0 14px rgba(255, 226, 122, 0.46);
+    pointer-events: none;
+    transition: none;
+  }
+  .joystick-knob[style] {
+    transform: translate(calc(-50% + var(--stick-x, 0px)), calc(-50% + var(--stick-y, 0px)));
   }
   .touch-buttons {
     right: max(14px, env(safe-area-inset-right));
@@ -1926,14 +1938,28 @@ body:has(.touch-root) .controls-strip { display: none; }
     gap: 9px;
   }
   .touch-button {
-    width: 64px;
-    height: 64px;
-    font-size: 13px;
-    letter-spacing: 0.04em;
-    border-width: 2px;
-    box-shadow: 0 5px 16px rgba(0,0,0,0.24), inset 0 1px 0 rgba(255,255,255,0.12);
+    width: 68px;
+    height: 68px;
+    font-size: 12px;
+    letter-spacing: 0.05em;
+    border: 1px solid rgba(255,255,255,0.30);
+    box-shadow: 0 7px 20px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,255,255,0.24);
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+  .touch-button.attack {
+    color: #fff;
+    background: linear-gradient(145deg, rgba(255,91,116,0.96), rgba(190,31,76,0.92));
+    border-color: rgba(255,173,190,0.88);
+    box-shadow: 0 6px 18px rgba(220,38,82,0.28), inset 0 1px 0 rgba(255,255,255,0.26);
+  }
+  .touch-button.dash {
+    color: #f2fdff;
+    background: linear-gradient(145deg, rgba(32,196,211,0.96), rgba(32,104,209,0.94));
+    border-color: rgba(154,236,255,0.90);
+    box-shadow: 0 6px 18px rgba(32,145,224,0.30), inset 0 1px 0 rgba(255,255,255,0.28);
   }
   .touch-button:active { transform: scale(0.95); }
   .toast-host {
@@ -1960,10 +1986,13 @@ body:has(.touch-root) .controls-strip { display: none; }
   .hearts-hp { font-size: 8px; padding-left: 3px; margin-left: 2px; }
 
   .level-badge {
-    top: 38px;
-    right: max(7px, env(safe-area-inset-right));
-    padding: 3px 7px;
-    font-size: 10px;
+    top: 34px;
+    left: max(7px, env(safe-area-inset-left));
+    right: auto;
+    padding: 2px 6px;
+    max-width: 94px;
+    font-size: 8px;
+    line-height: 1.1;
   }
   .combo-chip {
     top: 35px;
@@ -1980,16 +2009,14 @@ body:has(.touch-root) .controls-strip { display: none; }
   .mode-pill { display: none; }
 
   .joystick-base {
-    left: max(10px, env(safe-area-inset-left));
-    bottom: max(8px, env(safe-area-inset-bottom));
-    width: 82px;
-    height: 82px;
+    left: max(12px, env(safe-area-inset-left));
+    bottom: max(10px, env(safe-area-inset-bottom));
+    width: 104px;
+    height: 104px;
   }
   .joystick-knob {
-    top: 21px;
-    left: 21px;
-    width: 36px;
-    height: 36px;
+    width: 46px;
+    height: 46px;
   }
   .touch-buttons {
     right: max(10px, env(safe-area-inset-right));
@@ -1997,9 +2024,9 @@ body:has(.touch-root) .controls-strip { display: none; }
     gap: 7px;
   }
   .touch-button {
-    width: 56px;
-    height: 56px;
-    font-size: 11px;
+    width: 58px;
+    height: 58px;
+    font-size: 10px;
   }
   .toast-host { top: 66px; right: 7px; gap: 4px; }
   .toast-notification { padding: 5px 8px; }
