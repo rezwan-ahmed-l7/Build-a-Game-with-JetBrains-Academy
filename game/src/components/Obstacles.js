@@ -763,14 +763,13 @@ function makePond(rand, scale = 1.0) {
   const baseRadius = 70 + rand() * 18;
   const radius = baseRadius * scale;
 
-  // Natural shoreline: a muted earth/pebble lip, shallow turquoise edge,
-  // then deeper blue-green water. Concentric layers create depth without
-  // expensive real-time reflections or a screen-space shader.
+  // A clean, near-perfect circular shoreline with a natural sandy/pebble lip.
+  // Higher segment counts avoid visibly polygonal edges at close camera angles.
   const shore = new THREE.Mesh(
-    new THREE.RingGeometry(radius * 0.965, radius * 1.045, 64),
+    new THREE.RingGeometry(radius * 0.965, radius * 1.045, 128),
     new THREE.MeshStandardMaterial({
-      color: 0x82785a,
-      roughness: 0.96,
+      color: 0x9a8a65,
+      roughness: 0.98,
       metalness: 0,
       side: THREE.DoubleSide
     })
@@ -778,30 +777,30 @@ function makePond(rand, scale = 1.0) {
   shore.position.z = 0.025;
   group.add(shore);
 
+  // Clear turquoise shallows fade into richer blue-green pond water.
   const shallows = new THREE.Mesh(
-    new THREE.RingGeometry(radius * 0.86, radius * 0.99, 64),
+    new THREE.RingGeometry(radius * 0.86, radius * 0.99, 128),
     new THREE.MeshStandardMaterial({
-      color: 0x559a91,
-      roughness: 0.42,
-      metalness: 0.12,
+      color: 0x56c5b3,
+      roughness: 0.52,
+      metalness: 0.03,
       transparent: true,
-      opacity: 0.92,
-      side: THREE.DoubleSide
+      opacity: 0.88,
+      side: THREE.DoubleSide,
+      depthWrite: false
     })
   );
   shallows.position.z = 0.035;
   group.add(shallows);
 
   const waterMat = new THREE.MeshStandardMaterial({
-    color: 0x23596b,
-    roughness: 0.24,
-    metalness: 0.24,
-    transparent: true,
-    opacity: 0.97,
+    color: 0x278b98,
+    roughness: 0.38,
+    metalness: 0.06,
     side: THREE.DoubleSide
   });
   const water = new THREE.Mesh(
-    new THREE.CircleGeometry(radius * 0.91, 64),
+    new THREE.CircleGeometry(radius * 0.91, 128),
     waterMat
   );
   // Z-up world: CircleGeometry is already on the XY ground plane.
@@ -809,27 +808,34 @@ function makePond(rand, scale = 1.0) {
   water.receiveShadow = true;
   group.add(water);
 
-  // Two thin, staggered ripples make the surface feel gently alive.
+  // Three fine, staggered wave rings create a continuous, gentle water-motion effect.
   const rippleMat = new THREE.MeshBasicMaterial({
-    color: 0xb8efff,
+    color: 0xc5fff4,
     transparent: true,
-    opacity: 0.32,
+    opacity: 0.28,
     side: THREE.DoubleSide,
     depthWrite: false
   });
   const ripple = new THREE.Mesh(
-    new THREE.RingGeometry(radius * 0.24, radius * 0.255, 64),
+    new THREE.RingGeometry(radius * 0.18, radius * 0.195, 128),
     rippleMat
   );
-  ripple.position.set(-radius * 0.12, radius * 0.08, 0.19);
+  ripple.position.set(-radius * 0.1, radius * 0.06, 0.19);
   group.add(ripple);
 
   const rippleSecondary = new THREE.Mesh(
-    new THREE.RingGeometry(radius * 0.43, radius * 0.445, 64),
+    new THREE.RingGeometry(radius * 0.38, radius * 0.395, 128),
     rippleMat.clone()
   );
-  rippleSecondary.position.set(radius * 0.14, -radius * 0.1, 0.18);
+  rippleSecondary.position.set(radius * 0.12, -radius * 0.08, 0.18);
   group.add(rippleSecondary);
+
+  const rippleTertiary = new THREE.Mesh(
+    new THREE.RingGeometry(radius * 0.56, radius * 0.575, 128),
+    rippleMat.clone()
+  );
+  rippleTertiary.position.set(-radius * 0.02, -radius * 0.02, 0.175);
+  group.add(rippleTertiary);
 
   // Lily pads, scattered around inner 70% of pond
   const lilyPads = [];
@@ -894,7 +900,7 @@ function makePond(rand, scale = 1.0) {
     group.add(stem, head);
   }
 
-  return { group, radius, water, ripple, rippleSecondary, lilyPads };
+  return { group, radius, water, ripple, rippleSecondary, rippleTertiary, lilyPads };
 }
 
 function placeRandomly(rand, avoid, minDist) {
@@ -1236,13 +1242,22 @@ export function createObstacles(scene) {
     pondTime += delta;
     for (let p = 0; p < ponds.length; p++) {
       const pond = ponds[p].ref;
-      const phase = pondTime * 0.6 + p * 0.33;
+      const phase = pondTime * 0.42 + p * 0.27;
       const t = phase % 1;
-      pond.ripple.scale.setScalar(0.65 + t * 1.2);
-      pond.ripple.material.opacity = 0.34 * (1 - t);
-      const secondaryT = (t + 0.48) % 1;
-      pond.rippleSecondary.scale.setScalar(0.7 + secondaryT * 1.15);
-      pond.rippleSecondary.material.opacity = 0.22 * (1 - secondaryT);
+      pond.ripple.scale.setScalar(0.72 + t * 1.45);
+      pond.ripple.material.opacity = 0.30 * (1 - t);
+      const secondaryT = (t + 0.38) % 1;
+      pond.rippleSecondary.scale.setScalar(0.72 + secondaryT * 1.35);
+      pond.rippleSecondary.material.opacity = 0.23 * (1 - secondaryT);
+      const tertiaryT = (t + 0.68) % 1;
+      pond.rippleTertiary.scale.setScalar(0.72 + tertiaryT * 1.2);
+      pond.rippleTertiary.material.opacity = 0.18 * (1 - tertiaryT);
+      // Gentle, non-synchronous shimmer keeps the water from feeling static.
+      pond.water.material.color.setHSL(
+        0.505 + Math.sin(pondTime * 0.38 + p * 0.7) * 0.008,
+        0.58,
+        0.37 + Math.sin(pondTime * 0.52 + p) * 0.018
+      );
       for (let i = 0; i < pond.lilyPads.length; i++) {
         const pad = pond.lilyPads[i];
         pad.position.z = 0.05 + Math.sin(pondTime * 1.2 + i * 0.7 + p) * 0.08;
