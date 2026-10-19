@@ -967,6 +967,16 @@ function placeTree(rand, avoid, minDist) {
   return { x: Math.cos(angle) * r, y: Math.sin(angle) * r };
 }
 
+// Pure pond-water footprint check, kept separate so pond boundaries can be
+// regression-tested without constructing the full Three.js environment.
+export function isPositionOverAnyPond(x, y, ponds) {
+  return ponds.some((pond) => {
+    const dx = x - pond.x;
+    const dy = y - pond.y;
+    return Math.hypot(dx, dy) <= pond.ref.radius * 0.91;
+  });
+}
+
 export function createObstacles(scene) {
   const obstacles = [];
   const rand = mulberry32(12345);
@@ -1285,11 +1295,7 @@ export function createObstacles(scene) {
   // within the inner 70% of this radius, so standing on a pad gets the same
   // environmental movement effect as standing on the water.
   function isPositionOverPond(x, y) {
-    return ponds.some((pond) => {
-      const dx = x - pond.x;
-      const dy = y - pond.y;
-      return Math.hypot(dx, dy) <= pond.ref.radius * 0.91;
-    });
+    return isPositionOverAnyPond(x, y, ponds);
   }
 
   return { getObstacles, updatePond, ponds, isPositionOverPond };
