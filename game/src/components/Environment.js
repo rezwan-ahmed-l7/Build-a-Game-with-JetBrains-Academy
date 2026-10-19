@@ -472,12 +472,18 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
       transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide
     });
     const wingGeo = new THREE.SphereGeometry(1, 18, 12);
-    const leftWing = new THREE.Mesh(wingGeo, bfMat);
-    leftWing.scale.set(4.2, 3.2, 0.24);
-    leftWing.position.set(-3.0, 0.3, 0);
-    const rightWing = new THREE.Mesh(wingGeo, bfMat.clone());
-    rightWing.scale.set(4.2, 3.2, 0.24);
-    rightWing.position.set(3.0, 0.3, 0);
+    const leftWing = new THREE.Group();
+    leftWing.position.set(-0.55, 0.3, 0);
+    const leftWingMesh = new THREE.Mesh(wingGeo, bfMat);
+    leftWingMesh.scale.set(3.7, 2.8, 0.2);
+    leftWingMesh.position.x = -2.3;
+    leftWing.add(leftWingMesh);
+    const rightWing = new THREE.Group();
+    rightWing.position.set(0.55, 0.3, 0);
+    const rightWingMesh = new THREE.Mesh(wingGeo, bfMat);
+    rightWingMesh.scale.set(3.7, 2.8, 0.2);
+    rightWingMesh.position.x = 2.3;
+    rightWing.add(rightWingMesh);
     bfGroup.add(leftWing, rightWing);
     const bodyMat = new THREE.MeshStandardMaterial({ color: 0x332b29, roughness: 0.8 });
     const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.22, 1.2, 4, 8), bodyMat);
