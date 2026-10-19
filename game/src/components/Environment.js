@@ -241,7 +241,7 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
       else r = 0.15 - (t - 0.92) / 0.08 * 0.10;
       bodyPoints.push(new THREE.Vector2(Math.max(0.01, r), t * 10 - 5));
     }
-    const bodyGeo = new THREE.LatheGeometry(bodyPoints, 10);
+    const bodyGeo = new THREE.LatheGeometry(bodyPoints, 20);
     const body = new THREE.Mesh(bodyGeo, birdMat);
     body.rotation.z = Math.PI / 2;
     birdGroup.add(body);
@@ -307,14 +307,14 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
     });
 
     // Left wing — swept back
-    const leftWingGeo = new THREE.PlaneGeometry(16, 6, 4, 2);
+    const leftWingGeo = new THREE.PlaneGeometry(16, 6, 8, 4);
     const leftWing = new THREE.Mesh(leftWingGeo, wingMat.clone());
     leftWing.position.set(-5, 0.5, 0.8);
     leftWing.rotation.z = -0.3;
     birdGroup.add(leftWing);
 
     // Right wing — mirrored
-    const rightWingGeo = new THREE.PlaneGeometry(16, 6, 4, 2);
+    const rightWingGeo = new THREE.PlaneGeometry(16, 6, 8, 4);
     const rightWing = new THREE.Mesh(rightWingGeo, wingMat.clone());
     rightWing.position.set(5, 0.5, 0.8);
     rightWing.rotation.z = 0.3;
@@ -322,7 +322,7 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
     birdGroup.add(rightWing);
 
     // --- Head: smooth sphere with slight elongation ---
-    const headGeo = new THREE.SphereGeometry(0.7, 10, 8);
+    const headGeo = new THREE.SphereGeometry(0.7, 18, 14);
     const head = new THREE.Mesh(headGeo, birdMat);
     head.position.set(4.5, 0.3, 0);
     head.scale.set(1.1, 0.9, 0.9);
@@ -467,12 +467,34 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
     const bfTexture = new THREE.CanvasTexture(bfCanvas);
     bfTexture.needsUpdate = true;
 
-    const bfMat = new THREE.MeshBasicMaterial({
-      map: bfTexture, transparent: true, opacity: 0,
-      depthWrite: false, fog: false, side: THREE.DoubleSide
+    const bfMat = new THREE.MeshStandardMaterial({
+      color: bfColor, roughness: 0.55, metalness: 0.02,
+      transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide
     });
-    const bfWing = new THREE.Mesh(new THREE.PlaneGeometry(8, 8), bfMat);
-    bfGroup.add(bfWing);
+    const wingGeo = new THREE.SphereGeometry(1, 18, 12);
+    const leftWing = new THREE.Mesh(wingGeo, bfMat);
+    leftWing.scale.set(4.2, 3.2, 0.24);
+    leftWing.position.set(-3.0, 0.3, 0);
+    const rightWing = new THREE.Mesh(wingGeo, bfMat.clone());
+    rightWing.scale.set(4.2, 3.2, 0.24);
+    rightWing.position.set(3.0, 0.3, 0);
+    bfGroup.add(leftWing, rightWing);
+    const bodyMat = new THREE.MeshStandardMaterial({ color: 0x332b29, roughness: 0.8 });
+    const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.22, 1.2, 4, 8), bodyMat);
+    body.rotation.x = Math.PI / 2;
+    body.position.z = 0.05;
+    bfGroup.add(body);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.32, 12, 8), bodyMat);
+    head.position.z = 0.82;
+    bfGroup.add(head);
+    const antennaMat = new THREE.MeshStandardMaterial({ color: 0x332b29, roughness: 0.9 });
+    for (const side of [-1, 1]) {
+      const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.04, 0.8, 6), antennaMat);
+      antenna.position.set(side * 0.2, 0.18, 1.18);
+      antenna.rotation.x = side * 0.28;
+      antenna.rotation.y = side * 0.25;
+      bfGroup.add(antenna);
+    }
 
     // Fixed world anchor point near the ground
     const anchorX = randomRange(-300, 300);
@@ -489,6 +511,8 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
       driftRadius, speedX, speedY, speedZ, phase,
       flutterTime: randomRange(0, 100),
       material: bfMat,
+      leftWing,
+      rightWing,
       texture: bfTexture
     };
 
@@ -819,7 +843,7 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
       bird.position.set(bx, by, bz);
 
       // Face the direction of movement
-      bird.rotation.y = data.angle + Math.PI / 2;
+      bird.rotation.z = data.angle + Math.PI / 2;
 
       // Wing flapping animation — rotate wings up and down
       const flapAngle = Math.sin(elapsed * data.flapSpeed + data.flapPhase) * 0.5;
@@ -849,7 +873,7 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
       const fd = bf.userData;
 
       // Flutter around anchor point with organic, erratic movement
-      fd.flutterTime += delta * 0.5;
+      fd.flutterTime += delta * 1.2;
       const flutterX = Math.sin(fd.flutterTime * fd.speedX + fd.phase) * fd.driftRadius;
       const flutterY = Math.cos(fd.flutterTime * fd.speedY + fd.phase * 1.3) * fd.driftRadius;
       const flutterZ = Math.sin(fd.flutterTime * fd.speedZ + fd.phase * 0.7) * 8;
@@ -860,11 +884,13 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
         fd.anchorZ + flutterZ
       );
       // Rotate butterfly to face movement direction
-      bf.rotation.y = Math.atan2(flutterY, flutterX);
-
-      // Wing flapping (scale oscillation to simulate wings)
-      const wingFlap = Math.sin(elapsed * 0.015 + fd.phase) * 0.4;
-      bf.scale.y = 1.0 + wingFlap;
+      bf.rotation.z = Math.atan2(flutterY, flutterX);
+      bf.rotation.x = Math.sin(elapsed * 1.1 + fd.phase) * 0.12;
+      const wingFlap = Math.sin(elapsed * 13 + fd.phase) * 0.78;
+      fd.leftWing.rotation.y = wingFlap;
+      fd.rightWing.rotation.y = -wingFlap;
+      fd.leftWing.rotation.z = -0.12 + Math.sin(elapsed * 6 + fd.phase) * 0.08;
+      fd.rightWing.rotation.z = 0.12 - Math.sin(elapsed * 6 + fd.phase) * 0.08;
 
       // Fade in/out based on time of day
       fd.material.opacity = butterflyVisibility * 0.8;
