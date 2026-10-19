@@ -4,7 +4,7 @@
 
 import { load, save } from '../utils/persistence.js';
 
-const LEADERBOARD_API_URL = (import.meta.env.VITE_LEADERBOARD_API_URL || '').replace(/\/+$/, '');
+const LEADERBOARD_API_URL = (import.meta.env.VITE_LEADERBOARD_API_URL || 'https://build-a-game-with-jet-brains-academy-2nsg-metrix7.vercel.app').replace(/\/+$/, '');
 const KEY = 'attempts';
 
 async function requestAttempts(method) {
