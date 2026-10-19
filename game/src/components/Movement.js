@@ -38,6 +38,9 @@ export function createMovement(playerGroup, getModel, input, camera, canMoveCall
 
   let moveDelta = { x: 0, y: 0 };
   let speedMultiplier = 1;
+  // Environmental movement modifier is separate from level/power-up speed.
+  // Pond slowdown can therefore never overwrite or permanently alter a boost.
+  let environmentalSpeedMultiplier = 1;
 
   // Returns { x, y, fwdX, fwdY, rightX, rightY, camAngle, valid }
   // - valid=false if camera forward is degenerate
@@ -235,7 +238,7 @@ export function createMovement(playerGroup, getModel, input, camera, canMoveCall
       return;
     }
 
-    progress += (delta * speedMultiplier) / JUMP_DURATION;
+    progress += (delta * speedMultiplier * environmentalSpeedMultiplier) / JUMP_DURATION;
 
     if (progress >= 1) {
       progress = 1;
@@ -360,6 +363,20 @@ export function createMovement(playerGroup, getModel, input, camera, canMoveCall
     return speedMultiplier;
   }
 
+  function setEnvironmentalSpeedMultiplier(value) {
+    environmentalSpeedMultiplier = Number.isFinite(value)
+      ? Math.max(0.1, Math.min(value, 2.5))
+      : 1;
+  }
+
+  function getEnvironmentalSpeedMultiplier() {
+    return environmentalSpeedMultiplier;
+  }
+
+  function getEffectiveSpeedMultiplier() {
+    return speedMultiplier * environmentalSpeedMultiplier;
+  }
+
   function isCurrentlyMoving() {
     return isMoving;
   }
@@ -370,6 +387,9 @@ export function createMovement(playerGroup, getModel, input, camera, canMoveCall
     isCurrentlyMoving,
     setSpeedMultiplier,
     getSpeedMultiplier,
+    setEnvironmentalSpeedMultiplier,
+    getEnvironmentalSpeedMultiplier,
+    getEffectiveSpeedMultiplier,
     reset,
     translate,
     getCameraBasis
