@@ -115,5 +115,5 @@ export function createTouchControls({ onPause, onAttack, onDash }) {
     root.remove();
   }
 
-  return { getDirection, dispose };
+  return { getDirection, getMoveDirection, dispose };
 }
