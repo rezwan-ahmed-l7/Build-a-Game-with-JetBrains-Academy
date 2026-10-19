@@ -1697,7 +1697,10 @@ canvas.game {
   .game-over-stats { padding: 5px 8px; gap: 2px 8px; margin-bottom: 5px; }
   .game-over-stats .value { font-size: 16px; }
   .game-over-stats .value.dim { font-size: 14px; }
-  .game-over-buttons { margin-top: 5px; }
+  .game-over-buttons { gap: 6px; margin-top: 5px; flex-wrap: nowrap; }
+  .game-over-restart { min-width: 104px; }
+  .game-over-back { min-width: 78px; }
+  .game-over-buttons .menu-button { font-size: 14px; padding: 9px 14px; letter-spacing: 0.5px; }
   /* Landscape start menu remains scrollable; keep its existing compact mode. */
   .how-to-play, .profile-row, .leaderboard-wrap { display: none; }
   .menu-title { font-size: 30px; }
@@ -1741,7 +1744,10 @@ canvas.game {
   .game-over-stats .value.dim { font-size: 16px; }
   .new-best { margin-bottom: 7px; padding: 3px 9px; font-size: 10px; }
   .game-over-rank { margin: 4px 0; font-size: 11px; }
-  .game-over-buttons { gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .game-over-buttons { gap: 8px; margin-top: 8px; flex-wrap: nowrap; }
+  .game-over-restart { min-width: 112px; }
+  .game-over-back { min-width: 84px; }
+  .game-over-buttons .menu-button { font-size: 14px; padding: 10px 16px; letter-spacing: 0.5px; }
   .game-over-stats .value { font-size: 22px; }
   .game-over-stats .value.dim { font-size: 18px; }
   .menu.menu-pause h1 { font-size: 40px; letter-spacing: 2px; }
