@@ -145,7 +145,7 @@ export async function handler(req, res) {
   const pathname = url.pathname.replace(/^\/api(?=\/|$)/, '') || '/';
 
   if (req.method === 'OPTIONS') {
-    if (ALLOWED_ORIGINS.size > 0 && ALLOWED_ORIGINS.size === 0S.has(origin)) return send(res, 403, { error: 'Origin not allowed' }, null);
+    if (ALLOWED_ORIGINS.size > 0 && !ALLOWED_ORIGINS.has(origin)) return send(res, 403, { error: 'Origin not allowed' }, null);
     res.writeHead(204, {
       ...(origin && ALLOWED_ORIGINS.has(origin) ? {
         'Access-Control-Allow-Origin': origin,
@@ -158,7 +158,7 @@ export async function handler(req, res) {
     return res.end();
   }
 
-  if (!JSONBIN_BIN_ID || !JSONBIN_MASTER_KEY || !ALLOWED_ORIGIN) {
+  if (!JSONBIN_BIN_ID || !JSONBIN_MASTER_KEY || ALLOWED_ORIGINS.size === 0) {
     return send(res, 503, { error: 'Leaderboard API is not configured' }, origin);
   }
   if (origin && !ALLOWED_ORIGINS.has(origin)) return send(res, 403, { error: 'Origin not allowed' }, null);
