@@ -379,6 +379,8 @@ for (let i = 0; i < 15; i++) {
   crab.scale.setScalar([1.8, 2.5, 3.2][i % 3]);
   crab.userData.anchorX = crab.position.x;
   crab.userData.anchorY = crab.position.y;
+  crab.userData.anchorAngle = angle;
+  crab.userData.anchorRadius = radius;
   crab.userData.baseAngle = crab.rotation.z;
   crab.userData.phase = Math.random() * Math.PI * 2;
   crab.userData.speed = 3 + Math.random() * 4;
@@ -858,7 +860,9 @@ function animate(currentTime) {
   for (const foam of shoreFoam) {
     const d = foam.userData;
     const swell = Math.sin(time * d.speed + d.phase);
-    const radius = 990 + swell * 15;
+    // The wet edge travels across the overlapping sand/water boundary:
+    // the crest reaches up the beach, then drains back into the sea.
+    const radius = 1015 + swell * 55;
     const driftAngle = d.angle + Math.sin(time * 0.35 + d.phase) * 0.018;
     foam.position.set(Math.cos(driftAngle) * radius, Math.sin(driftAngle) * radius, -0.12 + Math.max(0, swell) * 0.22);
     foam.rotation.z = driftAngle + Math.PI / 2;
@@ -868,8 +872,11 @@ function animate(currentTime) {
   for (const crab of crabGroup.children) {
     const d = crab.userData;
     const t = time * d.speed + d.phase;
-    crab.position.x = d.anchorX + Math.cos(t) * d.drift;
-    crab.position.y = d.anchorY + Math.sin(t * 0.73) * d.drift * 0.65;
+    // Roam tangentially along the beach so crabs don't wander into grass
+    // or out into the sea.
+    const roamAngle = d.anchorAngle + Math.sin(t * 0.28) * (d.drift / d.anchorRadius);
+    crab.position.x = Math.cos(roamAngle) * d.anchorRadius;
+    crab.position.y = Math.sin(roamAngle) * d.anchorRadius;
     crab.rotation.z = d.baseAngle + Math.sin(t * 0.65) * 0.18;
     crab.position.z = 0.15 + Math.abs(Math.sin(t * 3.2)) * 0.035;
     for (const leg of d.legs || []) leg.rotation.z = leg.userData.baseRotation + Math.sin(t * 7 + leg.userData.phase) * 0.16;
