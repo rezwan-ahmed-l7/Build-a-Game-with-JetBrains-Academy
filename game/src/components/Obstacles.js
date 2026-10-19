@@ -213,6 +213,26 @@ function makeRedLeafTree(rand, style) {
   return { group, totalHeight: height };
 }
 
+// Shared bark materials and unit branch geometry keep the richer tree
+// silhouettes inexpensive even with a large forest.
+const TREE_BRANCH_GEOMETRY = new THREE.CylinderGeometry(0.42, 0.78, 1, 6);
+const TREE_BRANCH_MATERIALS = [
+  new THREE.MeshStandardMaterial({ color: 0x563821, roughness: 1, flatShading: true }),
+  new THREE.MeshStandardMaterial({ color: 0x6a472b, roughness: 1, flatShading: true }),
+  new THREE.MeshStandardMaterial({ color: 0x785235, roughness: 1, flatShading: true })
+];
+
+function addTreeBranch(group, start, end, thickness, materialIndex = 0) {
+  const direction = end.clone().sub(start);
+  const branch = new THREE.Mesh(TREE_BRANCH_GEOMETRY, TREE_BRANCH_MATERIALS[materialIndex % TREE_BRANCH_MATERIALS.length]);
+  branch.position.copy(start).add(end).multiplyScalar(0.5);
+  branch.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.clone().normalize());
+  branch.scale.set(thickness, direction.length(), thickness);
+  branch.castShadow = true;
+  branch.receiveShadow = true;
+  group.add(branch);
+}
+
 // Pine / fir — tall conifer with visible trunk, layered conical
 // canopy, and slight color variation per layer for realism.
 function makePineTree(rand) {
@@ -236,6 +256,27 @@ function makePineTree(rand) {
   trunk.castShadow = true;
   trunk.receiveShadow = true;
   group.add(trunk);
+
+  // Whorled lateral limbs break up the perfect cone silhouette. The lowest
+  // limbs stay visible beneath the canopy and the upper limbs peek between
+  // foliage tiers, with small natural differences in angle and length.
+  const limbLevels = 5;
+  for (let level = 0; level < limbLevels; level++) {
+    const z = trunkHeight * (0.55 + level * 0.23);
+    const limbCount = 4 + Math.floor(rand() * 2);
+    const phase = rand() * Math.PI * 2;
+    for (let i = 0; i < limbCount; i++) {
+      const angle = phase + (i / limbCount) * Math.PI * 2;
+      const length = (5.2 + rand() * 3.4) * (1 - level * 0.105);
+      const start = new THREE.Vector3(Math.cos(angle) * 0.45, Math.sin(angle) * 0.45, z);
+      const end = new THREE.Vector3(
+        Math.cos(angle) * length,
+        Math.sin(angle) * length,
+        z + 0.8 + rand() * 1.7
+      );
+      addTreeBranch(group, start, end, 0.55 + rand() * 0.25, Math.floor(rand() * 3));
+    }
+  }
 
   // Foliage color varies subtly per tree (cold dark green for conifers)
   const baseHue = 0.30 + (rand() - 0.5) * 0.05;
@@ -305,6 +346,26 @@ function makeBroadleafTree(rand) {
   trunk.castShadow = true;
   trunk.receiveShadow = true;
   group.add(trunk);
+
+  // Main limbs fan out from the trunk into the crown. A few thicker branches
+  // remain visible around the canopy edge, giving broadleaf trees a readable
+  // trunk-to-branch structure instead of a stack of detached green blobs.
+  const limbCount = 5 + Math.floor(rand() * 3);
+  for (let i = 0; i < limbCount; i++) {
+    const angle = (i / limbCount) * Math.PI * 2 + (rand() - 0.5) * 0.28;
+    const start = new THREE.Vector3(
+      Math.cos(angle) * 0.45,
+      Math.sin(angle) * 0.45,
+      trunkHeight * (0.68 + rand() * 0.18)
+    );
+    const length = 5.5 + rand() * 4.2;
+    const end = new THREE.Vector3(
+      Math.cos(angle) * length,
+      Math.sin(angle) * length,
+      start.z + 1.5 + rand() * 4
+    );
+    addTreeBranch(group, start, end, 0.8 + rand() * 0.35, Math.floor(rand() * 3));
+  }
 
   // Base foliage color (lighter / warmer than conifer)
   const baseHue = 0.24 + (rand() - 0.5) * 0.06;
