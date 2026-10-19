@@ -458,6 +458,33 @@ export function createGameManager({
       if (dist < playerVsEnemyDist) {
         // Use the enemy type's attackContact damage (chaser=1, sprinter=1, brute=2)
         const dmg = enemy.def && enemy.def.attackContact ? enemy.def.attackContact : 1;
+
+        // Contact attack impact: a hot, directional burst plus a cooler
+        // secondary spark ring makes enemy hits readable without adding
+        // meshes, lights, textures, or post-processing to the frame loop.
+        const hitX = player.group.position.x;
+        const hitY = player.group.position.y;
+        const hitZ = player.group.position.z + 5;
+        const enemyColor = enemy.type === 'brute' ? 0xff5a36
+          : enemy.type === 'sprinter' ? 0xffbd4a : 0xff784f;
+        particles.spawnBurst(hitX, hitY, hitZ, {
+          count: enemy.type === 'brute' ? 24 : 16,
+          color: enemyColor,
+          speed: enemy.type === 'brute' ? 115 : 90,
+          life: 0.42,
+          size: enemy.type === 'brute' ? 8 : 6,
+          upBias: 24
+        });
+        particles.spawnBurst(hitX - dx / (dist || 1) * 3, hitY - dy / (dist || 1) * 3, hitZ + 1, {
+          count: 9,
+          color: 0xb9f4ff,
+          speed: 65,
+          life: 0.28,
+          size: 4,
+          upBias: 12
+        });
+        damageNumbers.spawn(dmg > 1 ? `-${dmg} HP!` : '-1 HP', hitX, hitY, hitZ + 7, '#ff6b5f', { kind: 'crit' });
+
         health.damage(dmg);
         const nx = dx / (dist || 1);
         const ny = dy / (dist || 1);
