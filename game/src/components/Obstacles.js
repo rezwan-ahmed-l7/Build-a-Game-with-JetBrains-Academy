@@ -9,6 +9,7 @@ import { WORLD_RADIUS } from './WorldBounds.js';
 // Counts increased to fill the expanded playable area (840 radius).
 const TREE_COUNT = 240;          // more trees to fill expanded edges
 const BUSH_COUNT = 65;
+const FLOWER_PATCH_COUNT = 82;
 const BIG_ROCK_COUNT = 38;
 const SMALL_ROCK_COUNT = 55;
 const STUMP_COUNT = 18;
@@ -44,6 +45,44 @@ const HOUSE_COLLISION_RADIUS = 14;
 
 const _color = new THREE.Color();
 const _greenTint = new THREE.Color();
+
+const BUSH_FOLIAGE_MATERIALS = [
+  0x315b32, 0x3d6a37, 0x4c743b, 0x587c40, 0x2f6346, 0x6b8546
+].map((color) => new THREE.MeshStandardMaterial({
+  color, roughness: 0.96, metalness: 0, flatShading: true
+}));
+
+function createFlowerHeadGeometry() {
+  const shape = new THREE.Shape();
+  const petals = 16;
+  for (let i = 0; i < petals; i++) {
+    const angle = (i / petals) * Math.PI * 2;
+    const radius = i % 2 === 0 ? 0.66 : 0.43;
+    const x = Math.cos(angle) * radius;
+    const y = Math.sin(angle) * radius;
+    if (i === 0) shape.moveTo(x, y);
+    else shape.lineTo(x, y);
+  }
+  shape.closePath();
+  return new THREE.ShapeGeometry(shape, 1);
+}
+
+const FLOWER_HEAD_GEOMETRY = createFlowerHeadGeometry();
+const FLOWER_HEAD_MATERIALS = [
+  0xff6b9d, 0xffd166, 0xf7f3df, 0xb8a1ff, 0xff8a5b, 0xe9f28d
+].map((color) => new THREE.MeshStandardMaterial({
+  color, roughness: 0.78, metalness: 0, side: THREE.DoubleSide
+}));
+const FLOWER_CENTER_GEOMETRY = new THREE.SphereGeometry(0.22, 8, 6);
+const FLOWER_CENTER_MATERIAL = new THREE.MeshStandardMaterial({
+  color: 0x8d5b27, roughness: 0.9, flatShading: true
+});
+const FLOWER_STEM_GEOMETRY = new THREE.CylinderGeometry(0.065, 0.11, 1.5, 5);
+const FLOWER_STEM_MATERIALS = [
+  0x47733b, 0x527d40, 0x668343
+].map((color) => new THREE.MeshStandardMaterial({
+  color, roughness: 0.96, metalness: 0
+}));
 
 function snapToGround(mesh) {
   const box = new THREE.Box3().setFromObject(mesh);
@@ -432,30 +471,24 @@ function makeBroadleafTree(rand) {
 }
 
 // Bush — low, multi-blob, no collision
+// Fuller ornamental shrubs: broad overlapping leaf clusters and layered greens
+// make each bush stand out while remaining decorative and non-colliding.
 function makeBush(rand) {
   const group = new THREE.Group();
-  _greenTint.setHSL(0.26 + (rand() - 0.5) * 0.08,
-                    0.55 + rand() * 0.20,
-                    0.22 + rand() * 0.10);
-  const foliageColor = _greenTint.getHex();
-
-  const blobs = 3 + Math.floor(rand() * 2);
+  const blobs = 5 + Math.floor(rand() * 3);
   for (let i = 0; i < blobs; i++) {
-    const r = 1.0 + rand() * 0.7;
+    const r = 1.45 + rand() * 0.8;
     const blob = new THREE.Mesh(
       new THREE.IcosahedronGeometry(r, 1),
-      new THREE.MeshStandardMaterial({
-        color: foliageColor,
-        roughness: 0.95,
-        metalness: 0,
-        flatShading: true
-      })
+      BUSH_FOLIAGE_MATERIALS[Math.floor(rand() * BUSH_FOLIAGE_MATERIALS.length)]
     );
     const ang = rand() * Math.PI * 2;
-    const dist = rand() * 0.9;
+    const dist = i === 0 ? rand() * 0.35 : 0.45 + rand() * 1.15;
     blob.position.x = Math.cos(ang) * dist;
     blob.position.y = Math.sin(ang) * dist;
-    blob.position.z = r * 0.6;
+    blob.position.z = r * (0.62 + rand() * 0.12) + (i === 0 ? 0.25 : 0);
+    blob.scale.set(0.94 + rand() * 0.25, 0.88 + rand() * 0.25, 0.82 + rand() * 0.24);
+    blob.rotation.set((rand() - 0.5) * 0.18, (rand() - 0.5) * 0.18, rand() * Math.PI * 2);
     blob.castShadow = true;
     blob.receiveShadow = true;
     group.add(blob);
@@ -463,8 +496,49 @@ function makeBush(rand) {
   return { group };
 }
 
-// Large weathered boulders use varied mineral colors, asymmetric silhouettes,
-// non-uniform proportions, and small moss patches instead of identical round balls.
+// Small wildflower patch with low stems, distinct petal colors and warm centers.
+// Geometry/materials are shared to keep added ground detail reasonably light.
+function makeFlowerPatch(rand) {
+  const group = new THREE.Group();
+  const count = 3 + Math.floor(rand() * 3);
+  for (let i = 0; i < count; i++) {
+    const angle = rand() * Math.PI * 2;
+    const spread = 0.6 + rand() * 2.0;
+    const x = Math.cos(angle) * spread;
+    const y = Math.sin(angle) * spread;
+    const height = 1.05 + rand() * 0.8;
+
+    const stem = new THREE.Mesh(
+      FLOWER_STEM_GEOMETRY,
+      FLOWER_STEM_MATERIALS[Math.floor(rand() * FLOWER_STEM_MATERIALS.length)]
+    );
+    stem.rotation.x = Math.PI / 2;
+    stem.scale.y = height / 1.5;
+    stem.position.set(x, y, height * 0.5);
+    stem.castShadow = false;
+    stem.receiveShadow = true;
+    group.add(stem);
+
+    const bloom = new THREE.Mesh(
+      FLOWER_HEAD_GEOMETRY,
+      FLOWER_HEAD_MATERIALS[Math.floor(rand() * FLOWER_HEAD_MATERIALS.length)]
+    );
+    bloom.position.set(x, y, height);
+    bloom.rotation.z = rand() * Math.PI * 2;
+    bloom.castShadow = false;
+    bloom.receiveShadow = true;
+    group.add(bloom);
+
+    const center = new THREE.Mesh(FLOWER_CENTER_GEOMETRY, FLOWER_CENTER_MATERIAL);
+    center.position.set(x, y, height + 0.025);
+    center.scale.z = 0.28;
+    center.castShadow = false;
+    center.receiveShadow = true;
+    group.add(center);
+  }
+  return group;
+}
+
 function makeBigRock(rand) {
   const group = new THREE.Group();
   const size = 3.6 + rand() * 4.0;
@@ -915,6 +989,26 @@ function makePond(rand, scale = 1.0) {
   return { group, radius, water, ripple, rippleSecondary, rippleTertiary, lilyPads };
 }
 
+function placeRandomlyWithRadii(rand, avoid, minDist) {
+  for (let attempt = 0; attempt < 80; attempt++) {
+    const angle = rand() * Math.PI * 2;
+    const r = Math.sqrt(CLEARING_RADIUS ** 2 + rand() * (WORLD_RADIUS ** 2 - CLEARING_RADIUS ** 2));
+    const x = Math.cos(angle) * r;
+    const y = Math.sin(angle) * r;
+    let ok = true;
+    for (const p of avoid) {
+      if (Math.hypot(x - p.x, y - p.y) < minDist + (p.r || 0)) {
+        ok = false;
+        break;
+      }
+    }
+    if (ok) return { x, y };
+  }
+  const angle = rand() * Math.PI * 2;
+  const r = FOREST_INNER_RADIUS + rand() * (WORLD_RADIUS - FOREST_INNER_RADIUS);
+  return { x: Math.cos(angle) * r, y: Math.sin(angle) * r };
+}
+
 function placeRandomly(rand, avoid, minDist) {
   for (let attempt = 0; attempt < 30; attempt++) {
     const angle = rand() * Math.PI * 2;
@@ -1266,6 +1360,35 @@ export function createObstacles(scene) {
       position: { x: pos.x, y: pos.y },
       radius: HOUSE_COLLISION_RADIUS
     });
+  }
+
+  // ----- Wildflowers: fill open meadow gaps without overlapping obstacles -----
+  // Independent seeded randomness means these details do not shift existing
+  // tree, rock, pond, pickup or house positions.
+  const flowerRand = mulberry32(0xF10A3);
+  const flowerAvoid = playerAvoid.concat(
+    pondAvoid,
+    placed,
+    obstacles.map(({ position, radius }) => ({ x: position.x, y: position.y, r: radius })),
+    housePositions
+  );
+  for (let i = 0; i < FLOWER_PATCH_COUNT; i++) {
+    let pos = null;
+    for (let attempt = 0; attempt < 70 && !pos; attempt++) {
+      const angle = flowerRand() * Math.PI * 2;
+      const r = Math.sqrt(CLEARING_RADIUS ** 2 + flowerRand() * (WORLD_RADIUS ** 2 - CLEARING_RADIUS ** 2));
+      const candidate = { x: Math.cos(angle) * r, y: Math.sin(angle) * r };
+      if (flowerAvoid.every((p) =>
+        Math.hypot(candidate.x - p.x, candidate.y - p.y) >= 7.5 + (p.r || 0)
+      )) pos = candidate;
+    }
+    // Skip if no clear spot is available instead of forcing overlap.
+    if (!pos) continue;
+    const patch = makeFlowerPatch(flowerRand);
+    patch.position.set(pos.x, pos.y, 0);
+    patch.rotation.z = flowerRand() * Math.PI * 2;
+    scene.add(patch);
+    flowerAvoid.push({ x: pos.x, y: pos.y, r: 5.5 });
   }
 
   // Animation hook: ripple expands, lily pads bob. Called from main loop.
