@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 const BASE_ATTACK_COOLDOWN = 0.50;
-const BASE_ATTACK_RADIUS = 38;
+const BASE_ATTACK_RADIUS = 40;
 const ATTACK_VISUAL_LIFETIME = 0.32;
 const HITSTOP_DURATION = 0.05;
 
@@ -30,7 +30,7 @@ export function createAttack(scene, playerGroup, enemyManager, callbacks = {}) {
   }
 
   function setDamage(value) {
-    damage = Math.max(1, Math.floor(value));
+    damage = Math.max(0, Number(value) || 0);
   }
 
   function getDamage() {
