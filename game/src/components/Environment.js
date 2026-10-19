@@ -412,8 +412,8 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
       tailR,
       bodyMat: birdMat,
       bellyMat,
-      wingMatL: leftWing.material,
-      wingMatR: rightWing.material,
+      wingMatL: leftWingMesh.material,
+      wingMatR: rightWingMesh.material,
       beakMat,
       tailMat,
       eyeMat,
@@ -877,13 +877,17 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
       data.tailR.rotation.x = Math.sin(elapsed * data.flapSpeed * 0.5 + data.flapPhase) * 0.15;
 
       // Fade in/out based on time of day — set all materials
-      const opacity = birdVisibility * 0.85;
+      // Use fully opaque silhouettes in daylight; the old 0.85 alpha made
+      // distant birds look washed out, and the old wing references pointed
+      // at Groups (which have no material), throwing during the update loop.
+      const opacity = birdVisibility;
       data.bodyMat.opacity = opacity;
       data.bellyMat.opacity = opacity;
       data.wingMatL.opacity = opacity;
       data.wingMatR.opacity = opacity;
       data.beakMat.opacity = opacity;
       data.tailMat.opacity = opacity;
+      data.eyeMat.opacity = opacity;
     }
 
     // ----- Update butterflies -----
