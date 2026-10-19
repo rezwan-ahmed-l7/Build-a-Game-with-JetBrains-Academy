@@ -598,7 +598,17 @@ if (isTouchDevice()) {
       if (gameManager.isPlaying()) attack.attack(performance.now());
     },
     onDash: () => {
-      if (gameManager.isPlaying()) dash.tryStart();
+      // Mobile dash uses the last joystick direction, even after the
+      // player lifts their thumb to tap the separate DASH button.
+      if (gameManager.isPlaying()) {
+        const started = dash.tryStart();
+        if (started) {
+          audio.playDash();
+          particles.spawnBurst(player.group.position.x, player.group.position.y, player.group.position.z + 4, {
+            count: 14, color: 0x9ee7ff, speed: 50, life: 0.4, size: 6
+          });
+        }
+      }
     }
   });
 }
