@@ -279,28 +279,59 @@ scene.add(ground);
 // Sand beach ring — a sandy shore around the ground edge (840–900)
 // that gives the island a natural beach look before the dark water beyond.
 function createSandTexture() {
-  const size = 256;
+  const size = 512;
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext('2d');
-  // Base sandy color
-  ctx.fillStyle = '#c4a96a';
+  ctx.fillStyle = '#c9b184';
   ctx.fillRect(0, 0, size, size);
-  // Add noise for grain
-  for (let i = 0; i < 3000; i++) {
-    const x = Math.random() * size;
-    const y = Math.random() * size;
-    const r = Math.random() * 1.5;
-    const brightness = 160 + Math.random() * 60;
-    ctx.fillStyle = `rgba(${brightness},${brightness - 30},${brightness - 60},0.3)`;
+
+  // Deterministic fine sand grains and mineral flecks.
+  let seed = 0x5ea51;
+  const random = () => {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    return seed / 4294967296;
+  };
+  for (let i = 0; i < 12500; i++) {
+    const x = random() * size, y = random() * size;
+    const r = 0.3 + random() * 1.4;
+    const warm = random() > 0.5;
+    ctx.fillStyle = warm
+      ? `rgba(111, 83, 48, ${0.035 + random() * 0.09})`
+      : `rgba(255, 241, 204, ${0.05 + random() * 0.13})`;
     ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.ellipse(x, y, r * (1.1 + random()), r * 0.65, random() * Math.PI, 0, Math.PI * 2);
     ctx.fill();
   }
+
+  // Uneven dry patches and wind-swept sand streaks.
+  for (let i = 0; i < 115; i++) {
+    const x = random() * size, y = random() * size;
+    const rx = 8 + random() * 38, ry = 2 + random() * 7;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate((random() - 0.5) * 0.7);
+    ctx.fillStyle = random() > 0.5 ? 'rgba(150, 119, 77, 0.11)' : 'rgba(255, 239, 198, 0.20)';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Tiny shell fragments and dark wet-sand specks.
+  for (let i = 0; i < 230; i++) {
+    const x = random() * size, y = random() * size;
+    ctx.fillStyle = random() > 0.45 ? 'rgba(248, 235, 205, 0.58)' : 'rgba(93, 85, 66, 0.20)';
+    ctx.beginPath();
+    ctx.ellipse(x, y, 0.6 + random() * 1.5, 0.35 + random() * 0.75, random() * Math.PI, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(8, 1);
+  texture.repeat.set(10, 2);
+  texture.anisotropy = 4;
   texture.needsUpdate = true;
   return texture;
 }
@@ -475,37 +506,113 @@ function createStarfishShape(mat) {
   return g;
 }
 
-// Crabs on sand beach — small simple crab shapes
+// Bright scarlet and vermilion shore crabs, roaming along the beach.
 const crabGroup = new THREE.Group();
-const crabColors = [0x8a3a2a, 0x7a2a1a, 0x9a4a3a];
-for (let i = 0; i < 15; i++) {
+const crabColors = [0xe53935, 0xc92724, 0xf04b32, 0xb91f24];
+for (let i = 0; i < 18; i++) {
   const angle = Math.random() * Math.PI * 2;
-  const radius = GROUND_RADIUS + 5 + Math.random() * 140; // on sand ring
-  const crab = createCrabShape(crabColors[i % 3]);
+  const radius = GROUND_RADIUS + 18 + Math.random() * 118;
+  const crab = createCrabShape(crabColors[i % crabColors.length]);
   crab.position.set(Math.cos(angle) * radius, Math.sin(angle) * radius, 0.15);
-  crab.rotation.z = Math.random() * Math.PI * 2;
-  crab.scale.setScalar([1.8, 2.5, 3.2][i % 3]);
-  crab.userData.anchorX = crab.position.x;
-  crab.userData.anchorY = crab.position.y;
+  crab.rotation.z = angle + Math.PI / 2;
+  crab.scale.setScalar([1.8, 2.25, 2.7][i % 3]);
   crab.userData.anchorAngle = angle;
   crab.userData.anchorRadius = radius;
-  crab.userData.baseAngle = crab.rotation.z;
   crab.userData.phase = Math.random() * Math.PI * 2;
-  crab.userData.speed = 3 + Math.random() * 4;
-  crab.userData.drift = 5 + Math.random() * 10;
+  crab.userData.speed = 0.24 + Math.random() * 0.16;
+  crab.userData.roamSpan = 28 + Math.random() * 52;
+  crab.userData.legs = crab.userData.legs || [];
   crabGroup.add(crab);
 }
 scene.add(crabGroup);
 
+// Sparse coastal dune vegetation: sea-oat seed heads, beach grass and low
+// salt-tolerant shrubs. Groups are scattered irregularly on the sand, leaving
+// open beach lanes for the crabs and keeping the shoreline visually readable.
+const beachPlants = new THREE.Group();
+const duneGrassMat = [
+  new THREE.MeshStandardMaterial({ color: 0x71864a, roughness: 0.96 }),
+  new THREE.MeshStandardMaterial({ color: 0x9b9b5a, roughness: 0.98 }),
+  new THREE.MeshStandardMaterial({ color: 0x526c3b, roughness: 0.96 })
+];
+const oatStemMat = new THREE.MeshStandardMaterial({ color: 0x9b8650, roughness: 0.95 });
+const oatHeadMat = new THREE.MeshStandardMaterial({ color: 0xc5ad70, roughness: 0.94 });
+const beachShrubMat = new THREE.MeshStandardMaterial({ color: 0x496d43, roughness: 0.98 });
+for (let i = 0; i < 34; i++) {
+  const angle = Math.random() * Math.PI * 2;
+  const radius = GROUND_RADIUS + 42 + Math.random() * 94;
+  const cluster = new THREE.Group();
+  cluster.position.set(Math.cos(angle) * radius, Math.sin(angle) * radius, 0.02);
+  cluster.rotation.z = Math.random() * Math.PI * 2;
+  const clumpScale = 0.7 + Math.random() * 0.85;
+  cluster.scale.setScalar(clumpScale);
+
+  const blades = 5 + Math.floor(Math.random() * 5);
+  for (let b = 0; b < blades; b++) {
+    const a = (b / blades) * Math.PI * 2 + Math.random() * 0.5;
+    const h = 3.5 + Math.random() * 5.5;
+    const blade = new THREE.Mesh(
+      new THREE.SphereGeometry(1, 7, 5),
+      duneGrassMat[Math.floor(Math.random() * duneGrassMat.length)]
+    );
+    blade.position.set(Math.cos(a) * (1.8 + Math.random() * 2.5), Math.sin(a) * (1.8 + Math.random() * 2.5), h * 0.38);
+    blade.scale.set(0.42, 0.20, h * 0.62);
+    blade.rotation.x = (Math.random() - 0.5) * 0.24;
+    blade.rotation.y = Math.cos(a) * 0.22;
+    blade.rotation.z = a;
+    blade.castShadow = true;
+    cluster.add(blade);
+  }
+
+  // A few taller sea oats with warm seed heads create a recognizable coastal silhouette.
+  if (i % 2 === 0) {
+    for (let s = 0; s < 2; s++) {
+      const a = Math.random() * Math.PI * 2;
+      const h = 7 + Math.random() * 4;
+      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.14, h, 5), oatStemMat);
+      stem.position.set(Math.cos(a) * 2, Math.sin(a) * 2, h / 2);
+      stem.rotation.x = Math.PI / 2 - Math.cos(a) * 0.12;
+      stem.rotation.y = Math.sin(a) * 0.12;
+      cluster.add(stem);
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.8, 7, 5), oatHeadMat);
+      head.position.set(Math.cos(a) * (2 + h * 0.14), Math.sin(a) * (2 + h * 0.14), h + 0.4);
+      head.scale.set(0.52, 0.52, 1.25);
+      cluster.add(head);
+    }
+  }
+  if (i % 4 === 0) {
+    const shrub = new THREE.Mesh(new THREE.IcosahedronGeometry(2.6 + Math.random() * 1.5, 1), beachShrubMat);
+    shrub.position.set((Math.random() - 0.5) * 5, (Math.random() - 0.5) * 5, 1.2);
+    shrub.scale.set(1.2, 0.9, 0.65);
+    shrub.castShadow = true;
+    cluster.add(shrub);
+  }
+  beachPlants.add(cluster);
+}
+scene.add(beachPlants);
+
 function createCrabShape(color) {
   const g = new THREE.Group();
-  const bodyMat = new THREE.MeshStandardMaterial({ color: color || 0x8a3a2a, roughness: 0.6, metalness: 0.05 });
-  const darkMat = new THREE.MeshStandardMaterial({ color: 0x5a2a1a, roughness: 0.7, metalness: 0.05 });
+  const shellColor = new THREE.Color(color || 0xe53935);
+  const bodyMat = new THREE.MeshStandardMaterial({ color: shellColor, roughness: 0.48, metalness: 0.02, flatShading: false });
+  const darkMat = new THREE.MeshStandardMaterial({ color: shellColor.clone().multiplyScalar(0.48), roughness: 0.68, metalness: 0.01 });
+  const highlightMat = new THREE.MeshStandardMaterial({ color: shellColor.clone().lerp(new THREE.Color(0xffb09a), 0.42), roughness: 0.42 });
   // Body — wider, flatter oval with shell texture
   const bodyGeo = new THREE.SphereGeometry(1, 24, 16);
   const body = new THREE.Mesh(bodyGeo, bodyMat);
-  body.scale.set(1.2, 0.8, 0.28);
+  body.scale.set(1.22, 0.9, 0.34);
+  body.castShadow = true;
+  body.receiveShadow = true;
   g.add(body);
+  // Raised shell rim and a restrained highlight catch light like a hard carapace.
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(0.83, 0.055, 6, 24), darkMat);
+  rim.scale.set(1.2, 0.84, 0.35);
+  rim.position.z = 0.12;
+  g.add(rim);
+  const shellHighlight = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 8), highlightMat);
+  shellHighlight.position.set(-0.12, 0.02, 0.27);
+  shellHighlight.scale.set(0.52, 0.24, 0.035);
+  g.add(shellHighlight);
   // Shell ridge
   const ridgeGeo = new THREE.SphereGeometry(1, 18, 12);
   const ridge = new THREE.Mesh(ridgeGeo, darkMat);
@@ -513,7 +620,7 @@ function createCrabShape(color) {
   ridge.scale.set(0.72, 0.16, 0.055);
   g.add(ridge);
   // Claws — more detailed with segments
-  const clawMat = new THREE.MeshStandardMaterial({ color: color || 0x8a3a2a, roughness: 0.5, metalness: 0.08 });
+  const clawMat = new THREE.MeshStandardMaterial({ color: shellColor.clone().multiplyScalar(0.88), roughness: 0.45, metalness: 0.01 });
   for (let side = -1; side <= 1; side += 2) {
     const clawGroup = new THREE.Group();
     // Arm segment
@@ -548,6 +655,7 @@ function createCrabShape(color) {
       leg.position.set(Math.cos(la) * 0.4, side * (0.5 + l * 0.15), 0.05);
       leg.rotation.z = side * (0.3 + l * 0.2);
       leg.userData.baseRotation = leg.rotation.z;
+      leg.userData.baseZ = leg.position.z;
       leg.userData.phase = l * 0.9 + (side > 0 ? Math.PI : 0);
       g.add(leg);
       g.userData = g.userData || {};
@@ -1016,15 +1124,25 @@ function animate(currentTime) {
   for (const crab of crabGroup.children) {
     const d = crab.userData;
     const t = time * d.speed + d.phase;
-    // Roam tangentially along the beach so crabs don't wander into grass
-    // or out into the sea.
-    const roamAngle = d.anchorAngle + Math.sin(t * 0.28) * (d.drift / d.anchorRadius);
+    // Crabs scuttle back and forth along a short shoreline arc, keeping a
+    // stable beach radius while their body faces the direction of travel.
+    const roamOffset = Math.sin(t) * d.roamSpan;
+    const roamAngle = d.anchorAngle + roamOffset / d.anchorRadius;
+    const movingForward = Math.cos(t) >= 0;
     crab.position.x = Math.cos(roamAngle) * d.anchorRadius;
     crab.position.y = Math.sin(roamAngle) * d.anchorRadius;
-    crab.rotation.z = d.baseAngle + Math.sin(t * 0.65) * 0.18;
-    crab.position.z = 0.15 + Math.abs(Math.sin(t * 3.2)) * 0.035;
-    for (const leg of d.legs || []) leg.rotation.z = leg.userData.baseRotation + Math.sin(t * 7 + leg.userData.phase) * 0.16;
-    for (const claw of d.claws || []) claw.rotation.z = Math.sin(t * 2.3 + claw.userData.side) * 0.09;
+    crab.rotation.z = roamAngle + (movingForward ? Math.PI / 2 : -Math.PI / 2);
+    crab.position.z = 0.15 + Math.abs(Math.sin(t * 9)) * 0.045;
+    crab.position.x += Math.cos(roamAngle) * Math.sin(t * 5) * 0.8;
+    crab.position.y += Math.sin(roamAngle) * Math.sin(t * 5) * 0.8;
+    for (const leg of d.legs || []) {
+      const stride = Math.sin(t * 12 + leg.userData.phase);
+      leg.rotation.z = leg.userData.baseRotation + stride * 0.32;
+      leg.position.z = leg.userData.baseZ + Math.max(0, stride) * 0.055;
+    }
+    for (const claw of d.claws || []) {
+      claw.rotation.z = Math.sin(t * 3.4 + claw.userData.side) * 0.14;
+    }
   }
   // Blend ocean color continuously with the same day/dusk/night state as the sky.
   // The tint is intentionally restrained so the shore-to-deep-water gradient remains visible.
