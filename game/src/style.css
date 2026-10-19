@@ -1688,9 +1688,18 @@ canvas.game {
   .menu-brand::after { display: none; }
 }
 @media (max-height: 480px) {
-  /* Landscape mobile 640×360: hide everything except brand + Play button.
-     The how-to-play pills + profile row + leaderboard are reachable via
-     the .menu's overflow-y: auto scroll. */
+  /* Landscape mobile: compact and scroll the game-over overlay if needed. */
+  .game-over { padding: 6px 0; }
+  .game-over-panel { padding: 10px 12px; }
+  .game-over-eyebrow { display: none; }
+  .game-over-title { font-size: 24px; margin-bottom: 0; }
+  .game-over-divider { margin: 5px auto 7px; }
+  .game-over-stats { padding: 5px 8px; gap: 2px 8px; margin-bottom: 5px; }
+  .game-over-stats .value { font-size: 16px; }
+  .game-over-stats .value.dim { font-size: 14px; }
+  .game-over-buttons { margin-top: 5px; }
+  .game-over-buttons .menu-button { padding: 7px 14px; font-size: 13px; }
+  /* Landscape start menu remains scrollable; keep its existing compact mode. */
   .how-to-play, .profile-row, .leaderboard-wrap { display: none; }
   .menu-title { font-size: 30px; }
 }
@@ -1709,9 +1718,34 @@ canvas.game {
   .toast-notification { min-width: 0; max-width: calc(100vw - 24px); padding: 8px 12px 8px 10px; }
   .toast-label { font-size: 11px; }
   .toast-desc { font-size: 12px; }
-  .game-over-panel { min-width: 0; width: calc(100vw - 40px); padding: 28px 18px; }
-  .game-over-title { font-size: 38px; letter-spacing: 2px; }
-  .game-over-stats { padding: 10px 12px; gap: 6px 14px; }
+  /* Keep the complete game-over panel reachable on short phone screens. */
+  .game-over {
+    overflow-y: auto;
+    box-sizing: border-box;
+    align-items: flex-start;
+    padding: 12px 0;
+  }
+  .game-over-panel {
+    box-sizing: border-box;
+    min-width: 0;
+    width: calc(100vw - 32px);
+    max-width: 420px;
+    margin: auto;
+    padding: 16px 14px;
+  }
+  .game-over-eyebrow { margin-bottom: 3px; font-size: 9px; }
+  .game-over-title { font-size: clamp(26px, 7vw, 32px); letter-spacing: 1px; margin-bottom: 3px; }
+  .game-over-divider { margin: 7px auto 10px; }
+  .game-over-stats { padding: 7px 9px; gap: 4px 10px; margin-bottom: 9px; }
+  .game-over-stats .label { font-size: 9px; letter-spacing: 0.12em; }
+  .game-over-stats .value { font-size: 18px; }
+  .game-over-stats .value.dim { font-size: 16px; }
+  .new-best { margin-bottom: 7px; padding: 3px 9px; font-size: 10px; }
+  .game-over-rank { margin: 4px 0; font-size: 11px; }
+  .game-over-buttons { gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .game-over-restart { min-width: 0; }
+  .game-over-back { min-width: 0; }
+  .game-over-buttons .menu-button { font-size: 14px; padding: 9px 16px; }
   .game-over-stats .value { font-size: 22px; }
   .game-over-stats .value.dim { font-size: 18px; }
   .menu.menu-pause h1 { font-size: 40px; letter-spacing: 2px; }
