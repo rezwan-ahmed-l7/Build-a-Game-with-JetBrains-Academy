@@ -3,7 +3,16 @@ import http from 'node:http';
 const PORT = Number(process.env.PORT || 10000);
 const JSONBIN_BIN_ID = process.env.JSONBIN_BIN_ID;
 const JSONBIN_MASTER_KEY = process.env.JSONBIN_MASTER_KEY;
-const ALLOWED_ORIGINS = new Set((process.env.ALLOWED_ORIGIN || '').split(',').map((value) => value.trim()).filter(Boolean));
+const ALLOWED_ORIGINS = new Set([
+  ...(process.env.ALLOWED_ORIGIN || '').split(',').map((value) => value.trim()).filter(Boolean),
+  // Known public game origins: keep shared leaderboard access working even
+  // when a static host's build-time environment variable is not configured.
+  'https://tode-frog-game.onrender.com',
+  'https://build-a-game-with-jet-brains-academ.vercel.app',
+  'https://build-a-game-with-jet-brains-academy-metrix7.vercel.app',
+  'https://build-a-game-with-jet-brains-academy-bem0mv9i1-metrix7.vercel.app',
+  'https://build-a-game-with-jet-brains-academy-git-main-metrix7.vercel.app'
+]);
 const JSONBIN_BASE_URL = 'https://api.jsonbin.io/v3';
 const CAP = 5;
 const MAX_BODY_BYTES = 8 * 1024;
