@@ -16,22 +16,24 @@ function cylinder(parent, radiusTop, radiusBottom, height, color, pos, rot = [0,
 }
 function person(ship, x, y, scale, clothes) {
   const g = new THREE.Group(); g.position.set(x, y, 9); g.scale.setScalar(scale);
-  cylinder(g, 1.6, 1.9, 5.5, clothes, [0, 0, 0]);
+  cylinder(g, 1.6, 1.9, 5.5, clothes, [0, 0, 0], [Math.PI / 2, 0, 0]);
   const head = new THREE.Mesh(new THREE.SphereGeometry(1.65, 8, 7), mat(0xb8784f));
   head.position.z = 4.0; g.add(head);
-  cylinder(g, 2.2, 2.2, 0.8, 0x29262b, [0, 0, 5.0]);
+  cylinder(g, 2.2, 2.2, 0.8, 0x29262b, [0, 0, 5.0], [Math.PI / 2, 0, 0]);
   ship.add(g);
 }
 function sail(ship, x, height, color) {
-  cylinder(ship, 1, 1.3, height, 0x543923, [x, 0, height / 2 + 9]);
+  cylinder(ship, 1, 1.3, height, 0x543923, [x, 0, height / 2 + 9], [Math.PI / 2, 0, 0]);
   const shape = new THREE.Shape();
   shape.moveTo(0, 0); shape.lineTo(height * 0.48, height * 0.12);
   shape.quadraticCurveTo(height * 0.45, height * 0.56, 0, height * 0.78); shape.closePath();
-  const cloth = new THREE.Mesh(new THREE.ShapeGeometry(shape, 6), mat(color));
+  const clothGeometry = new THREE.ShapeGeometry(shape, 6);
+  clothGeometry.rotateX(Math.PI / 2);
+  const cloth = new THREE.Mesh(clothGeometry, mat(color));
   cloth.material.side = THREE.DoubleSide;
   cloth.position.set(x + 1, -0.7, 15); ship.add(cloth);
   cylinder(ship, 0.55, 0.55, height * 0.5, 0x543923,
-    [x + height * 0.18, 0, height * 0.38 + 15], [Math.PI / 2, 0, 0]);
+    [x + height * 0.18, 0, height * 0.38 + 15], [0, 0, Math.PI / 2]);
 }
 function createShip(kind) {
   const g = new THREE.Group();
