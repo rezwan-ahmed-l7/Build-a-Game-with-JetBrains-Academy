@@ -1867,7 +1867,8 @@ body:has(.touch-root) .controls-strip { display: none; }
   .hearts-hp { font-size: 9px; }
 
   .level-badge {
-    top: 46px;
+    /* Keep the level chip below the two-row pause/audio/environment HUD. */
+    top: 76px;
     left: auto;
     right: max(8px, env(safe-area-inset-right));
     padding: 4px 8px;
@@ -1936,7 +1937,7 @@ body:has(.touch-root) .controls-strip { display: none; }
   }
   .touch-button:active { transform: scale(0.95); }
   .toast-host {
-    top: 88px;
+    top: 108px;
     right: 8px;
     max-width: min(250px, calc(100vw - 16px));
   }
