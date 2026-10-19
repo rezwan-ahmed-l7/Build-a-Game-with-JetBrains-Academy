@@ -46,6 +46,7 @@ const HOUSE_COLLISION_RADIUS = 14;
 const _color = new THREE.Color();
 const _greenTint = new THREE.Color();
 
+const BUSH_FOLIAGE_GEOMETRY = new THREE.IcosahedronGeometry(1, 1);
 const BUSH_FOLIAGE_MATERIALS = [
   0x315b32, 0x3d6a37, 0x4c743b, 0x587c40, 0x2f6346, 0x6b8546
 ].map((color) => new THREE.MeshStandardMaterial({
@@ -479,7 +480,7 @@ function makeBush(rand) {
   for (let i = 0; i < blobs; i++) {
     const r = 1.45 + rand() * 0.8;
     const blob = new THREE.Mesh(
-      new THREE.IcosahedronGeometry(r, 1),
+      BUSH_FOLIAGE_GEOMETRY,
       BUSH_FOLIAGE_MATERIALS[Math.floor(rand() * BUSH_FOLIAGE_MATERIALS.length)]
     );
     const ang = rand() * Math.PI * 2;
@@ -487,7 +488,11 @@ function makeBush(rand) {
     blob.position.x = Math.cos(ang) * dist;
     blob.position.y = Math.sin(ang) * dist;
     blob.position.z = r * (0.62 + rand() * 0.12) + (i === 0 ? 0.25 : 0);
-    blob.scale.set(0.94 + rand() * 0.25, 0.88 + rand() * 0.25, 0.82 + rand() * 0.24);
+    blob.scale.set(
+      r * (0.94 + rand() * 0.25),
+      r * (0.88 + rand() * 0.25),
+      r * (0.82 + rand() * 0.24)
+    );
     blob.rotation.set((rand() - 0.5) * 0.18, (rand() - 0.5) * 0.18, rand() * Math.PI * 2);
     blob.castShadow = true;
     blob.receiveShadow = true;
