@@ -276,8 +276,7 @@ ground.position.z = -0.5;
 ground.receiveShadow = true;
 scene.add(ground);
 
-// Sand beach ring — a sandy shore around the ground edge (840–900)
-// that gives the island a natural beach look before the dark water beyond.
+// Sand beach ring — extends from the ground edge (900) to the outer shore (1090).
 function createSandTexture() {
   const size = 512;
   const canvas = document.createElement('canvas');
@@ -335,7 +334,7 @@ function createSandTexture() {
   texture.needsUpdate = true;
   return texture;
 }
-const sandGeometry = new THREE.RingGeometry(GROUND_RADIUS, GROUND_RADIUS + 150, 128);
+const sandGeometry = new THREE.RingGeometry(GROUND_RADIUS, 1090, 128);
 const sandMaterial = new THREE.MeshStandardMaterial({
   color: 0xc4a96a, map: createSandTexture(), roughness: 1.0, metalness: 0
 });
@@ -382,7 +381,7 @@ function createSeaTexture() {
   texture.needsUpdate = true;
   return texture;
 }
-const seaGeometry = new THREE.RingGeometry(1000, 2000, 256, 24);
+const seaGeometry = new THREE.RingGeometry(1060, 2000, 256, 24);
 const seaMaterial = new THREE.MeshStandardMaterial({
   color: 0xffffff, map: createSeaTexture(), roughness: 0.34, metalness: 0.04,
   transparent: true, opacity: 0.97, depthWrite: false,
@@ -415,9 +414,9 @@ for (let i = 0; i < 10; i++) {
   );
   ripple.position.z = -1.5;
   const angle = (i / 10) * Math.PI * 2;
-  // Start at shore edge (1000)
-  ripple.position.x = Math.cos(angle) * 1000;
-  ripple.position.y = Math.sin(angle) * 1000;
+  // Start at the sea boundary (1060).
+  ripple.position.x = Math.cos(angle) * 1060;
+  ripple.position.y = Math.sin(angle) * 1060;
   ripple.userData.phase = i * 0.6;
   ripple.userData.speed = 0.15 + Math.random() * 0.1;
   ripple.userData.angle = angle;
@@ -591,10 +590,9 @@ for (let i = 0; i < 34; i++) {
 }
 scene.add(beachPlants);
 
-// Coconut palms on the outer beach: curved ringed trunks, clustered coconuts,
-// and feather-like fronds made from opaque solid-color geometry. These are
-// deliberately placed near the outer sand so they frame the shore without
-// filling the crab walking lanes.
+// Coconut palms on the beach: curved ringed trunks, clustered coconuts,
+// and feather-like fronds made from opaque solid-color geometry. Palm bases
+// stay between radius 960 and 1015, safely inside the sea boundary at 1060.
 const palmGroup = new THREE.Group();
 const palmBarkMat = new THREE.MeshStandardMaterial({
   color: 0x765036, roughness: 0.96, metalness: 0, transparent: false, opacity: 1
@@ -759,7 +757,7 @@ function makeCoconutPalm() {
 
 for (let i = 0; i < 9; i++) {
   const angle = (i / 9) * Math.PI * 2 + (Math.random() - 0.5) * 0.28;
-  const radius = GROUND_RADIUS + 112 + Math.random() * 27;
+  const radius = 960 + Math.random() * 55;
   const palm = makeCoconutPalm();
   palm.position.set(Math.cos(angle) * radius, Math.sin(angle) * radius, 0.02);
   palm.rotation.z = Math.random() * Math.PI * 2;
@@ -1349,8 +1347,8 @@ function animate(currentTime) {
   for (const ripple of seaRipples) {
     const phase = (time * ripple.userData.speed + ripple.userData.phase) % 3;
     const t = phase / 3;
-    // Move from shore (1000) outward into sea
-    const dist = 1000 + t * 600;
+    // Move from the sea boundary (1060) outward into sea.
+    const dist = 1060 + t * 600;
     ripple.position.x = Math.cos(ripple.userData.angle) * dist;
     ripple.position.y = Math.sin(ripple.userData.angle) * dist;
     ripple.scale.setScalar(1 + t * 30);
