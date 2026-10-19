@@ -1688,20 +1688,31 @@ canvas.game {
   .menu-brand::after { display: none; }
 }
 @media (max-height: 480px) {
-  /* Landscape mobile 640×360: hide everything except brand + Play button.
-     The how-to-play pills + profile row + leaderboard are reachable via
-     the .menu's overflow-y: auto scroll. */
+  /* Landscape mobile: compact and scroll the game-over overlay if needed. */
+  .game-over { padding: 6px 0; }
+  .game-over-panel { padding: 10px 12px; }
+  .game-over-eyebrow { display: none; }
+  .game-over-title { font-size: 24px; margin-bottom: 0; }
+  .game-over-divider { margin: 5px auto 7px; }
+  .game-over-stats { padding: 5px 8px; gap: 2px 8px; margin-bottom: 5px; }
+  .game-over-stats .value { font-size: 16px; }
+  .game-over-stats .value.dim { font-size: 14px; }
+  .game-over-buttons { gap: 6px; margin-top: 5px; flex-wrap: nowrap; }
+  .game-over-restart { min-width: 104px; }
+  .game-over-back { min-width: 78px; }
+  .game-over-buttons .menu-button { font-size: 14px; padding: 9px 14px; letter-spacing: 0.5px; }
+  /* Landscape start menu remains scrollable; keep its existing compact mode. */
   .how-to-play, .profile-row, .leaderboard-wrap { display: none; }
   .menu-title { font-size: 30px; }
 }
 
 @media (max-width: 640px) {
-  .score { top: 12px; padding: 8px 14px; font-size: 20px; }
-  .level-badge { top: 12px; left: auto; right: 12px; font-size: 14px; padding: 8px 12px; }
-  .combo-chip { top: 50px; padding: 5px 12px; font-size: 14px; }
-  .hearts { top: 12px; left: 12px; padding: 6px 10px; gap: 3px; }
-  .heart { width: 22px; height: 22px; }
-  .hearts-hp { font-size: 10px; padding-left: 6px; margin-left: 4px; }
+  .score { top: 10px; padding: 6px 11px; font-size: 17px; }
+  .level-badge { top: 10px; left: auto; right: 10px; font-size: 13px; padding: 6px 10px; }
+  .combo-chip { top: 46px; padding: 4px 10px; font-size: 13px; }
+  .hearts { top: 10px; left: 10px; padding: 5px 8px; gap: 2px; }
+  .heart { width: 19px; height: 19px; }
+  .hearts-hp { font-size: 9px; padding-left: 5px; margin-left: 3px; }
   .menu-hud { top: 10px; right: 10px; gap: 6px; }
   .icon-button { width: 36px; height: 36px; font-size: 14px; }
   .mode-pill { font-size: 10px; padding: 5px 10px; }
@@ -1709,9 +1720,34 @@ canvas.game {
   .toast-notification { min-width: 0; max-width: calc(100vw - 24px); padding: 8px 12px 8px 10px; }
   .toast-label { font-size: 11px; }
   .toast-desc { font-size: 12px; }
-  .game-over-panel { min-width: 0; width: calc(100vw - 40px); padding: 28px 18px; }
-  .game-over-title { font-size: 38px; letter-spacing: 2px; }
-  .game-over-stats { padding: 10px 12px; gap: 6px 14px; }
+  /* Keep the complete game-over panel reachable on short phone screens. */
+  .game-over {
+    overflow-y: auto;
+    box-sizing: border-box;
+    align-items: flex-start;
+    padding: 12px 0;
+  }
+  .game-over-panel {
+    box-sizing: border-box;
+    min-width: 0;
+    width: calc(100vw - 32px);
+    max-width: 420px;
+    margin: auto;
+    padding: 16px 14px;
+  }
+  .game-over-eyebrow { margin-bottom: 3px; font-size: 9px; }
+  .game-over-title { font-size: clamp(26px, 7vw, 32px); letter-spacing: 1px; margin-bottom: 3px; }
+  .game-over-divider { margin: 7px auto 10px; }
+  .game-over-stats { padding: 7px 9px; gap: 4px 10px; margin-bottom: 9px; }
+  .game-over-stats .label { font-size: 9px; letter-spacing: 0.12em; }
+  .game-over-stats .value { font-size: 18px; }
+  .game-over-stats .value.dim { font-size: 16px; }
+  .new-best { margin-bottom: 7px; padding: 3px 9px; font-size: 10px; }
+  .game-over-rank { margin: 4px 0; font-size: 11px; }
+  .game-over-buttons { gap: 8px; margin-top: 8px; flex-wrap: nowrap; }
+  .game-over-restart { min-width: 112px; }
+  .game-over-back { min-width: 84px; }
+  .game-over-buttons .menu-button { font-size: 14px; padding: 10px 16px; letter-spacing: 0.5px; }
   .game-over-stats .value { font-size: 22px; }
   .game-over-stats .value.dim { font-size: 18px; }
   .menu.menu-pause h1 { font-size: 40px; letter-spacing: 2px; }
@@ -1726,15 +1762,6 @@ canvas.game {
   .menu-buttons { width: calc(100vw - 48px); justify-content: center; }
   .menu-button.primary { min-width: 168px; font-size: 17px; padding: 12px 30px; }
   .controls-strip { font-size: 10px; padding: 5px 10px; bottom: 12px; }
-  /* On touch devices the joystick + DASH/ATK buttons are the input —
-     the keyboard-hint strip is useless noise that would cover them.
-     Hide it entirely (and stop reserving space for it) when touch.
-     .touch-root is appended to <body> AFTER .controls-strip, so the
-     `~` combinator (later sibling) wouldn't match. We use :has() on
-     <body> to find "body has .touch-root AND .controls-strip as
-     children" and hide the strip. */
-  body:has(.touch-root) .controls-strip { display: none; }
-
   /* Profile + leaderboard responsive tweaks */
   .profile-row { width: calc(100vw - 36px); padding: 4px 6px; gap: 6px; }
   .profile-name { font-size: 14px; }
@@ -1763,6 +1790,9 @@ canvas.game {
   .lb-flag { font-size: 15px; }
   .game-over-rank { font-size: 13px; }
 }
+
+/* Touch devices use virtual controls; keep keyboard hints on desktop only. */
+body:has(.touch-root) .controls-strip { display: none; }
 
 @media (prefers-reduced-motion: reduce) {
   .score, .combo-chip, .combo-chip.milestone, .heart, .icon-button, .mode-pill, .menu-button,
