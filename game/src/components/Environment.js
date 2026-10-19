@@ -243,7 +243,7 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
     }
     const bodyGeo = new THREE.LatheGeometry(bodyPoints, 20);
     const body = new THREE.Mesh(bodyGeo, birdMat);
-    body.rotation.z = Math.PI / 2;
+    body.rotation.z = -Math.PI / 2;
     birdGroup.add(body);
 
     // --- Belly: lighter underside ---
@@ -260,7 +260,7 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
     }
     const bellyGeo = new THREE.LatheGeometry(bellyPoints, 10, 0, Math.PI);
     const belly = new THREE.Mesh(bellyGeo, bellyMat);
-    belly.rotation.z = Math.PI / 2;
+    belly.rotation.z = -Math.PI / 2;
     belly.rotation.y = Math.PI / 2;
     birdGroup.add(belly);
 
@@ -306,19 +306,28 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
       transparent: true, opacity: 0, depthWrite: false, fog: false, side: THREE.DoubleSide
     });
 
-    // Left wing — swept back
-    const leftWingGeo = new THREE.PlaneGeometry(16, 6, 8, 4);
-    const leftWing = new THREE.Mesh(leftWingGeo, wingMat.clone());
-    leftWing.position.set(-5, 0.5, 0.8);
-    leftWing.rotation.z = -0.3;
+    // Wings attach at the shoulders and extend laterally, not along the
+    // bird's nose-to-tail axis. The canvas texture supplies the feathered edge.
+    const leftWing = new THREE.Group();
+    leftWing.position.set(-0.35, -0.62, 0.62);
+    leftWing.rotation.z = -Math.PI / 2;
+    const leftWingMesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(16, 6, 8, 4),
+      wingMat.clone()
+    );
+    leftWingMesh.position.x = 7;
+    leftWing.add(leftWingMesh);
     birdGroup.add(leftWing);
 
-    // Right wing — mirrored
-    const rightWingGeo = new THREE.PlaneGeometry(16, 6, 8, 4);
-    const rightWing = new THREE.Mesh(rightWingGeo, wingMat.clone());
-    rightWing.position.set(5, 0.5, 0.8);
-    rightWing.rotation.z = 0.3;
-    rightWing.rotation.y = Math.PI;
+    const rightWing = new THREE.Group();
+    rightWing.position.set(-0.35, 0.62, 0.62);
+    rightWing.rotation.z = Math.PI / 2;
+    const rightWingMesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(16, 6, 8, 4),
+      wingMat.clone()
+    );
+    rightWingMesh.position.x = 7;
+    rightWing.add(rightWingMesh);
     birdGroup.add(rightWing);
 
     // --- Head: smooth sphere with slight elongation ---
@@ -345,10 +354,10 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
       color: 0x111111, transparent: true, opacity: 0, depthWrite: false, fog: false
     });
     const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
-    eyeL.position.set(5.0, 0.6, 0.35);
+    eyeL.position.set(5.0, 0.35, 0.6);
     birdGroup.add(eyeL);
     const eyeR = new THREE.Mesh(eyeGeo, eyeMat);
-    eyeR.position.set(5.0, 0.6, -0.35);
+    eyeR.position.set(5.0, -0.35, 0.6);
     birdGroup.add(eyeR);
 
     // --- Tail: forked (swallow-style) ---
@@ -359,23 +368,23 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
     // Left fork
     const tailLGeo = new THREE.PlaneGeometry(3, 4);
     const tailL = new THREE.Mesh(tailLGeo, tailMat);
-    tailL.position.set(-4.5, 0.3, 0.4);
-    tailL.rotation.z = 0.4;
+    tailL.position.set(-5.0, -0.45, 0.18);
+    tailL.rotation.z = 0.28;
     birdGroup.add(tailL);
     // Right fork
     const tailRGeo = new THREE.PlaneGeometry(3, 4);
     const tailR = new THREE.Mesh(tailRGeo, tailMat);
-    tailR.position.set(-4.5, 0.3, -0.4);
-    tailR.rotation.z = -0.4;
+    tailR.position.set(-5.0, 0.45, 0.18);
+    tailR.rotation.z = -0.28;
     birdGroup.add(tailR);
 
     // --- Wing joints (shoulder bumps) ---
     const jointGeo = new THREE.SphereGeometry(0.35, 6, 4);
     const jointL = new THREE.Mesh(jointGeo, birdMat);
-    jointL.position.set(-5, 0.5, 0.5);
+    jointL.position.set(-0.35, -0.62, 0.55);
     birdGroup.add(jointL);
     const jointR = new THREE.Mesh(jointGeo, birdMat);
-    jointR.position.set(5, 0.5, 0.5);
+    jointR.position.set(-0.35, 0.62, 0.55);
     birdGroup.add(jointR);
 
     // Flight parameters
@@ -862,7 +871,7 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
       // Wing flapping animation — rotate wings up and down
       const flapAngle = Math.sin(elapsed * data.flapSpeed + data.flapPhase) * 0.5;
       data.leftWing.rotation.x = flapAngle;
-      data.rightWing.rotation.x = -flapAngle;
+      data.rightWing.rotation.x = flapAngle;
       // Tail fork slight bob
       data.tailL.rotation.x = Math.sin(elapsed * data.flapSpeed * 0.5 + data.flapPhase) * 0.15;
       data.tailR.rotation.x = Math.sin(elapsed * data.flapSpeed * 0.5 + data.flapPhase) * 0.15;
