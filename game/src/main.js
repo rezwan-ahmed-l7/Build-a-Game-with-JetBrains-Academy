@@ -591,6 +591,183 @@ for (let i = 0; i < 34; i++) {
 }
 scene.add(beachPlants);
 
+// Coconut palms on the outer beach: curved ringed trunks, clustered coconuts,
+// and feather-like fronds made from opaque solid-color geometry. These are
+// deliberately placed near the outer sand so they frame the shore without
+// filling the crab walking lanes.
+const palmGroup = new THREE.Group();
+const palmBarkMat = new THREE.MeshStandardMaterial({
+  color: 0x765036, roughness: 0.96, metalness: 0, transparent: false, opacity: 1
+});
+const palmRingMat = new THREE.MeshStandardMaterial({
+  color: 0xb18a5a, roughness: 0.95, metalness: 0, transparent: false, opacity: 1
+});
+const coconutMats = [
+  new THREE.MeshStandardMaterial({ color: 0x4b5a2b, roughness: 0.88, transparent: false, opacity: 1 }),
+  new THREE.MeshStandardMaterial({ color: 0x72502c, roughness: 0.92, transparent: false, opacity: 1 })
+];
+const palmFrondMats = [
+  new THREE.MeshStandardMaterial({ color: 0x285d35, roughness: 0.9, side: THREE.DoubleSide, transparent: false, opacity: 1 }),
+  new THREE.MeshStandardMaterial({ color: 0x397943, roughness: 0.9, side: THREE.DoubleSide, transparent: false, opacity: 1 }),
+  new THREE.MeshStandardMaterial({ color: 0x568747, roughness: 0.92, side: THREE.DoubleSide, transparent: false, opacity: 1 })
+];
+
+function addPalmLeaflet(vertices, indices, a, b, c) {
+  const base = vertices.length / 3;
+  vertices.push(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z);
+  indices.push(base, base + 1, base + 2, base + 2, base + 1, base);
+}
+
+function makeCoconutPalm() {
+  const palm = new THREE.Group();
+  const trunkHeight = 25 + Math.random() * 7;
+  const bendAngle = Math.random() * Math.PI * 2;
+  const bend = 1.5 + Math.random() * 2.8;
+  const trunkPoints = [];
+  for (let i = 0; i <= 6; i++) {
+    const t = i / 6;
+    trunkPoints.push(new THREE.Vector3(
+      Math.cos(bendAngle) * bend * t * t,
+      Math.sin(bendAngle) * bend * t * t,
+      trunkHeight * t
+    ));
+  }
+
+  // Tapered trunk sections follow a subtle natural curve.
+  for (let i = 0; i < trunkPoints.length - 1; i++) {
+    const start = trunkPoints[i];
+    const end = trunkPoints[i + 1];
+    const direction = end.clone().sub(start);
+    const trunkSegment = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.95 - i * 0.065, 1.2 - i * 0.075, direction.length(), 9, 1),
+      palmBarkMat
+    );
+    trunkSegment.position.copy(start).add(end).multiplyScalar(0.5);
+    trunkSegment.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.normalize());
+    trunkSegment.castShadow = true;
+    trunkSegment.receiveShadow = true;
+    palm.add(trunkSegment);
+
+    // Subtle raised growth rings help the trunk read as fibrous palm wood.
+    if (i > 0 && i < 6) {
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.86 - i * 0.055, 0.075, 5, 10), palmRingMat);
+      ring.position.copy(start);
+      ring.rotation.x = Math.PI / 2;
+      ring.scale.set(1, 1, 0.85);
+      palm.add(ring);
+    }
+  }
+
+  const crown = trunkPoints[trunkPoints.length - 1].clone();
+  const frondVertices = [];
+  const frondIndices = [];
+  const frondGroups = [[], [], []];
+  const frondCount = 7 + Math.floor(Math.random() * 2);
+  for (let f = 0; f < frondCount; f++) {
+    const angle = (f / frondCount) * Math.PI * 2 + Math.random() * 0.28;
+    const length = 14 + Math.random() * 7;
+    const droop = 5.5 + Math.random() * 4.5;
+    const direction = new THREE.Vector3(Math.cos(angle), Math.sin(angle), 0);
+    const side = new THREE.Vector3(-Math.sin(angle), Math.cos(angle), 0);
+    const spinePoints = [];
+    for (let s = 0; s <= 4; s++) {
+      const t = s / 4;
+      spinePoints.push(new THREE.Vector3(
+        crown.x + direction.x * length * t,
+        crown.y + direction.y * length * t,
+        crown.z + 2.5 * t - droop * t * t
+      ));
+    }
+    for (let s = 0; s < spinePoints.length - 1; s++) {
+      const a = spinePoints[s], b = spinePoints[s + 1];
+      const delta = b.clone().sub(a);
+      const rachis = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.13 * (1 - s * 0.12), 0.25 * (1 - s * 0.12), delta.length(), 5),
+        palmRingMat
+      );
+      rachis.position.copy(a).add(b).multiplyScalar(0.5);
+      rachis.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), delta.normalize());
+      palm.add(rachis);
+    }
+
+    const matIndex = f % palmFrondMats.length;
+    for (let k = 1; k <= 9; k++) {
+      const t = 0.12 + k * 0.078;
+      const spine = new THREE.Vector3(
+        crown.x + direction.x * length * t,
+        crown.y + direction.y * length * t,
+        crown.z + 2.5 * t - droop * t * t
+      );
+      const leafletLength = (2.6 + Math.random() * 1.6) * (1 - t * 0.38);
+      for (const sign of [-1, 1]) {
+        const root = spine.clone();
+        const outer = spine.clone().addScaledVector(side, sign * leafletLength);
+        outer.z -= 1.2 + t * 1.5;
+        const tip = outer.clone().addScaledVector(direction, length * 0.065);
+        tip.z -= 0.45;
+        const center = root.clone().lerp(outer, 0.48);
+        center.z += 0.28;
+        const target = frondGroups[matIndex];
+        addPalmLeaflet(target, frondIndices, root, center, tip);
+        addPalmLeaflet(target, frondIndices, root, outer, center);
+      }
+    }
+  }
+
+  // Build each color family into one mesh to keep the extra palm detail light.
+  for (let m = 0; m < frondGroups.length; m++) {
+    const positions = [];
+    const indices = [];
+    const vertices = frondGroups[m];
+    for (let i = 0; i < vertices.length; i += 9) {
+      const base = positions.length / 3;
+      positions.push(...vertices.slice(i, i + 9));
+      indices.push(base, base + 1, base + 2, base + 2, base + 1, base);
+    }
+    if (positions.length) {
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+      geometry.setIndex(indices);
+      geometry.computeVertexNormals();
+      const fronds = new THREE.Mesh(geometry, palmFrondMats[m]);
+      fronds.castShadow = true;
+      fronds.receiveShadow = true;
+      palm.add(fronds);
+    }
+  }
+
+  // A tight cluster of coconuts sits directly below the frond crown.
+  const coconutCount = 3 + Math.floor(Math.random() * 3);
+  for (let i = 0; i < coconutCount; i++) {
+    const a = (i / coconutCount) * Math.PI * 2;
+    const coconut = new THREE.Mesh(
+      new THREE.SphereGeometry(0.95 + Math.random() * 0.22, 9, 7),
+      coconutMats[i % coconutMats.length]
+    );
+    coconut.position.set(
+      crown.x + Math.cos(a) * 1.1,
+      crown.y + Math.sin(a) * 1.1,
+      crown.z - 1.1 + Math.random() * 0.5
+    );
+    coconut.scale.set(1, 0.9, 1.15);
+    coconut.castShadow = true;
+    palm.add(coconut);
+  }
+
+  return palm;
+}
+
+for (let i = 0; i < 9; i++) {
+  const angle = (i / 9) * Math.PI * 2 + (Math.random() - 0.5) * 0.28;
+  const radius = GROUND_RADIUS + 112 + Math.random() * 27;
+  const palm = makeCoconutPalm();
+  palm.position.set(Math.cos(angle) * radius, Math.sin(angle) * radius, 0.02);
+  palm.rotation.z = Math.random() * Math.PI * 2;
+  palm.scale.setScalar(0.82 + Math.random() * 0.38);
+  palmGroup.add(palm);
+}
+scene.add(palmGroup);
+
 function createCrabShape(color) {
   const g = new THREE.Group();
   const shellColor = new THREE.Color(color || 0xe53935);
