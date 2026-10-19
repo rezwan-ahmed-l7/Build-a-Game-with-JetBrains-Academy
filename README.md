@@ -1,58 +1,113 @@
 # Tode the Frog — Moonlit Meadow
 
 <p align="center">
-  <strong>A 3D browser survival game built with Three.js and Vite</strong><br />
-  A JetBrains Academy learning project, extended with a custom game world, responsive menus, combat, power-ups, and a shared leaderboard.
+  <strong>A custom 3D browser survival game built on the JetBrains Academy course project</strong><br />
+  Designed, extended, and maintained by <a href="https://github.com/rezwan-ahmed-l7">Rezwan Ahmed</a>.
 </p>
 
 <p align="center">
-  <a href="https://build-a-game-with-jet-brains-academ.vercel.app/"><img src="https://img.shields.io/badge/Play-Live%20Demo-6d5dfc?style=for-the-badge" alt="Play the live game" /></a>
-  <img src="https://img.shields.io/badge/JavaScript-ES%20Modules-f7df1e?style=for-the-badge&logo=javascript&logoColor=222" alt="JavaScript ES modules" />
+  <a href="https://build-a-game-with-jet-brains-academ.vercel.app/"><img src="https://img.shields.io/badge/PLAY-Live%20Game-6d5dfc?style=for-the-badge" alt="Play the live game" /></a>
+  <a href="https://www.coursera.org/learn/jb-build-game-with-ai-agent/"><img src="https://img.shields.io/badge/COURSE-JetBrains%20Academy-0056D2?style=for-the-badge&logo=coursera&logoColor=white" alt="JetBrains Academy course" /></a>
+  <img src="https://img.shields.io/badge/JavaScript-ES%20Modules-f7df1e?style=for-the-badge&logo=javascript&logoColor=222" alt="JavaScript" />
   <img src="https://img.shields.io/badge/Three.js-3D%20Rendering-black?style=for-the-badge&logo=threedotjs&logoColor=white" alt="Three.js" />
-  <img src="https://img.shields.io/badge/License-MIT-2ea44f?style=for-the-badge" alt="MIT License" />
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-2ea44f?style=for-the-badge" alt="MIT License" /></a>
 </p>
 
-## Overview
+## About the project
 
-**Tode the Frog — Moonlit Meadow** is a browser-based 3D survival game inspired by the original [Build a Game with an AI Coding Agent](https://github.com/jetbrains-academy/game-course) course from JetBrains Academy. The player controls Tode, a small frog surviving in a stylized meadow, fighting enemies, collecting power-ups, and trying to beat previous scores.
+**Tode the Frog — Moonlit Meadow** is a browser-based 3D survival game that I developed by extending the *Build a Game with an AI Coding Agent* educational project from JetBrains Academy. I used **WebStorm** as my main development IDE and JavaScript, Three.js, and Vite to build and refine the game.
 
-This repository keeps the learning-project roots while developing the game into a more complete experience through custom environment art, day/night transitions, gameplay feedback, responsive menus, and deployment work.
+You play as Tode, a frog surviving in a stylized meadow. Move through the arena, fight incoming enemies, use dash and attack abilities, collect power-ups, and aim for a new high score. Beyond the original learning foundation, this repository focuses on a richer game world, combat feedback, day/night atmosphere, responsive desktop/mobile controls, and an online leaderboard.
 
-## Play
+**[Play Tode the Frog — Moonlit Meadow](https://build-a-game-with-jet-brains-academ.vercel.app/)**
 
-**[Launch the live game](https://build-a-game-with-jet-brains-academ.vercel.app/)**
+## Game features
 
-On a phone, the start screen supports portrait orientation, while the menu is designed to remain usable in landscape too. Touch devices use on-screen controls; desktop users can play with a keyboard.
+### World design and atmosphere
 
-## Features
+The game world is designed as a stylized meadow rather than an empty arena. The environment includes:
 
-- **3D game world** — real-time rendering powered by Three.js.
-- **Survival combat** — move around the arena, attack enemies, and stay alive.
-- **Dash and power-ups** — use movement and attack upgrades to change how a run plays.
-- **Day/night environment** — cycle the environment mode and play under changing sky and lighting.
-- **Player profile** — enter a name and select a country flag before starting a run.
-- **Leaderboard** — shared Top 5 scores and a play-attempt counter through a separate API service.
-- **Desktop and mobile controls** — keyboard input on desktop and touch controls on supported devices.
-- **Responsive menus** — start, pause, and game-over screens designed for different viewport sizes.
-- **Browser-based delivery** — built with Vite and deployable as a static site.
+- A custom sky gradient and atmospheric lighting that changes throughout the day/night cycle.
+- A moving sun and moon, stars at night, and changing daylight, dusk, and moonlit colors.
+- Drifting clouds and independently flying birds to give the sky depth and life.
+- Fireflies in darker hours and butterflies in daylight.
+- A varied meadow with trees, bushes, rocks, houses, and ponds placed around the playable space.
+- Environmental spacing and collision boundaries that keep scenery and gameplay readable.
 
-## Tech stack
+### Gameplay
+
+- **Survival combat:** fight different enemy types with distinct behaviors and difficulty.
+- **Attack and dash:** attack nearby enemies and dash to reposition or avoid danger.
+- **Health and progression:** monitor health, score, level, combos, and run performance.
+- **Power-ups:** collect upgrades that change or improve abilities during a run.
+- **Combat feedback:** hit effects, damage numbers, particles, screen shake, and enemy defeat animations.
+- **Day/night selection:** switch between automatic cycling, daytime, and nighttime.
+- **Pause and restart:** pause a run, resume it, restart, or return to the main menu.
+- **Personal best:** local high-score tracking and end-of-run stats.
+
+### Desktop and mobile play
+
+The game runs in a modern browser without a separate installer.
+
+- **Desktop:** keyboard gameplay, mouse-wheel camera zoom, and drag-to-orbit camera control.
+- **Mobile:** on-screen joystick, Attack and Dash buttons, compact health/score/control HUD, and responsive portrait/landscape layouts.
+- **Two-finger camera zoom:** pinch outward to zoom in and pinch inward to zoom out on the game canvas.
+- **Adjustable view:** orbit the camera to see the arena and nearby threats from a different angle.
+
+### Shared online leaderboard
+
+A separate server-side API connects the game to the existing JSONBin-backed data store.
+
+- Shared Top 5 leaderboard fetched from the online API.
+- Player name and country-flag selection.
+- Score submission after a run, with rank feedback when the score qualifies.
+- A shared play-attempt counter.
+- Server-side storage credentials, kept out of the public frontend bundle.
+
+Leaderboard updates depend on network/API availability; the game itself is browser-based, while shared scores require an internet connection.
+
+## Screenshots and gameplay gallery
+
+Add real screenshots from the deployed game to the paths below. Captures from both daytime and moonlit gameplay, plus a mobile landscape view, will make this repository easier to evaluate.
+
+<!-- Save real screenshots in docs/images/ and uncomment the relevant image lines when they are added. Do not use mockups in place of actual gameplay captures. -->
+
+<!--
+<p align="center">
+  <img src="docs/images/gameplay-day.png" width="48%" alt="Tode the Frog gameplay during daytime" />
+  <img src="docs/images/gameplay-night.png" width="48%" alt="Tode the Frog gameplay at night" />
+</p>
+<p align="center">
+  <img src="docs/images/gameplay-mobile-landscape.png" width="70%" alt="Tode the Frog on a mobile screen in landscape orientation" />
+</p>
+-->
+
+## JetBrains Academy course completion
+
+The original learning path for this project is the JetBrains Academy *Build a Game with an AI Coding Agent* course. I completed the course and am keeping this section for the course completion certificate.
+
+<!-- Add your actual certificate image as docs/images/jetbrains-course-certificate.png, then uncomment the image below. -->
+<!-- <p align="center"><img src="docs/images/jetbrains-course-certificate.png" width="72%" alt="JetBrains Academy Build a Game with an AI Coding Agent course completion certificate" /></p> -->
+
+## Tech stack and tools
 
 | Area | Technology |
 | --- | --- |
-| Language | JavaScript (ES modules) |
+| Main language | JavaScript (ES modules) |
 | 3D rendering | [Three.js](https://threejs.org/) |
-| Development server and build | [Vite](https://vite.dev/) |
-| Leaderboard API | Node.js serverless API on Vercel |
-| Leaderboard storage | JSONBin, accessed server-side |
-| Version control | Git and GitHub |
+| Frontend tooling | [Vite](https://vite.dev/) |
+| Main IDE | [WebStorm](https://www.jetbrains.com/webstorm/) |
+| Course foundation | [JetBrains Academy — Build a Game with an AI Coding Agent](https://www.coursera.org/learn/jb-build-game-with-ai-agent/) |
+| Online leaderboard API | Node.js serverless API on Vercel |
+| Shared leaderboard storage | JSONBin, accessed server-side |
+| Version control and CI | Git, GitHub, GitHub Actions |
 
 ## Run locally
 
 ### Requirements
 
-- Node.js 20 or newer
-- npm
+- Node.js and npm
+- A modern browser with WebGL support
 
 ### Start the game
 
@@ -66,68 +121,55 @@ npm run dev
 
 Open the local URL printed by Vite (normally `http://localhost:5173`).
 
-Create a production build with:
+Build and preview the production frontend:
 
 ```bash
 npm run build
-```
-
-Preview the production build locally with:
-
-```bash
 npm run preview
 ```
 
-### Run repository tests
+The game can run locally without the shared leaderboard backend, but online scores and attempt counts require the deployed API and its configured server-side credentials.
 
-The repository root contains the Jest test setup. From the repository root, install its dependencies and run:
+## Leaderboard configuration and security
 
-```bash
-npm install
-npm test
-```
+The separate `leaderboard-api` service reads and writes the configured JSONBin record. Its deployment requires server-side environment variables:
 
-Some browser-smoke checks require the project's browser automation dependencies and a compatible Chromium installation.
+- `JSONBIN_BIN_ID` — the existing leaderboard bin identifier.
+- `JSONBIN_MASTER_KEY` — the secret key used by the API.
 
-## Leaderboard architecture
+**Never place the JSONBin Master Key in frontend code or a `VITE_*` environment variable.** Configure secrets in the API deployment settings and allow only the intended public game origins. Do not commit private keys, tokens, or local environment files.
 
-The game client calls the separate `leaderboard-api` service for shared scores and attempt counts. The API reads and writes the configured JSONBin record on the server, so the JSONBin Master Key must **never** be placed in client-side code or exposed through a `VITE_*` environment variable.
-
-The production API needs the following server-side environment variables:
-
-- `JSONBIN_BIN_ID` — the existing leaderboard bin.
-- `JSONBIN_MASTER_KEY` — the JSONBin secret key.
-
-Keep secrets in the deployment provider's environment-variable settings. Do not commit real credentials, tokens, or private configuration files. The API's deployment and CORS configuration must permit requests from the public game origin.
-
-## Repository layout
+## Repository structure
 
 ```text
 .
 ├── game/                  # Three.js game and Vite frontend
+│   ├── public/            # 3D models and public assets
 │   ├── src/
-│   │   ├── components/    # Menus, environment, profile and UI
+│   │   ├── components/    # Gameplay systems, environment, camera and UI
 │   │   ├── data/          # Game data, including country flags
-│   │   └── ...
+│   │   └── utils/         # Shared utilities and persistence
 │   ├── scripts/           # Browser and QA scripts
-│   └── package.json
-├── leaderboard-api/       # Server-side shared leaderboard API
+│   └── tests/             # Game tests
+├── leaderboard-api/       # Server-side leaderboard API
 ├── .github/workflows/     # Automated checks
 ├── LICENSE
 └── README.md
 ```
 
-## Project background and attribution
+## Original project, authorship, and attribution
 
-This repository is based on the educational project **Build a Game with an AI Coding Agent** by JetBrains Academy. The original course introduces building a browser game with help from an AI coding agent. This repository contains additional implementation and customizations made on top of that learning foundation.
+This repository builds on the educational **Build a Game with an AI Coding Agent** project published by **JetBrains Academy / JetBrains s.r.o.** The course provides the original learning foundation and project structure; the game-world extensions, gameplay refinements, responsive UI work, camera interaction, leaderboard integration, and presentation in this repository are my own ongoing customizations.
 
-- [Original JetBrains Academy course repository](https://github.com/jetbrains-academy/game-course)
-- [Course on Coursera](https://www.coursera.org/learn/jb-build-game-with-ai-agent/)
-- [JetBrains Marketplace plugin](https://plugins.jetbrains.com/plugin/30327-build-a-game-with-ai-coding-agent/versions)
-- [Original course issue tracker](https://github.com/jetbrains-academy/game-course/issues)
+- **Portfolio project maintainer:** [Rezwan Ahmed](https://github.com/rezwan-ahmed-l7)
+- **Original course publisher:** [JetBrains Academy](https://github.com/jetbrains-academy/game-course)
+- **Course:** [Build a Game with an AI Coding Agent on Coursera](https://www.coursera.org/learn/jb-build-game-with-ai-agent/)
+- **JetBrains Marketplace:** [Build a Game with an AI Coding Agent](https://plugins.jetbrains.com/plugin/30327-build-a-game-with-ai-coding-agent/versions)
+- **Original course issues and discussions:** [jetbrains-academy/game-course](https://github.com/jetbrains-academy/game-course/issues)
+- **Contribution guidelines for the original project:** [JetBrains Academy contributing guidelines](https://github.com/jetbrains-academy/.github/blob/main/contributing_guidelines.md)
 
-This is a learning and portfolio project, not an official JetBrains product release. JetBrains Academy is credited as the source of the original course project.
+The original course repository carries the official JetBrains project badge; this customized portfolio repository is **not an official JetBrains product**. Original course materials and project attribution remain credited to JetBrains Academy.
 
 ## License
 
-The repository includes the MIT License from the original JetBrains Academy project. Review the [LICENSE](LICENSE) file for the applicable terms.
+See [LICENSE](LICENSE) for the license included with the original project. The original course and its materials remain credited to their publisher.
