@@ -140,11 +140,45 @@ export function createMovement(playerGroup, getModel, input, camera, canMoveCall
       return;
     }
 
-    // Block the move if it would land on top of an enemy; drop the bad input
-    // so the player can press a different direction immediately.
-    if (canMoveCallback && !canMoveCallback(_proposedPos)) {
-      input.dequeue();
-      return;
+    // Sweep the hop in small increments instead of checking only its
+    // destination. If an obstacle blocks the full 40-unit hop, stop at the
+    // furthest safe point before contact rather than cancelling all movement.
+    // Sampling also prevents a hop from tunnelling through a thin collision area.
+    if (canMoveCallback) {
+      const distance = Math.hypot(dirInfo.x, dirInfo.y);
+      const sampleStep = 2.5;
+      const samples = Math.max(1, Math.ceil(distance / sampleStep));
+      let safeFraction = 0;
+      let blocked = false;
+
+      for (let i = 1; i <= samples; i++) {
+        const fraction = i / samples;
+        const sampleX = playerGroup.position.x + dirInfo.x * fraction;
+        const sampleY = playerGroup.position.y + dirInfo.y * fraction;
+        _proposedPos.x = sampleX;
+        _proposedPos.y = sampleY;
+        _proposedPos.z = 0;
+
+        if (canMoveCallback(_proposedPos)) {
+          safeFraction = fraction;
+        } else {
+          blocked = true;
+          break;
+        }
+      }
+
+      if (blocked) {
+        // Avoid tiny, visually awkward hops that make the frog appear stuck.
+        const safeDistance = distance * safeFraction;
+        if (safeDistance < 6) {
+          input.dequeue();
+          return;
+        }
+        dirInfo = {
+          x: dirInfo.x * safeFraction,
+          y: dirInfo.y * safeFraction
+        };
+      }
     }
 
     input.dequeue();
