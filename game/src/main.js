@@ -127,59 +127,138 @@ function createMeadowTexture() {
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#ffffff';
+
+  // Earthy base under the grass: exposed soil should be part of the meadow,
+  // not a uniformly green carpet. The environment tint still drives day/night.
+  ctx.fillStyle = '#c0ad83';
   ctx.fillRect(0, 0, size, size);
 
-  // Deterministic noise so the meadow looks consistent between runs.
   let seed = 0x51a7e;
   const random = () => {
     seed = (seed * 1664525 + 1013904223) >>> 0;
     return seed / 4294967296;
   };
-  // Large, soft color patches that create a natural meadow feel.
-  for (let i = 0; i < 120; i++) {
-    const x = random() * size;
-    const y = random() * size;
-    const radius = 30 + random() * 70;
-    const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
-    const tint = random() > 0.5
-      ? 'rgba(190, 192, 126, 0.08)'
-      : 'rgba(45, 83, 45, 0.06)';
-    gradient.addColorStop(0, tint);
-    gradient.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(x - radius, y - radius, radius * 2, radius * 2);
-  }
 
-  // Subtle grass strokes for texture without noise.
-  for (let i = 0; i < 3000; i++) {
+  // Fine mineral/soil grain across the entire ground.
+  for (let i = 0; i < 14500; i++) {
     const x = random() * size;
     const y = random() * size;
-    const radius = 0.35 + random() * 0.6;
-    ctx.fillStyle = random() > 0.5
-      ? 'rgba(72, 112, 48, 0.05)'
-      : 'rgba(180, 198, 126, 0.04)';
+    const r = 0.35 + random() * 1.25;
+    const shade = random();
+    ctx.fillStyle = shade > 0.55
+      ? `rgba(83, 68, 43, ${0.035 + random() * 0.07})`
+      : `rgba(244, 224, 177, ${0.04 + random() * 0.09})`;
     ctx.beginPath();
-    ctx.ellipse(x, y, radius * 1.4, radius * 0.65, random() * Math.PI, 0, Math.PI * 2);
+    ctx.ellipse(x, y, r * 1.5, r * 0.7, random() * Math.PI, 0, Math.PI * 2);
     ctx.fill();
   }
 
-  // Tiny bright specks — wildflowers scattered sparsely across the meadow.
-  for (let i = 0; i < 180; i++) {
+  // Irregular dry-soil clearings with soft, broken edges; no perfect circles.
+  for (let i = 0; i < 155; i++) {
     const x = random() * size;
     const y = random() * size;
-    const r = 0.5 + random() * 0.8;
-    const hue = random() > 0.5 ? 'rgba(255,240,180,0.12)' : 'rgba(200,220,255,0.08)';
-    ctx.fillStyle = hue;
+    const rx = 9 + random() * 38;
+    const ry = rx * (0.42 + random() * 0.75);
+    const rotation = random() * Math.PI;
+    const palette = [
+      'rgba(153, 119, 73, 0.30)',
+      'rgba(184, 151, 99, 0.34)',
+      'rgba(104, 91, 60, 0.18)',
+      'rgba(208, 184, 132, 0.32)'
+    ];
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rotation);
+    ctx.fillStyle = palette[Math.floor(random() * palette.length)];
     ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
+    const points = 9;
+    for (let p = 0; p <= points; p++) {
+      const a = (p / points) * Math.PI * 2;
+      const wobble = 0.72 + random() * 0.42;
+      const px = Math.cos(a) * rx * wobble;
+      const py = Math.sin(a) * ry * wobble;
+      if (p === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Grass cover grows in uneven clumps, leaving gaps of visible earth.
+  for (let i = 0; i < 245; i++) {
+    const x = random() * size;
+    const y = random() * size;
+    const rx = 12 + random() * 45;
+    const ry = rx * (0.45 + random() * 0.8);
+    const hue = random();
+    const tint = hue > 0.72
+      ? 'rgba(116, 133, 64, 0.42)'
+      : hue > 0.38
+        ? 'rgba(87, 119, 54, 0.56)'
+        : 'rgba(54, 91, 43, 0.48)';
+    const grad = ctx.createRadialGradient(x, y, 0, x, y, Math.max(rx, ry));
+    grad.addColorStop(0, tint);
+    grad.addColorStop(0.65, tint.replace(/0\.\d+\)$/, '0.20)'));
+    grad.addColorStop(1, 'rgba(80, 104, 48, 0)');
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(random() * Math.PI);
+    ctx.scale(1, ry / rx);
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, rx, rx, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Tiny blades and flattened grass strokes, grouped in natural directions.
+  for (let i = 0; i < 5600; i++) {
+    const x = random() * size;
+    const y = random() * size;
+    const len = 0.8 + random() * 3.1;
+    const angle = random() * Math.PI;
+    const color = random() > 0.52
+      ? `rgba(49, 83, 35, ${0.10 + random() * 0.13})`
+      : `rgba(191, 190, 113, ${0.09 + random() * 0.12})`;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 0.45 + random() * 0.55;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + Math.cos(angle) * len, y + Math.sin(angle) * len * 0.6);
+    ctx.stroke();
+  }
+
+  // A few pebbles and dry leaf flecks help exposed patches read as soil.
+  for (let i = 0; i < 360; i++) {
+    const x = random() * size;
+    const y = random() * size;
+    const rx = 0.6 + random() * 2.0;
+    const ry = rx * (0.45 + random() * 0.55);
+    ctx.fillStyle = random() > 0.5
+      ? 'rgba(76, 72, 61, 0.24)'
+      : 'rgba(228, 210, 169, 0.30)';
+    ctx.beginPath();
+    ctx.ellipse(x, y, rx, ry, random() * Math.PI, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Sparse tiny meadow flowers; kept subtle so the arena remains readable.
+  for (let i = 0; i < 105; i++) {
+    const x = random() * size;
+    const y = random() * size;
+    ctx.fillStyle = random() > 0.5
+      ? 'rgba(255, 235, 176, 0.38)'
+      : 'rgba(232, 224, 244, 0.26)';
+    ctx.beginPath();
+    ctx.arc(x, y, 0.6 + random() * 0.8, 0, Math.PI * 2);
     ctx.fill();
   }
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(12, 12);
+  texture.repeat.set(8, 8);
   texture.anisotropy = 4;
   texture.needsUpdate = true;
   return texture;
@@ -187,7 +266,10 @@ function createMeadowTexture() {
 
 const groundGeometry = new THREE.CircleGeometry(GROUND_RADIUS, 128);
 const groundMaterial = new THREE.MeshStandardMaterial({
-  color: 0x344b2b, map: createMeadowTexture(), roughness: 1.0, metalness: 0
+  color: 0x344b2b,
+  map: createMeadowTexture(),
+  roughness: 1.0,
+  metalness: 0
 });
 const ground = new THREE.Mesh(groundGeometry, groundMaterial);
 ground.position.z = -0.5;
