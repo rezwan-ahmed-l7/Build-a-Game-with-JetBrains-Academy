@@ -1033,35 +1033,33 @@ canvas.game {
   100% { transform: translateX(20px) scale(0.96); opacity: 0; }
 }
 
-/* Mobile start-screen orientation hint. It is rendered only in the
-   touch start menu and appears while the device is in portrait mode. */
+/* Mobile orientation hint follows the leaderboard in normal document flow,
+   so it remains below the scores instead of floating over the menu. */
 .rotate-prompt {
   display: none;
-  position: fixed;
-  top: max(12px, env(safe-area-inset-top));
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 45;
-  width: max-content;
-  max-width: calc(100vw - 32px);
-  margin: 0;
-  padding: 10px 16px;
+  position: relative;
+  inset: auto;
+  transform: none;
+  z-index: auto;
+  width: min(360px, calc(100vw - 36px));
+  box-sizing: border-box;
+  margin: 4px auto 0;
+  padding: 7px 12px;
   border: 1px solid rgba(255, 226, 122, 0.55);
   border-radius: 999px;
   background: rgba(7, 16, 36, 0.9);
   color: var(--gold-soft);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.32);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 800;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.04em;
+  line-height: 1.35;
   text-align: center;
   pointer-events: none;
 }
 
 @media (orientation: portrait) and (max-width: 900px) {
-  .rotate-prompt {
-    display: block;
-  }
+  .rotate-prompt { display: block; }
 }
 
 /* ---------- Touch controls ---------- */
@@ -1701,9 +1699,45 @@ canvas.game {
   .game-over-restart { min-width: 104px; }
   .game-over-back { min-width: 78px; }
   .game-over-buttons .menu-button { font-size: 14px; padding: 9px 14px; letter-spacing: 0.5px; }
-  /* Landscape start menu remains scrollable; keep its existing compact mode. */
-  .how-to-play, .profile-row, .leaderboard-wrap { display: none; }
-  .menu-title { font-size: 30px; }
+  /* Landscape phones keep the complete onboarding UI. Use two compact
+     columns: identity/actions on the left and the full leaderboard on the
+     right. This avoids hiding name, flag, instructions, or scores. */
+  .menu.menu-start {
+    display: grid;
+    grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+    grid-template-rows: auto auto auto auto auto;
+    align-content: center;
+    align-items: center;
+    justify-items: center;
+    column-gap: 16px;
+    row-gap: 4px;
+    padding: max(6px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(6px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  }
+  .menu.menu-start .menu-brand { grid-column: 1; grid-row: 1; margin: 0; }
+  .menu.menu-start .menu-title { font-size: clamp(24px, 4.5vh, 30px); line-height: 1.05; }
+  .menu.menu-start .menu-kicker { font-size: 8px; letter-spacing: 0.18em; }
+  .menu.menu-start .menu-subtitle { display: none; }
+  .menu.menu-start .how-to-play { grid-column: 1; grid-row: 2; margin: 0; }
+  .menu.menu-start .profile-row { grid-column: 1; grid-row: 3; display: flex; width: 100%; max-width: 320px; margin: 0; }
+  .menu.menu-start .profile-error { grid-column: 1; grid-row: 4; margin: 0; }
+  .menu.menu-start .menu-buttons { grid-column: 1; grid-row: 5; width: 100%; margin: 0; }
+  .menu.menu-start .menu-button.primary { min-width: 0; width: min(100%, 220px); padding: 8px 18px; font-size: 16px; }
+  .menu.menu-start .leaderboard-wrap {
+    grid-column: 2;
+    grid-row: 1 / span 5;
+    display: flex;
+    align-self: center;
+    width: 100%;
+    max-width: 420px;
+    min-width: 0;
+    margin: 0;
+    gap: 4px;
+  }
+  .menu.menu-start .leaderboard { padding: 3px 5px; }
+  .menu.menu-start .leaderboard-row { padding: 3px 5px; gap: 4px; font-size: 11px; }
+  .menu.menu-start .leaderboard-header { gap: 6px; }
+  .menu.menu-start .leaderboard-title { font-size: 12px; }
+  .menu.menu-start .rotate-prompt { display: none; }
 }
 
 @media (max-width: 640px) {

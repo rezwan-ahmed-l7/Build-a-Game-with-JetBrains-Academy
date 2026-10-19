@@ -336,12 +336,6 @@ export function createMenus({ onStart, onResume, onRestart, onTogglePause, onTog
         el('h1', { class: 'menu-title' }, ['Tode the Frog']),
         el('p', { class: 'menu-subtitle' }, ['A little frog · A very long night']),
       ]),
-      ...(isTouch ? [
-        el('p', {
-          class: 'rotate-prompt',
-          'aria-live': 'polite'
-        }, ['Please rotate your device to landscape']),
-      ] : []),
       howToPlay,
       profileRow,
       profileErr,
@@ -354,6 +348,12 @@ export function createMenus({ onStart, onResume, onRestart, onTogglePause, onTog
         ]),
         leaderboard,
       ]),
+      ...(isTouch ? [
+        el('p', {
+          class: 'rotate-prompt',
+          'aria-live': 'polite'
+        }, ['Please rotate your device to play']),
+      ] : []),
     ];
     for (const item of items) container.appendChild(item);
   }
