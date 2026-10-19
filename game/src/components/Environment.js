@@ -412,8 +412,8 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
       tailR,
       bodyMat: birdMat,
       bellyMat,
-      wingMatL: leftWing.material,
-      wingMatR: rightWing.material,
+      wingMatL: leftWingMesh.material,
+      wingMatR: rightWingMesh.material,
       beakMat,
       tailMat,
       eyeMat,
@@ -431,7 +431,9 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
   const butterflies = [];
   for (let i = 0; i < BUTTERFLY_COUNT; i++) {
     const bfGroup = new THREE.Group();
-    const bfColor = [0xff9ecb, 0xffd166, 0xa8e6cf, 0xd4a5ff, 0xffaaa5, 0x87ceeb][i % 6];
+    // Vivid, easy-to-distinguish butterfly colors: red, blue, orange, yellow,
+    // plus purple and green for a varied natural-looking group.
+    const bfColor = [0xf02d3a, 0x168cff, 0xff7a18, 0xffd21f, 0x9b5de5, 0x35b86b][i % 6];
 
     // Create a butterfly wing shape using canvas texture
     const bfCanvas = document.createElement('canvas');
@@ -522,9 +524,10 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
     const anchorY = randomRange(-300, 300);
     const anchorZ = randomRange(3, 18);
     const driftRadius = randomRange(10, 30);
-    const speedX = randomRange(0.3, 0.8);
-    const speedY = randomRange(0.25, 0.7);
-    const speedZ = randomRange(0.5, 1.5);
+    // Faster, lively fluttering while keeping each butterfly's path varied.
+    const speedX = randomRange(0.65, 1.4);
+    const speedY = randomRange(0.55, 1.2);
+    const speedZ = randomRange(1.0, 2.5);
     const phase = randomRange(0, Math.PI * 2);
 
     bfGroup.userData = {
@@ -877,13 +880,17 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
       data.tailR.rotation.x = Math.sin(elapsed * data.flapSpeed * 0.5 + data.flapPhase) * 0.15;
 
       // Fade in/out based on time of day — set all materials
-      const opacity = birdVisibility * 0.85;
+      // Use fully opaque silhouettes in daylight; the old 0.85 alpha made
+      // distant birds look washed out, and the old wing references pointed
+      // at Groups (which have no material), throwing during the update loop.
+      const opacity = birdVisibility;
       data.bodyMat.opacity = opacity;
       data.bellyMat.opacity = opacity;
       data.wingMatL.opacity = opacity;
       data.wingMatR.opacity = opacity;
       data.beakMat.opacity = opacity;
       data.tailMat.opacity = opacity;
+      data.eyeMat.opacity = opacity;
     }
 
     // ----- Update butterflies -----
@@ -896,7 +903,7 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
       const fd = bf.userData;
 
       // Flutter around anchor point with organic, erratic movement
-      fd.flutterTime += delta * 1.2;
+      fd.flutterTime += delta * 1.7;
       const flutterX = Math.sin(fd.flutterTime * fd.speedX + fd.phase) * fd.driftRadius;
       const flutterY = Math.cos(fd.flutterTime * fd.speedY + fd.phase * 1.3) * fd.driftRadius;
       const flutterZ = Math.sin(fd.flutterTime * fd.speedZ + fd.phase * 0.7) * 8;

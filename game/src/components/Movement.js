@@ -19,8 +19,9 @@ function clampToPlayableRadius(x, y) {
 
 // Coordinate system: Z is up (camera.up = (0, 0, 1))
 // Horizontal movement is on the X-Y plane; jump height is along Z.
-export function createMovement(playerGroup, getModel, input, camera, canMoveCallback) {
+export function createMovement(playerGroup, getModel, input, camera, canMoveCallback, audio = null) {
   let isMoving = false;
+  let jumpCount = 0;
   let progress = 0;
   let startPos = { x: 0, y: 0, z: 0 };
   let targetPos = { x: 0, y: 0, z: 0 };
@@ -175,6 +176,11 @@ export function createMovement(playerGroup, getModel, input, camera, canMoveCall
 
     squashStretch = 0.15;
     squashStretchSpeed = 1;
+
+    // Every hop gets subtle movement feedback; croak less often to avoid repetition.
+    if (audio?.playFrogJump) audio.playFrogJump();
+    jumpCount++;
+    if (jumpCount % 4 === 1 && audio?.playFrogCroak) audio.playFrogCroak();
   }
 
   function update(delta) {
@@ -215,6 +221,7 @@ export function createMovement(playerGroup, getModel, input, camera, canMoveCall
       squashStretchSpeed = -0.5;
 
       isMoving = false;
+      if (audio?.playFrogLand) audio.playFrogLand();
       tryStartNextMove();
       return;
     }

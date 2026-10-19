@@ -126,7 +126,20 @@ export function createAudio() {
     // sustained note (which would overlap with the ambient pad).
     enemySpawn: build({ type: 'sawtooth', freq: 180, freqEnd: 90, dur: 0.22,
                         attack: 0.005, decay: 0.22, gain: 0.16,
-                        noise: 0.22, filterFreq: 600 })
+                        noise: 0.22, filterFreq: 600 }),
+    // Soft, springy hop and landing sounds for the player frog.
+    frogJump: build({ type: 'triangle', freq: 300, freqEnd: 520, dur: 0.12,
+                      attack: 0.004, decay: 0.13, gain: 0.10 }),
+    frogLand: build({ type: 'sine', freq: 150, freqEnd: 75, dur: 0.10,
+                      attack: 0.002, decay: 0.11, gain: 0.12,
+                      noise: 0.035, filterFreq: 500 }),
+    // Two short descending croak pulses give the frog a recognizable "ribbit".
+    frogCroakA: build({ type: 'square', freq: 430, freqEnd: 245, dur: 0.11,
+                        attack: 0.008, decay: 0.12, gain: 0.055,
+                        noise: 0.018, filterFreq: 850 }),
+    frogCroakB: build({ type: 'square', freq: 320, freqEnd: 175, dur: 0.13,
+                        attack: 0.006, decay: 0.14, gain: 0.05,
+                        noise: 0.015, filterFreq: 700 })
   };
 
   function safePlay(snd) {
@@ -258,6 +271,12 @@ export function createAudio() {
     playMenuClick: () => safePlay(sfx.menuClick),
     playGameOver: () => safePlay(sfx.gameOver),
     playEnemySpawn: () => safePlay(sfx.enemySpawn),
+    playFrogJump: () => safePlay(sfx.frogJump),
+    playFrogLand: () => safePlay(sfx.frogLand),
+    playFrogCroak: () => {
+      safePlay(sfx.frogCroakA);
+      setTimeout(() => safePlay(sfx.frogCroakB), 85);
+    },
     startAmbient,
     stopAmbient,
     setAmbientNightness

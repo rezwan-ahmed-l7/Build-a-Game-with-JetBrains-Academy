@@ -502,7 +502,8 @@ const movement = createMovement(
       return canPlayerMoveTo(targetPos, enemyManager.getEnemies(), []);
     }
     return canPlayerMoveTo(targetPos, enemyManager.getEnemies(), obstacles.getObstacles());
-  }
+  },
+  audio
 );
 // Score / Health / Combo / Difficulty
 // `submitScore` is the single swap-point for a future backend. It reads
@@ -598,7 +599,17 @@ if (isTouchDevice()) {
       if (gameManager.isPlaying()) attack.attack(performance.now());
     },
     onDash: () => {
-      if (gameManager.isPlaying()) dash.tryStart();
+      // Mobile dash uses the last joystick direction, even after the
+      // player lifts their thumb to tap the separate DASH button.
+      if (gameManager.isPlaying()) {
+        const started = dash.tryStart();
+        if (started) {
+          audio.playDash();
+          particles.spawnBurst(player.group.position.x, player.group.position.y, player.group.position.z + 4, {
+            count: 14, color: 0x9ee7ff, speed: 50, life: 0.4, size: 6
+          });
+        }
+      }
     }
   });
 }
@@ -778,6 +789,14 @@ function animate(currentTime) {
     // Freeze timer — pause enemy movement
     if (gameManager.getFreezeRemaining() > 0) {
       gameManager.setFreezeTimer(Math.max(0, gameManager.getFreezeRemaining() - delta));
+    }
+
+    // Feed the held virtual joystick direction into the same one-step
+    // movement queue as keyboard input. Re-queue only after the current
+    // jump finishes, so holding the stick keeps moving without flooding input.
+    if (touch && touch.getMoveDirection && !movement.isCurrentlyMoving()) {
+      const joystickDirection = touch.getMoveDirection();
+      if (joystickDirection) input.enqueueDirection(joystickDirection);
     }
 
     movement.update(effectiveDelta);

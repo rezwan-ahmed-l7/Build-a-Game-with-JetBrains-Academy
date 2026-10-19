@@ -82,26 +82,47 @@ export function createTouchControls({ onPause, onAttack, onDash }) {
     onDash && onDash();
   });
 
-  // Returns the most recent direction object or null.
+  // Keep the last intentional joystick direction after the finger lifts.
+  // The dash button is separate from the joystick, so pointerup happens
+  // before its click handler and a live-only direction would otherwise vanish.
+  let lastDirection = null;
+
+  // Returns the active direction, or the last direction when released.
   // - fwd/back/left/right: boolean flags
   function getDirection() {
+    if (state.active) {
+      // Dead zone is a fraction of the joystick radius so it scales
+      // correctly across devices with different touch precision.
+      const dead = state.radius * 0.2;
+      const mag = Math.hypot(state.dx, state.dy);
+      if (mag >= dead) {
+        lastDirection = {
+          fwd: state.dy < -dead,
+          back: state.dy > dead,
+          left: state.dx < -dead,
+          right: state.dx > dead
+        };
+        return { ...lastDirection };
+      }
+    }
+    return lastDirection ? { ...lastDirection } : null;
+  }
+
+  // Movement uses one jump direction at a time. Choose the dominant axis
+  // so diagonal drags remain predictable and feed the normal movement queue.
+  function getMoveDirection() {
     if (!state.active) return null;
-    // Dead zone is a fraction of the joystick radius so it scales
-    // correctly across devices with different touch precision.
-    const dead = state.radius * 0.2; // ~20% of radius
-    const mag = Math.sqrt(state.dx * state.dx + state.dy * state.dy);
-    if (mag < dead) return null;
-    return {
-      fwd: state.dy < -dead,
-      back: state.dy > dead,
-      left: state.dx < -dead,
-      right: state.dx > dead
-    };
+    const dead = state.radius * 0.2;
+    if (Math.hypot(state.dx, state.dy) < dead) return null;
+    if (Math.abs(state.dx) > Math.abs(state.dy)) {
+      return state.dx < 0 ? 'left' : 'right';
+    }
+    return state.dy < 0 ? 'forward' : 'backward';
   }
 
   function dispose() {
     root.remove();
   }
 
-  return { getDirection, dispose };
+  return { getDirection, getMoveDirection, dispose };
 }

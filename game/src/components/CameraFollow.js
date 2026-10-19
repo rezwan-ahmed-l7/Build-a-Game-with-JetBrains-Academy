@@ -19,6 +19,8 @@ const ZOOM_SENSITIVITY = 0.0015;
 const DRAG_THRESHOLD_PX = 4;
 
 export function createCameraFollow(camera, playerGroup, canvas) {
+  // Keep camera height anchored to the player's ground level, not jump height.
+  const groundZ = playerGroup.position.z;
   const state = {
     azimuth: 5.45,
     elevation: BASE_ELEVATION,
@@ -53,11 +55,18 @@ export function createCameraFollow(camera, playerGroup, canvas) {
   }
 
   function onPointerDown(e) {
+    // Only begin camera gestures on the game canvas. Touches on the
+    // joystick, DASH/ATK buttons, and menus must remain dedicated to those controls.
     if (canvas && e.target !== canvas) return;
-    // On touch devices, skip camera drag — the virtual joystick handles
-    // movement, and camera drag would conflict with it.
-    if (e.pointerType === 'touch') return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+
     beginDrag(e);
+
+    // Capture touch drags on the canvas so camera rotation continues when
+    // the finger moves beyond the canvas edge. canvas has touch-action:none.
+    if (e.pointerType === 'touch' && canvas?.setPointerCapture) {
+      try { canvas.setPointerCapture(e.pointerId); } catch {}
+    }
   }
   function onPointerMove(e) {
     if (activePointerId == null) return;
@@ -133,13 +142,13 @@ export function createCameraFollow(camera, playerGroup, canvas) {
     _targetPos.set(
       currentPos.x + Math.cos(state.azimuth) * cosE * state.distance,
       currentPos.y + Math.sin(state.azimuth) * cosE * state.distance,
-      currentPos.z + sinE * state.distance
+      groundZ + sinE * state.distance
     );
 
     camera.position.lerp(_targetPos, t);
     camera.up.set(0, 0, 1);
     // Look slightly below the player so the frog sits above center.
-    camera.lookAt(currentPos.x, currentPos.y, currentPos.z + 18);
+    camera.lookAt(currentPos.x, currentPos.y, groundZ + 18);
   }
 
   return { update };
