@@ -150,7 +150,7 @@ const server = http.createServer(async (req, res) => {
         'Access-Control-Allow-Origin': origin,
         'Vary': 'Origin',
       } : {}),
-      'Access-Control-Allow-Methods': 'GET, PUT, OPTIONS',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type',
       'Access-Control-Max-Age': '600',
     });
@@ -163,9 +163,9 @@ const server = http.createServer(async (req, res) => {
   if (origin && origin !== ALLOWED_ORIGIN) return send(res, 403, { error: 'Origin not allowed' }, null);
   if (url.pathname === '/health' && req.method === 'GET') return send(res, 200, { ok: true }, origin);
 
-  // /attempts: GET reads the counter, POST atomically increments it.
-  // Implemented as a CAS loop on the server so concurrent players don't
-  // lose increments. The client never sees the JSONBin master key.
+  // /attempts: GET reads the counter, POST increments it.
+  // Mutations are serialized within this API process; JSONBin does not provide
+  // cross-instance atomicity. The client never sees the JSONBin master key.
   if (url.pathname === '/attempts') {
     if (!['GET', 'POST'].includes(req.method || '')) return send(res, 405, { error: 'Method not allowed' }, origin);
     if (isRateLimited(req)) return send(res, 429, { error: 'Too many requests; try again shortly' }, origin);
