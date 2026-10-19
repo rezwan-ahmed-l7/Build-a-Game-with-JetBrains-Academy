@@ -485,7 +485,10 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
     rightWingMesh.position.x = 2.3;
     rightWing.add(rightWingMesh);
     bfGroup.add(leftWing, rightWing);
-    const bodyMat = new THREE.MeshStandardMaterial({ color: 0x332b29, roughness: 0.8 });
+    const bodyMat = new THREE.MeshStandardMaterial({
+      color: 0x332b29, roughness: 0.8, transparent: true, opacity: 0,
+      depthWrite: false
+    });
     const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.22, 1.2, 4, 8), bodyMat);
     body.rotation.x = Math.PI / 2;
     body.position.z = 0.05;
@@ -493,7 +496,10 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
     const head = new THREE.Mesh(new THREE.SphereGeometry(0.32, 12, 8), bodyMat);
     head.position.z = 0.82;
     bfGroup.add(head);
-    const antennaMat = new THREE.MeshStandardMaterial({ color: 0x332b29, roughness: 0.9 });
+    const antennaMat = new THREE.MeshStandardMaterial({
+      color: 0x332b29, roughness: 0.9, transparent: true, opacity: 0,
+      depthWrite: false
+    });
     for (const side of [-1, 1]) {
       const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.04, 0.8, 6), antennaMat);
       antenna.position.set(side * 0.2, 0.18, 1.18);
@@ -517,6 +523,8 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
       driftRadius, speedX, speedY, speedZ, phase,
       flutterTime: randomRange(0, 100),
       material: bfMat,
+      bodyMaterial: bodyMat,
+      antennaMaterial: antennaMat,
       leftWing,
       rightWing,
       texture: bfTexture
@@ -898,8 +906,12 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
       fd.leftWing.rotation.z = -0.12 + Math.sin(elapsed * 6 + fd.phase) * 0.08;
       fd.rightWing.rotation.z = 0.12 - Math.sin(elapsed * 6 + fd.phase) * 0.08;
 
-      // Fade in/out based on time of day
-      fd.material.opacity = butterflyVisibility * 0.8;
+      // Fade the complete 3D model with daylight, including the body and
+      // antennae (not just the wings).
+      const butterflyOpacity = butterflyVisibility * 0.8;
+      fd.material.opacity = butterflyOpacity;
+      fd.bodyMaterial.opacity = butterflyOpacity;
+      fd.antennaMaterial.opacity = butterflyOpacity;
     }
 
     // External listeners (e.g. audio ambient brightness) — called after
