@@ -35,8 +35,10 @@ const FOREST_OUTER_BIAS = 0.75;
 const CLEARING_RADIUS = 40;
 const POND_EXCLUSION_RADIUS = 48;  // keep other obstacles away from pond
 
-const TREE_COLLISION_RADIUS = 12;
-const BIG_ROCK_COLLISION_RADIUS = 9;
+// Ground-footprint collision radii; tree canopies and boulder silhouettes
+// are intentionally larger than the space they occupy at ground level.
+const TREE_COLLISION_RADIUS = 4.5;
+const BIG_ROCK_COLLISION_RADIUS = 2;
 const STUMP_COLLISION_RADIUS = 4;
 const HOUSE_COLLISION_RADIUS = 14;
 
