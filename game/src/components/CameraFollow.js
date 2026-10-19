@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 
 const _targetPos = new THREE.Vector3();
+const _lookAtTarget = new THREE.Vector3();
+const _lookAtPos = new THREE.Vector3();
 
 // Default camera setup: a classic 3rd-person action-adventure view.
 // Keep the player prominent while leaving enough room to read nearby threats.
@@ -21,6 +23,10 @@ const DRAG_THRESHOLD_PX = 4;
 export function createCameraFollow(camera, playerGroup, canvas) {
   // Keep camera height anchored to the player's ground level, not jump height.
   const groundZ = playerGroup.position.z;
+  // Smooth the look target as well as the camera position. Snapping lookAt
+  // directly to the frog each frame while the camera position is damped can
+  // create visible angular jolts during jumps and rapid tile movement.
+  _lookAtPos.set(playerGroup.position.x, playerGroup.position.y, groundZ + 18);
   const state = {
     azimuth: 5.45,
     elevation: BASE_ELEVATION,
@@ -147,8 +153,11 @@ export function createCameraFollow(camera, playerGroup, canvas) {
 
     camera.position.lerp(_targetPos, t);
     camera.up.set(0, 0, 1);
-    // Look slightly below the player so the frog sits above center.
-    camera.lookAt(currentPos.x, currentPos.y, groundZ + 18);
+    // Damp the look target with the same factor as the camera position.
+    // This prevents abrupt view-angle changes when the frog hops or changes tile.
+    _lookAtTarget.set(currentPos.x, currentPos.y, groundZ + 18);
+    _lookAtPos.lerp(_lookAtTarget, t);
+    camera.lookAt(_lookAtPos);
   }
 
   return { update };
