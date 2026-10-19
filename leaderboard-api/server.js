@@ -3,7 +3,7 @@ import http from 'node:http';
 const PORT = Number(process.env.PORT || 10000);
 const JSONBIN_BIN_ID = process.env.JSONBIN_BIN_ID;
 const JSONBIN_MASTER_KEY = process.env.JSONBIN_MASTER_KEY;
-const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN;
+const ALLOWED_ORIGINS = new Set((process.env.ALLOWED_ORIGIN || '').split(',').map((value) => value.trim()).filter(Boolean));
 const JSONBIN_BASE_URL = 'https://api.jsonbin.io/v3';
 const CAP = 5;
 const MAX_BODY_BYTES = 8 * 1024;
@@ -15,7 +15,7 @@ function send(res, status, payload, origin) {
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'no-store',
-    ...(origin && origin === ALLOWED_ORIGIN ? {
+    ...(origin && ALLOWED_ORIGINS.has(origin) ? {
       'Access-Control-Allow-Origin': origin,
       'Vary': 'Origin',
     } : {}),
@@ -145,9 +145,9 @@ export async function handler(req, res) {
   const pathname = url.pathname.replace(/^\/api(?=\/|$)/, '') || '/';
 
   if (req.method === 'OPTIONS') {
-    if (ALLOWED_ORIGIN && origin !== ALLOWED_ORIGIN) return send(res, 403, { error: 'Origin not allowed' }, null);
+    if (ALLOWED_ORIGINS.size > 0 && !ALLOWED_ORIGINS.has(origin)) return send(res, 403, { error: 'Origin not allowed' }, null);
     res.writeHead(204, {
-      ...(origin && origin === ALLOWED_ORIGIN ? {
+      ...(origin && ALLOWED_ORIGINS.has(origin) ? {
         'Access-Control-Allow-Origin': origin,
         'Vary': 'Origin',
       } : {}),
@@ -158,10 +158,10 @@ export async function handler(req, res) {
     return res.end();
   }
 
-  if (!JSONBIN_BIN_ID || !JSONBIN_MASTER_KEY || !ALLOWED_ORIGIN) {
+  if (!JSONBIN_BIN_ID || !JSONBIN_MASTER_KEY || ALLOWED_ORIGINS.size === 0) {
     return send(res, 503, { error: 'Leaderboard API is not configured' }, origin);
   }
-  if (origin && origin !== ALLOWED_ORIGIN) return send(res, 403, { error: 'Origin not allowed' }, null);
+  if (origin && !ALLOWED_ORIGINS.has(origin)) return send(res, 403, { error: 'Origin not allowed' }, null);
   if (pathname === '/health' && req.method === 'GET') return send(res, 200, { ok: true }, origin);
 
   // /attempts: GET reads the counter, POST increments it.
