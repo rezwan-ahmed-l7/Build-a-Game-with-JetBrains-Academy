@@ -10,6 +10,10 @@ export function createAudio() {
   let masterGain = null;
   let ambientGain = null;
   let ambientNodes = null;
+  let shoreNodes = null;
+  let shoreGain = null;
+  let shoreTarget = 0;
+  let shoreApplied = -1;
   let muted = load('muted', false);
   let volume = load('volume', 0.5);
 
@@ -143,7 +147,19 @@ export function createAudio() {
   };
 
   function safePlay(snd) {
+    // Mobile Safari/Chrome can suspend AudioContext after a gesture, app
+    // switch, or screen lock. Resume on the next genuine game interaction
+    // before scheduling one-shot effects so frog sounds are not silently lost.
+    ensureContext();
     if (!ctx) return;
+    if (ctx.state !== 'running') {
+      ctx.resume().then(() => {
+        if (ctx && ctx.state === 'running') {
+          try { snd(); } catch { /* ignore */ }
+        }
+      }).catch(() => {});
+      return;
+    }
     try { snd(); } catch { /* ignore */ }
   }
 
@@ -219,6 +235,59 @@ export function createAudio() {
     arpTimer = setTimeout(arpTick, 380);
   }
 
+  // A looping, filtered noise layer creates a soft surf wash. Its gain
+  // follows the frog's distance from the island edge instead of playing
+  // at full volume everywhere.
+  function buildShoreGraph() {
+    if (!ctx || shoreNodes) return;
+    const sampleRate = ctx.sampleRate;
+    const buffer = ctx.createBuffer(1, sampleRate * 3, sampleRate);
+    const channel = buffer.getChannelData(0);
+    // Smooth the raw noise slightly before the low-pass filter for a less
+    // harsh, more natural shoreline texture.
+    let previous = 0;
+    for (let i = 0; i < channel.length; i++) {
+      const raw = Math.random() * 2 - 1;
+      previous = previous * 0.72 + raw * 0.28;
+      channel[i] = previous;
+    }
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.loop = true;
+    const highpass = ctx.createBiquadFilter();
+    highpass.type = 'highpass';
+    highpass.frequency.value = 75;
+    const lowpass = ctx.createBiquadFilter();
+    lowpass.type = 'lowpass';
+    lowpass.frequency.value = 850;
+    lowpass.Q.value = 0.55;
+    shoreGain = ctx.createGain();
+    shoreGain.gain.value = 0;
+    source.connect(highpass).connect(lowpass).connect(shoreGain).connect(masterGain);
+    source.start();
+
+    // Slow amplitude breathing gives the surf a gentle ebb-and-flow.
+    const swell = ctx.createOscillator();
+    swell.type = 'sine';
+    swell.frequency.value = 0.12;
+    const swellDepth = ctx.createGain();
+    swellDepth.gain.value = 0.012;
+    swell.connect(swellDepth).connect(shoreGain.gain);
+    swell.start();
+    shoreNodes = [source, swell];
+  }
+
+  function setShoreProximity(distance) {
+    // Shoreline begins around world radius 840. Blend in from radius 610
+    // so the surf gradually grows louder as the frog approaches the beach.
+    const proximity = Math.max(0, Math.min(1, (distance - 610) / (840 - 610)));
+    shoreTarget = proximity;
+    if (shoreGain && Math.abs(shoreApplied - proximity) > 0.015 && ctx?.state === 'running') {
+      shoreGain.gain.setTargetAtTime(0.10 * proximity, ctx.currentTime, 0.65);
+      shoreApplied = proximity;
+    }
+  }
+
   function startAmbient() {
     if (!ctx) return;
     // If the context is still suspended (browser autoplay policy), wait
@@ -227,12 +296,14 @@ export function createAudio() {
     // oscillators also get auto-stopped at resume time.
     if (ctx.state === 'suspended') {
       ctx.resume().then(() => {
-        if (ctx && ctx.state === 'running') buildAmbientGraph();
+        if (ctx && ctx.state === 'running') { buildAmbientGraph(); buildShoreGraph(); setShoreProximity(shoreTarget * 230 + 610); }
       }).catch((err) => {
         console.warn('Failed to resume AudioContext (user gesture may be required):', err);
       });
     } else {
       buildAmbientGraph();
+      buildShoreGraph();
+      setShoreProximity(shoreTarget * 230 + 610);
     }
   }
 
@@ -240,6 +311,12 @@ export function createAudio() {
     if (!ambientNodes) return;
     ambientNodes.forEach((n) => { try { n.stop(); } catch {} });
     ambientNodes = null;
+    if (shoreNodes) {
+      shoreNodes.forEach((node) => { try { node.stop(); } catch {} });
+      shoreNodes = null;
+    }
+    shoreGain = null;
+    shoreApplied = -1;
     if (arpTimer) {
       clearTimeout(arpTimer);
       arpTimer = null;
@@ -279,6 +356,7 @@ export function createAudio() {
     },
     startAmbient,
     stopAmbient,
-    setAmbientNightness
+    setAmbientNightness,
+    setShoreProximity
   };
 }
