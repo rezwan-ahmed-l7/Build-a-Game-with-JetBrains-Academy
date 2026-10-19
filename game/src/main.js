@@ -806,7 +806,7 @@ function animate(currentTime) {
     } else {
       // Restore base attack radius when boost expires
       const lvl = gameManager.getCurrentLevel();
-      const baseRadius = gameManager.BASE_ATTACK_RADIUS;
+      const baseRadius = gameManager.LEVEL_STATS[lvl]?.attackRadius ?? gameManager.BASE_ATTACK_RADIUS;
       attack.setRadius(baseRadius);
     }
 
