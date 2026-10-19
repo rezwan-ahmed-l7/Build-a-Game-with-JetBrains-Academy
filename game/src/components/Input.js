@@ -46,6 +46,15 @@ export function createInput() {
   window.addEventListener('keydown', handleKeyDown);
   window.addEventListener('keyup', handleKeyUp);
 
+  function enqueueDirection(direction) {
+    if (!enabled || !(direction in { forward: true, backward: true, left: true, right: true })) {
+      return false;
+    }
+    if (queue.length >= maxQueueSize) return false;
+    queue.push(direction);
+    return true;
+  }
+
   function dequeue() {
     return queue.shift();
   }
@@ -92,7 +101,7 @@ export function createInput() {
   }
 
   return {
-    dequeue, peek, isEmpty, clear, setEnabled,
+    enqueueDirection, dequeue, peek, isEmpty, clear, setEnabled,
     getHeldDirection, attachClickToAttack
   };
 }
