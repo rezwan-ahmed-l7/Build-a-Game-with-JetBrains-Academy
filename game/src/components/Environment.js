@@ -820,15 +820,17 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
       // of racing off forever — gives a continuous sky full of clouds
       // without unbounded world growth.
       const LOOP = 2000;
-      const xWorld = px + data.offsetX + elapsed * data.driftX;
+      // Clouds have independent world anchors. Do not add the player's X/Y
+      // coordinates here: doing so makes the sky visibly track every frog move.
+      const xWorld = data.offsetX + elapsed * data.driftX;
       const xWrapped = ((xWorld + LOOP) % LOOP) - LOOP / 2;
-      const yWorld = py + data.offsetY + elapsed * data.drift;
+      const yWorld = data.offsetY + elapsed * data.drift;
       const yWrapped = ((yWorld + LOOP) % LOOP) - LOOP / 2;
       const xWobble = Math.sin(elapsed * 0.04 + data.phase) * 18;
       cloud.position.set(
         xWrapped + xWobble,
-        py + yWrapped,
-        pz + data.height
+        yWrapped,
+        data.height
       );
       // Clouds soften at night rather than disappearing into the dark sky.
       data.material.opacity = 0.28 + dayFactor * 0.60;
@@ -862,10 +864,12 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
       data.angle += data.speed * delta * 0.005;
       const wobbleOffset = Math.sin(elapsed * data.wobbleSpeed + i) * data.wobble;
       
-      // Position relative to player so birds stay in camera view
-      const bx = px + Math.cos(data.angle) * data.distance + wobbleOffset;
-      const by = py + Math.sin(data.angle) * data.distance;
-      const bz = pz + data.height + Math.sin(elapsed * 0.5 + i * 2) * 10;
+      // Birds circle an independent world-space flight path. Keeping the
+      // path detached from player coordinates prevents the flock from
+      // appearing glued to the frog as the camera follows it.
+      const bx = Math.cos(data.angle) * data.distance + wobbleOffset;
+      const by = Math.sin(data.angle) * data.distance;
+      const bz = data.height + Math.sin(elapsed * 0.5 + i * 2) * 10;
       bird.position.set(bx, by, bz);
 
       // Face the direction of movement
