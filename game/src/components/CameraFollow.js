@@ -6,7 +6,7 @@ const _lookAtPos = new THREE.Vector3();
 
 // Default camera setup: a classic 3rd-person action-adventure view.
 // Keep the player prominent while leaving enough room to read nearby threats.
-const BASE_DISTANCE = 138;
+const BASE_DISTANCE = 158; // Slightly wider default view, especially helpful on phones.
 const MIN_DISTANCE = 108;
 const MAX_DISTANCE = 320;
 const BASE_ELEVATION = 0.43;   // ~21 deg above the ground plane
@@ -39,6 +39,10 @@ export function createCameraFollow(camera, playerGroup, canvas) {
   let dragging = false;
   let pendingPointer = null;
   let activePointerId = null;
+  // Track touch pointers separately so two-finger pinch can zoom without
+  // interfering with one-finger camera orbit or the virtual game controls.
+  const touchPoints = new Map();
+  let lastPinchDistance = null;
   let lastX = 0;
   let lastY = 0;
 
@@ -60,23 +64,56 @@ export function createCameraFollow(camera, playerGroup, canvas) {
     activePointerId = null;
   }
 
+  function clampDistance(value) {
+    state.targetDistance = Math.max(MIN_DISTANCE, Math.min(MAX_DISTANCE, value));
+  }
+
+  function getPinchDistance() {
+    if (touchPoints.size < 2) return null;
+    const points = [...touchPoints.values()];
+    return Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
+  }
+
   function onPointerDown(e) {
     // Only begin camera gestures on the game canvas. Touches on the
     // joystick, DASH/ATK buttons, and menus must remain dedicated to those controls.
     if (canvas && e.target !== canvas) return;
     if (e.pointerType === 'mouse' && e.button !== 0) return;
 
-    beginDrag(e);
+    if (e.pointerType === 'touch') {
+      touchPoints.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (touchPoints.size >= 2) {
+        // Two fingers mean zoom, not orbit. Stop any in-progress one-finger drag.
+        activePointerId = null;
+        pendingPointer = null;
+        dragging = false;
+        lastPinchDistance = getPinchDistance();
+      } else {
+        beginDrag(e);
+      }
+    } else {
+      beginDrag(e);
+    }
 
-    // Capture touch drags on the canvas so camera rotation continues when
-    // the finger moves beyond the canvas edge. canvas has touch-action:none.
+    // Capture touch gestures on the canvas so they continue at its edges.
     if (e.pointerType === 'touch' && canvas?.setPointerCapture) {
       try { canvas.setPointerCapture(e.pointerId); } catch {}
     }
   }
   function onPointerMove(e) {
-    if (activePointerId == null) return;
-    if (e.pointerId !== activePointerId) return;
+    if (e.pointerType === 'touch' && touchPoints.has(e.pointerId)) {
+      touchPoints.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (touchPoints.size >= 2) {
+        const nextDistance = getPinchDistance();
+        if (nextDistance != null && lastPinchDistance != null) {
+          // Spreading fingers zooms in; bringing them together zooms out.
+          clampDistance(state.targetDistance - (nextDistance - lastPinchDistance) * 0.65);
+        }
+        lastPinchDistance = nextDistance;
+        return;
+      }
+    }
+    if (activePointerId == null || e.pointerId !== activePointerId) return;
     const dx = e.clientX - lastX;
     const dy = e.clientY - lastY;
     lastX = e.clientX;
@@ -93,7 +130,19 @@ export function createCameraFollow(camera, playerGroup, canvas) {
     if (state.targetElevation < MIN_ELEVATION) state.targetElevation = MIN_ELEVATION;
     if (state.targetElevation > MAX_ELEVATION) state.targetElevation = MAX_ELEVATION;
   }
-  function onPointerUp(e) { endDrag(e); }
+  function onPointerUp(e) {
+    if (e?.pointerType === 'touch') {
+      touchPoints.delete(e.pointerId);
+      if (touchPoints.size < 2) lastPinchDistance = null;
+      if (touchPoints.size === 1) {
+        // Do not unexpectedly turn the end of a pinch into an orbit gesture.
+        activePointerId = null;
+        pendingPointer = null;
+        dragging = false;
+      }
+    }
+    endDrag(e);
+  }
 
   function onWheel(e) {
     state.targetDistance += e.deltaY * ZOOM_SENSITIVITY * state.targetDistance;
