@@ -38,6 +38,9 @@ export function createTouchControls({ onPause, onAttack, onDash }) {
     radius: 50
   };
 
+  // Retain the last intentional direction across joystick release.
+  let lastDirection = null;
+
   function setKnob() {
     const x = Math.max(-state.radius, Math.min(state.radius, state.dx));
     const y = Math.max(-state.radius, Math.min(state.radius, state.dy));
@@ -63,6 +66,20 @@ export function createTouchControls({ onPause, onAttack, onDash }) {
 
   const endHandler = (e) => {
     if (e.pointerId !== state.pointerId && state.pointerId != null) return;
+
+    // Save the final intentional direction before clearing joystick state.
+    // The DASH button is separate, so pointerup may happen before the game
+    // loop reads getDirection() one last time.
+    const dead = state.radius * 0.2;
+    if (state.active && Math.hypot(state.dx, state.dy) >= dead) {
+      lastDirection = {
+        fwd: state.dy < -dead,
+        back: state.dy > dead,
+        left: state.dx < -dead,
+        right: state.dx > dead
+      };
+    }
+
     state.active = false;
     state.pointerId = null;
     state.dx = 0;
@@ -82,10 +99,7 @@ export function createTouchControls({ onPause, onAttack, onDash }) {
     onDash && onDash();
   });
 
-  // Keep the last intentional joystick direction after the finger lifts.
-  // The dash button is separate from the joystick, so pointerup happens
-  // before its click handler and a live-only direction would otherwise vanish.
-  let lastDirection = null;
+
 
   // Returns the active direction, or the last direction when released.
   // - fwd/back/left/right: boolean flags

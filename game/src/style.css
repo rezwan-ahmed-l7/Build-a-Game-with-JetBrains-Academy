@@ -1696,12 +1696,12 @@ canvas.game {
 }
 
 @media (max-width: 640px) {
-  .score { top: 12px; padding: 8px 14px; font-size: 20px; }
-  .level-badge { top: 12px; left: auto; right: 12px; font-size: 14px; padding: 8px 12px; }
-  .combo-chip { top: 50px; padding: 5px 12px; font-size: 14px; }
-  .hearts { top: 12px; left: 12px; padding: 6px 10px; gap: 3px; }
-  .heart { width: 22px; height: 22px; }
-  .hearts-hp { font-size: 10px; padding-left: 6px; margin-left: 4px; }
+  .score { top: 10px; padding: 6px 11px; font-size: 17px; }
+  .level-badge { top: 10px; left: auto; right: 10px; font-size: 13px; padding: 6px 10px; }
+  .combo-chip { top: 46px; padding: 4px 10px; font-size: 13px; }
+  .hearts { top: 10px; left: 10px; padding: 5px 8px; gap: 2px; }
+  .heart { width: 19px; height: 19px; }
+  .hearts-hp { font-size: 9px; padding-left: 5px; margin-left: 3px; }
   .menu-hud { top: 10px; right: 10px; gap: 6px; }
   .icon-button { width: 36px; height: 36px; font-size: 14px; }
   .mode-pill { font-size: 10px; padding: 5px 10px; }
@@ -1726,15 +1726,6 @@ canvas.game {
   .menu-buttons { width: calc(100vw - 48px); justify-content: center; }
   .menu-button.primary { min-width: 168px; font-size: 17px; padding: 12px 30px; }
   .controls-strip { font-size: 10px; padding: 5px 10px; bottom: 12px; }
-  /* On touch devices the joystick + DASH/ATK buttons are the input —
-     the keyboard-hint strip is useless noise that would cover them.
-     Hide it entirely (and stop reserving space for it) when touch.
-     .touch-root is appended to <body> AFTER .controls-strip, so the
-     `~` combinator (later sibling) wouldn't match. We use :has() on
-     <body> to find "body has .touch-root AND .controls-strip as
-     children" and hide the strip. */
-  body:has(.touch-root) .controls-strip { display: none; }
-
   /* Profile + leaderboard responsive tweaks */
   .profile-row { width: calc(100vw - 36px); padding: 4px 6px; gap: 6px; }
   .profile-name { font-size: 14px; }
@@ -1763,6 +1754,9 @@ canvas.game {
   .lb-flag { font-size: 15px; }
   .game-over-rank { font-size: 13px; }
 }
+
+/* Touch devices use virtual controls; keep keyboard hints on desktop only. */
+body:has(.touch-root) .controls-strip { display: none; }
 
 @media (prefers-reduced-motion: reduce) {
   .score, .combo-chip, .combo-chip.milestone, .heart, .icon-button, .mode-pill, .menu-button,
