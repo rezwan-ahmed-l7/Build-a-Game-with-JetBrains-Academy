@@ -193,7 +193,243 @@ ground.position.z = -0.5;
 ground.receiveShadow = true;
 scene.add(ground);
 
-// No sea — clean ground edge
+// Sand beach ring — a sandy shore around the ground edge (840–900)
+// that gives the island a natural beach look before the dark water beyond.
+function createSandTexture() {
+  const size = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  // Base sandy color
+  ctx.fillStyle = '#c4a96a';
+  ctx.fillRect(0, 0, size, size);
+  // Add noise for grain
+  for (let i = 0; i < 3000; i++) {
+    const x = Math.random() * size;
+    const y = Math.random() * size;
+    const r = Math.random() * 1.5;
+    const brightness = 160 + Math.random() * 60;
+    ctx.fillStyle = `rgba(${brightness},${brightness - 30},${brightness - 60},0.3)`;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(8, 1);
+  texture.needsUpdate = true;
+  return texture;
+}
+const sandGeometry = new THREE.RingGeometry(GROUND_RADIUS, GROUND_RADIUS + 150, 128);
+const sandMaterial = new THREE.MeshStandardMaterial({
+  color: 0xc4a96a, map: createSandTexture(), roughness: 1.0, metalness: 0
+});
+const sand = new THREE.Mesh(sandGeometry, sandMaterial);
+sand.position.z = -0.4;
+sand.receiveShadow = true;
+scene.add(sand);
+
+// Sea — dark water ring surrounding the island, visible beyond the sand beach
+// Uses a canvas texture for a gradient: lighter near shore, darker far out.
+function createSeaTexture() {
+  const size = 512;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  // Radial gradient: light turquoise near shore, deep navy far out
+  const gradient = ctx.createRadialGradient(size/2, size/2, size * 0.1, size/2, size/2, size/2);
+  gradient.addColorStop(0, '#2a6a7a');    // light near shore
+  gradient.addColorStop(0.3, '#1a4a5a');  // mid
+  gradient.addColorStop(1, '#0a2a3a');    // dark far out
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, size, size);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.needsUpdate = true;
+  return texture;
+}
+const seaGeometry = new THREE.RingGeometry(1000, 2000, 128, 8);
+const seaMaterial = new THREE.MeshStandardMaterial({
+  color: 0x1a3a4a, map: createSeaTexture(), roughness: 0.1, metalness: 0.6,
+  transparent: true, opacity: 0.85, depthWrite: false
+});
+const sea = new THREE.Mesh(seaGeometry, seaMaterial);
+sea.position.z = -2;
+sea.receiveShadow = true;
+scene.add(sea);
+
+// Store original sea vertex positions for wave animation
+const seaPositions = seaGeometry.attributes.position.array.slice();
+
+// Sea ripple rings — expanding circles from shore inward like pond effect
+const seaRipples = [];
+for (let i = 0; i < 10; i++) {
+  const rippleMat = new THREE.MeshBasicMaterial({
+    color: 0x87ceeb, transparent: true, opacity: 0, depthWrite: false
+  });
+  const ripple = new THREE.Mesh(
+    new THREE.RingGeometry(50, 100, 48),
+    rippleMat
+  );
+  ripple.position.z = -1.5;
+  const angle = (i / 10) * Math.PI * 2;
+  // Start at shore edge (1000)
+  ripple.position.x = Math.cos(angle) * 1000;
+  ripple.position.y = Math.sin(angle) * 1000;
+  ripple.userData.phase = i * 0.6;
+  ripple.userData.speed = 0.15 + Math.random() * 0.1;
+  ripple.userData.angle = angle;
+  scene.add(ripple);
+  seaRipples.push(ripple);
+}
+
+// Starfish on sand beach — small 5-pointed shapes scattered on the sand
+const starfishGroup = new THREE.Group();
+const starfishColors = [0xd45a3a, 0xc44a2a, 0xe46a4a];
+for (let i = 0; i < 40; i++) {
+  const angle = Math.random() * Math.PI * 2;
+  const radius = GROUND_RADIUS + 10 + Math.random() * 130; // on sand ring
+  const sfMat = new THREE.MeshStandardMaterial({
+    color: starfishColors[i % 3], roughness: 0.8, metalness: 0.05
+  });
+  const sf = createStarfishShape(sfMat);
+  sf.position.set(Math.cos(angle) * radius, Math.sin(angle) * radius, 0.1);
+  sf.rotation.z = Math.random() * Math.PI * 2;
+  const sizes = [1.5, 2.5, 3.5];
+  const s = sizes[i % 3];
+  sf.scale.setScalar(s);
+  starfishGroup.add(sf);
+}
+scene.add(starfishGroup);
+
+function createStarfishShape(mat) {
+  const g = new THREE.Group();
+  const outerR = 1, innerR = 0.35;
+  const armCount = 5;
+  // Create 5 separate arms for a more realistic starfish
+  for (let a = 0; a < armCount; a++) {
+    const angle = (a / armCount) * Math.PI * 2 - Math.PI / 2;
+    const armShape = new THREE.Shape();
+    armShape.moveTo(0, 0);
+    armShape.quadraticCurveTo(0.3, 0.5, 0.15, 1.0);
+    armShape.quadraticCurveTo(0.05, 1.1, 0, 1.15);
+    armShape.quadraticCurveTo(-0.05, 1.1, -0.15, 1.0);
+    armShape.quadraticCurveTo(-0.3, 0.5, 0, 0);
+    const armGeo = new THREE.ShapeGeometry(armShape);
+    const arm = new THREE.Mesh(armGeo, mat || starfishMat);
+    arm.rotation.z = angle;
+    arm.position.z = 0.01;
+    g.add(arm);
+  }
+  // Center disc
+  const centerGeo = new THREE.CircleGeometry(0.35, 10);
+  const center = new THREE.Mesh(centerGeo, mat || starfishMat);
+  center.position.z = 0.02;
+  g.add(center);
+  // Underside texture bumps
+  const bumpMat = new THREE.MeshStandardMaterial({
+    color: 0xb84a30, roughness: 0.9, metalness: 0.02
+  });
+  for (let b = 0; b < 8; b++) {
+    const ba = (b / 8) * Math.PI * 2;
+    const br = 0.15 + Math.random() * 0.1;
+    const bumpGeo = new THREE.SphereGeometry(0.05, 4, 3);
+    const bump = new THREE.Mesh(bumpGeo, bumpMat);
+    bump.position.set(Math.cos(ba) * br, Math.sin(ba) * br, 0.03);
+    bump.scale.z = 0.3;
+    g.add(bump);
+  }
+  return g;
+}
+
+// Crabs on sand beach — small simple crab shapes
+const crabGroup = new THREE.Group();
+const crabColors = [0x8a3a2a, 0x7a2a1a, 0x9a4a3a];
+for (let i = 0; i < 15; i++) {
+  const angle = Math.random() * Math.PI * 2;
+  const radius = GROUND_RADIUS + 5 + Math.random() * 140; // on sand ring
+  const crab = createCrabShape(crabColors[i % 3]);
+  crab.position.set(Math.cos(angle) * radius, Math.sin(angle) * radius, 0.15);
+  crab.rotation.z = Math.random() * Math.PI * 2;
+  const sizes = [1.5, 2.5, 3.5];
+  const s = sizes[i % 3];
+  crab.scale.setScalar(s);
+  crabGroup.add(crab);
+}
+scene.add(crabGroup);
+
+function createCrabShape(color) {
+  const g = new THREE.Group();
+  const bodyMat = new THREE.MeshStandardMaterial({ color: color || 0x8a3a2a, roughness: 0.6, metalness: 0.05 });
+  const darkMat = new THREE.MeshStandardMaterial({ color: 0x5a2a1a, roughness: 0.7, metalness: 0.05 });
+  // Body — wider, flatter oval with shell texture
+  const bodyGeo = new THREE.SphereGeometry(1, 12, 8);
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  body.scale.set(1.2, 0.25, 0.8);
+  g.add(body);
+  // Shell ridge
+  const ridgeGeo = new THREE.BoxGeometry(1.4, 0.08, 0.3);
+  const ridge = new THREE.Mesh(ridgeGeo, darkMat);
+  ridge.position.set(0, 0.15, 0);
+  g.add(ridge);
+  // Claws — more detailed with segments
+  const clawMat = new THREE.MeshStandardMaterial({ color: color || 0x8a3a2a, roughness: 0.5, metalness: 0.08 });
+  for (let side = -1; side <= 1; side += 2) {
+    const clawGroup = new THREE.Group();
+    // Arm segment
+    const armGeo = new THREE.CylinderGeometry(0.12, 0.15, 0.8, 6);
+    const arm = new THREE.Mesh(armGeo, clawMat);
+    arm.rotation.z = side * 0.5;
+    arm.position.set(0.6, 0.1, side * 0.3);
+    clawGroup.add(arm);
+    // Claw pincer
+    const pincerGeo = new THREE.SphereGeometry(0.25, 6, 4);
+    const pincer = new THREE.Mesh(pincerGeo, clawMat);
+    pincer.position.set(1.0, 0.2, side * 0.6);
+    pincer.scale.set(1.2, 0.6, 0.8);
+    clawGroup.add(pincer);
+    // Pincer tip
+    const tipGeo = new THREE.SphereGeometry(0.12, 4, 4);
+    const tip = new THREE.Mesh(tipGeo, darkMat);
+    tip.position.set(1.2, 0.25, side * 0.7);
+    clawGroup.add(tip);
+    g.add(clawGroup);
+  }
+  // Legs — 4 pairs of thin legs
+  const legGeo = new THREE.CylinderGeometry(0.04, 0.06, 0.6, 4);
+  for (let side = -1; side <= 1; side += 2) {
+    for (let l = 0; l < 4; l++) {
+      const leg = new THREE.Mesh(legGeo, darkMat);
+      const la = (l / 4) * Math.PI * 0.6 + 0.3;
+      leg.position.set(Math.cos(la) * 0.8 * 0.5, 0.05, side * (0.5 + l * 0.15));
+      leg.rotation.z = side * (0.3 + l * 0.2);
+      g.add(leg);
+    }
+  }
+  // Eyes — on stalks
+  const eyeMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3, metalness: 0.1 });
+  const pupilMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+  for (let side = -1; side <= 1; side += 2) {
+    // Stalk
+    const stalkGeo = new THREE.CylinderGeometry(0.04, 0.06, 0.3, 4);
+    const stalk = new THREE.Mesh(stalkGeo, darkMat);
+    stalk.position.set(0.8, 0.25, side * 0.2);
+    stalk.rotation.z = side * 0.2;
+    g.add(stalk);
+    // Eye ball
+    const eyeGeo = new THREE.SphereGeometry(0.1, 6, 4);
+    const eye = new THREE.Mesh(eyeGeo, eyeMat);
+    eye.position.set(0.9, 0.4, side * 0.25);
+    g.add(eye);
+    // Pupil
+    const pupilGeo = new THREE.SphereGeometry(0.05, 4, 4);
+    const pupil = new THREE.Mesh(pupilGeo, pupilMat);
+    pupil.position.set(0.95, 0.42, side * 0.28);
+    g.add(pupil);
+  }
+  return g;
+}
 
 // Player
 const player = createPlayer();
@@ -577,6 +813,34 @@ function animate(currentTime) {
 
   // Pond animation (ripple expands, lily pads bob). Always runs.
   if (obstacles.updatePond) obstacles.updatePond(delta);
+
+  // Sea wave animation — multiple layers of large, visible waves
+  const time = currentTime / 1000;
+  const pos = seaGeometry.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const ox = seaPositions[i * 3];
+    const oy = seaPositions[i * 3 + 1];
+    const dist = Math.sqrt(ox * ox + oy * oy);
+    const angle = Math.atan2(oy, ox);
+    // Three overlapping wave layers for big, visible waves
+    const wave = Math.sin(dist * 0.008 - time * 1.0) * 12.0
+               + Math.sin(dist * 0.004 + time * 0.6 + angle * 1.5) * 8.0
+               + Math.sin(dist * 0.015 - time * 1.8 + angle * 3) * 4.0;
+    pos.setZ(i, wave);
+  }
+  pos.needsUpdate = true;
+
+  // Sea ripple rings — expanding from shore inward
+  for (const ripple of seaRipples) {
+    const phase = (time * ripple.userData.speed + ripple.userData.phase) % 3;
+    const t = phase / 3;
+    // Move from shore (1000) outward into sea
+    const dist = 1000 + t * 600;
+    ripple.position.x = Math.cos(ripple.userData.angle) * dist;
+    ripple.position.y = Math.sin(ripple.userData.angle) * dist;
+    ripple.scale.setScalar(1 + t * 30);
+    ripple.material.opacity = 0.5 * (1 - t) * Math.min(1, t * 5);
+  }
 
   // Player visual update always runs (idle breathing continues during game over)
   player.update(delta);

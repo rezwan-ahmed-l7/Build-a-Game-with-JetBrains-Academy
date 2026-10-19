@@ -144,7 +144,7 @@ export function createEnemyManager(scene, playerGroup, audio = null) {
       const enemy = enemies[i];
       const group = enemy.group;
 
-      if (enemy.mixer) enemy.mixer.update(delta);
+      if (enemy.enemyRef && enemy.enemyRef.mixer) enemy.enemyRef.mixer.update(delta);
       if (enemy.enemyRef && enemy.enemyRef.pulseStripes) {
         enemy.enemyRef.pulseStripes(elapsed);
       }
