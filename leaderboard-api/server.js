@@ -209,6 +209,9 @@ export async function handler(req, res) {
   }
 }
 
+// Vercel's Node.js entrypoint requires a default request-handler export.
+export default handler;
+
 if (!process.env.VERCEL) {
   const server = http.createServer(handler);
   server.listen(PORT, '0.0.0.0', () => {
