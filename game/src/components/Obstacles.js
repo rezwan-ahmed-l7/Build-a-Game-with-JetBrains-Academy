@@ -1069,6 +1069,7 @@ export function createObstacles(scene) {
     treeRecords.push({
       index: i,
       group: originalTree.group,
+      totalHeight: originalTree.totalHeight,
       pos,
       rotation: rand() * Math.PI * 2
     });
@@ -1127,10 +1128,21 @@ export function createObstacles(scene) {
   const redStyleOrder = [0, 2, 1, 4, 3];
   for (const record of treeRecords) {
     let group = record.group;
+    let totalHeight = record.totalHeight;
     if (redTreeIndices.has(record.index)) {
       const style = redStyleOrder[redTreeIndices.size ? redTreeRecords.findIndex((r) => r.index === record.index) % redStyleOrder.length : 0];
-      group = makeRedLeafTree(redDesignRand, style).group;
+      const redTree = makeRedLeafTree(redDesignRand, style);
+      group = redTree.group;
+      totalHeight = redTree.totalHeight;
     }
+
+    // Every fifth tree becomes a tall landmark tree (70–80 nominal units).
+    // Scale only vertically so its ground footprint, spacing and collisions stay unchanged.
+    if (record.index % 5 === 0 && totalHeight > 0) {
+      const targetHeight = 70 + ((record.index * 7) % 11);
+      group.scale.z = targetHeight / totalHeight;
+    }
+
     group.position.x = record.pos.x;
     group.position.y = record.pos.y;
     group.rotation.z = record.rotation;
