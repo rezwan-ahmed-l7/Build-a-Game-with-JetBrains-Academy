@@ -614,6 +614,14 @@ if (isTouchDevice()) {
   });
 }
 
+// Mobile browsers may suspend WebAudio after tab switching or screen lock.
+// Resume from a real pointer gesture so music and frog/action sounds recover.
+window.addEventListener('pointerdown', () => {
+  audio.resume().then(() => {
+    if (gameManager.isPlaying()) audio.startAmbient();
+  }).catch(() => {});
+}, { capture: true, passive: true });
+
 // Attach click-to-attack on the canvas for non-touch
 input.attachClickToAttack(canvas, () => {
   if (gameManager.isPlaying()) attack.attack(performance.now());
@@ -722,6 +730,11 @@ function animate(currentTime) {
   particles.update(delta);
   damageNumbers.update(delta, camera);
   audio.update && audio.update(delta);
+  // The sea surrounds the island: bring in surf ambience smoothly only
+  // when the frog approaches the shoreline, and fade it back out inland.
+  if (audio.setShoreProximity) {
+    audio.setShoreProximity(Math.hypot(player.group.position.x, player.group.position.y));
+  }
   if (gameManager.getFlashTimer() > 0) {
     gameManager.setFlashTimer(Math.max(0, gameManager.getFlashTimer() - delta));
   }
