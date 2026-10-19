@@ -579,36 +579,95 @@ function makeMushroomCluster(rand) {
   return cluster;
 }
 
-// Lily pad for the pond
+// Lily pad with a natural notch, layered leaf surface, subtle veins and a
+// proper multi-petal water-lily bloom. All geometry is native Three.js.
 function makeLilyPad(rand) {
-  const r = 1.6 + rand() * 0.8;
-  const pad = new THREE.Mesh(
-    new THREE.CircleGeometry(r, 8),
+  const r = 2.0 + rand() * 1.0;
+  const pad = new THREE.Group();
+  const leafShape = new THREE.Shape();
+  const start = Math.PI * 0.24;
+  const end = Math.PI * 1.76;
+  leafShape.moveTo(0, 0);
+  leafShape.absarc(0, 0, r, start, end, false);
+  leafShape.lineTo(0, 0);
+  leafShape.closePath();
+
+  const leaf = new THREE.Mesh(
+    new THREE.ShapeGeometry(leafShape, 20),
     new THREE.MeshStandardMaterial({
-      color: 0x1f4a2a,
-      roughness: 0.7,
+      color: new THREE.Color().setHSL(0.30 + rand() * 0.035, 0.48 + rand() * 0.16, 0.23 + rand() * 0.09),
+      roughness: 0.82,
       metalness: 0,
       side: THREE.DoubleSide
     })
   );
-  pad.rotation.x = Math.PI / 2;
-  // Notch by subtracting a triangle via group? Simpler: just place an
-  // emissive bud on top so it reads as a lily from above.
-  const hasFlower = rand() < 0.55;
+  leaf.position.z = 0.04;
+  leaf.receiveShadow = true;
+  pad.add(leaf);
+
+  // A small raised center and radial veins catch light and make the leaf
+  // read as a real plant rather than a flat green polygon.
+  const center = new THREE.Mesh(
+    new THREE.SphereGeometry(0.22, 8, 5),
+    new THREE.MeshStandardMaterial({ color: 0x8ca85a, roughness: 0.9 })
+  );
+  center.scale.z = 0.22;
+  center.position.z = 0.12;
+  pad.add(center);
+
+  const veinMat = new THREE.LineBasicMaterial({ color: 0x8aa66a, transparent: true, opacity: 0.62 });
+  for (let i = 0; i < 5; i++) {
+    const angle = start + 0.18 + i * ((end - start - 0.36) / 4);
+    const points = [
+      new THREE.Vector3(0.1, 0.0, 0.14),
+      new THREE.Vector3(Math.cos(angle) * r * 0.78, Math.sin(angle) * r * 0.78, 0.14)
+    ];
+    const vein = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints(points),
+      veinMat
+    );
+    pad.add(vein);
+  }
+
+  const hasFlower = rand() < 0.62;
   if (hasFlower) {
-    const flowerColor = new THREE.Color().setHSL(0.95 + rand() * 0.05, 0.6, 0.65);
-    const flower = new THREE.Mesh(
-      new THREE.SphereGeometry(0.35, 6, 4),
+    const bloom = new THREE.Group();
+    const flowerColor = new THREE.Color().setHSL(rand() < 0.65 ? 0.94 + rand() * 0.055 : 0.12 + rand() * 0.025, 0.72, 0.72);
+    const petalMat = new THREE.MeshStandardMaterial({
+      color: flowerColor,
+      emissive: flowerColor,
+      emissiveIntensity: 0.16,
+      roughness: 0.42,
+      metalness: 0.02,
+      side: THREE.DoubleSide
+    });
+    const petalCount = 8;
+    for (let i = 0; i < petalCount; i++) {
+      const angle = (i / petalCount) * Math.PI * 2;
+      const petal = new THREE.Mesh(
+        new THREE.SphereGeometry(0.48, 8, 6),
+        petalMat
+      );
+      petal.scale.set(0.62, 1.0, 0.24);
+      petal.position.set(Math.cos(angle) * 0.46, Math.sin(angle) * 0.46, 0.22);
+      petal.rotation.z = angle - Math.PI / 2;
+      bloom.add(petal);
+    }
+
+    const heart = new THREE.Mesh(
+      new THREE.SphereGeometry(0.28, 10, 7),
       new THREE.MeshStandardMaterial({
-        color: flowerColor,
-        emissive: flowerColor,
-        emissiveIntensity: 0.6,
+        color: 0xf7c95e,
+        emissive: 0x8c5a18,
+        emissiveIntensity: 0.12,
         roughness: 0.5
       })
     );
-    flower.scale.z = 0.4;
-    flower.position.z = 0.15;
-    pad.add(flower);
+    heart.scale.z = 0.55;
+    heart.position.z = 0.34;
+    bloom.add(heart);
+    bloom.position.set((rand() - 0.5) * 0.7, (rand() - 0.5) * 0.7, 0.08);
+    pad.add(bloom);
   }
   return pad;
 }
@@ -643,48 +702,73 @@ function makePond(rand, scale = 1.0) {
   const baseRadius = 70 + rand() * 18;
   const radius = baseRadius * scale;
 
-  // Water surface (lighter teal that picks up the sky color so it doesn't
-  // read as a black blob at dusk; the high metalness gives it a subtle
-  // sky-reflection feel without needing actual cube maps).
-  // side: DoubleSide so the disc reads as a flat pond from any camera
-  // angle (otherwise a low camera can see only the back face and it
-  // looks like a wall rising out of the ground).
+  // Natural shoreline: a muted earth/pebble lip, shallow turquoise edge,
+  // then deeper blue-green water. Concentric layers create depth without
+  // expensive real-time reflections or a screen-space shader.
+  const shore = new THREE.Mesh(
+    new THREE.RingGeometry(radius * 0.965, radius * 1.045, 64),
+    new THREE.MeshStandardMaterial({
+      color: 0x82785a,
+      roughness: 0.96,
+      metalness: 0,
+      side: THREE.DoubleSide
+    })
+  );
+  shore.position.z = 0.025;
+  group.add(shore);
+
+  const shallows = new THREE.Mesh(
+    new THREE.RingGeometry(radius * 0.86, radius * 0.99, 64),
+    new THREE.MeshStandardMaterial({
+      color: 0x559a91,
+      roughness: 0.42,
+      metalness: 0.12,
+      transparent: true,
+      opacity: 0.92,
+      side: THREE.DoubleSide
+    })
+  );
+  shallows.position.z = 0.035;
+  group.add(shallows);
+
   const waterMat = new THREE.MeshStandardMaterial({
-    color: 0x2a6a78,
-    roughness: 0.30,
-    metalness: 0.45,
+    color: 0x23596b,
+    roughness: 0.24,
+    metalness: 0.24,
     transparent: true,
-    opacity: 0.94,
+    opacity: 0.97,
     side: THREE.DoubleSide
   });
   const water = new THREE.Mesh(
-    new THREE.CircleGeometry(radius, 48),
+    new THREE.CircleGeometry(radius * 0.91, 64),
     waterMat
   );
-  // The game's coordinate system is Z-up — the ground plane is XY, with
-  // Z as height. CircleGeometry's default plane is also XY with normal
-  // pointing +Z, so it's ALREADY flat on the ground. No rotation needed.
-  // (Earlier code rotated it +90° around X, which tipped the disc onto
-  // its edge and made it appear as a vertical wall from the camera.)
-  water.position.z = 0.05;          // just above ground so it never z-fights
+  // Z-up world: CircleGeometry is already on the XY ground plane.
+  water.position.z = 0.05;
   water.receiveShadow = true;
   group.add(water);
 
-  // Animated ripple ring
+  // Two thin, staggered ripples make the surface feel gently alive.
   const rippleMat = new THREE.MeshBasicMaterial({
-    color: 0x9ee7ff,
+    color: 0xb8efff,
     transparent: true,
-    opacity: 0.4,
+    opacity: 0.32,
     side: THREE.DoubleSide,
     depthWrite: false
   });
   const ripple = new THREE.Mesh(
-    new THREE.RingGeometry(radius * 0.30, radius * 0.36, 48),
+    new THREE.RingGeometry(radius * 0.24, radius * 0.255, 64),
     rippleMat
   );
-  // Z-up world — ripple lies flat on the XY plane with no rotation.
-  ripple.position.z = 0.2;
+  ripple.position.set(-radius * 0.12, radius * 0.08, 0.19);
   group.add(ripple);
+
+  const rippleSecondary = new THREE.Mesh(
+    new THREE.RingGeometry(radius * 0.43, radius * 0.445, 64),
+    rippleMat.clone()
+  );
+  rippleSecondary.position.set(radius * 0.14, -radius * 0.1, 0.18);
+  group.add(rippleSecondary);
 
   // Lily pads, scattered around inner 70% of pond
   const lilyPads = [];
@@ -749,7 +833,7 @@ function makePond(rand, scale = 1.0) {
     group.add(stem, head);
   }
 
-  return { group, radius, water, ripple, lilyPads };
+  return { group, radius, water, ripple, rippleSecondary, lilyPads };
 }
 
 function placeRandomly(rand, avoid, minDist) {
@@ -1093,8 +1177,11 @@ export function createObstacles(scene) {
       const pond = ponds[p].ref;
       const phase = pondTime * 0.6 + p * 0.33;
       const t = phase % 1;
-      pond.ripple.scale.setScalar(1 + t * 0.7);
-      pond.ripple.material.opacity = 0.45 * (1 - t);
+      pond.ripple.scale.setScalar(0.65 + t * 1.2);
+      pond.ripple.material.opacity = 0.34 * (1 - t);
+      const secondaryT = (t + 0.48) % 1;
+      pond.rippleSecondary.scale.setScalar(0.7 + secondaryT * 1.15);
+      pond.rippleSecondary.material.opacity = 0.22 * (1 - secondaryT);
       for (let i = 0; i < pond.lilyPads.length; i++) {
         const pad = pond.lilyPads[i];
         pad.position.z = 0.05 + Math.sin(pondTime * 1.2 + i * 0.7 + p) * 0.08;
