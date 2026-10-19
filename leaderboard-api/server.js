@@ -24,10 +24,8 @@ function send(res, status, payload, origin) {
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'no-store',
-    ...(origin && ALLOWED_ORIGINS.has(origin) ? {
-      'Access-Control-Allow-Origin': origin,
-      'Vary': 'Origin',
-    } : {}),
+    // Public leaderboard API; no browser credentials are used.
+    'Access-Control-Allow-Origin': '*',
   });
   res.end(JSON.stringify(payload));
 }
@@ -154,14 +152,10 @@ export async function handler(req, res) {
   const pathname = url.pathname.replace(/^\/api(?=\/|$)/, '') || '/';
 
   if (req.method === 'OPTIONS') {
-    if (ALLOWED_ORIGINS.size > 0 && !ALLOWED_ORIGINS.has(origin)) return send(res, 403, { error: 'Origin not allowed' }, null);
     res.writeHead(204, {
-      ...(origin && ALLOWED_ORIGINS.has(origin) ? {
-        'Access-Control-Allow-Origin': origin,
-        'Vary': 'Origin',
-      } : {}),
+      'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Headers': 'Content-Type, Accept',
       'Access-Control-Max-Age': '600',
     });
     return res.end();
@@ -170,7 +164,6 @@ export async function handler(req, res) {
   if (!JSONBIN_BIN_ID || !JSONBIN_MASTER_KEY || ALLOWED_ORIGINS.size === 0) {
     return send(res, 503, { error: 'Leaderboard API is not configured' }, origin);
   }
-  if (origin && !ALLOWED_ORIGINS.has(origin)) return send(res, 403, { error: 'Origin not allowed' }, null);
   if (pathname === '/health' && req.method === 'GET') return send(res, 200, { ok: true }, origin);
 
   // /attempts: GET reads the counter, POST increments it.
