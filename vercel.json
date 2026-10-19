@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "functions": {
+    "api/[...path].js": {
+      "includeFiles": "leaderboard-api/**"
+    }
+  },
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/api/$1" }
+  ]
+}
