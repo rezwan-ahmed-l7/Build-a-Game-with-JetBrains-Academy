@@ -1838,3 +1838,176 @@ body:has(.touch-root) .controls-strip { display: none; }
     transition: none !important;
   }
 }
+
+
+/* ============================================================
+   Mobile gameplay HUD
+   Keep the playfield open while making every touch target readable
+   and reachable with thumbs. Safe-area insets support notched phones.
+   ============================================================ */
+@media (max-width: 640px) {
+  .score {
+    top: max(8px, env(safe-area-inset-top));
+    left: 50%;
+    max-width: 38vw;
+    box-sizing: border-box;
+    padding: 6px 11px;
+    font-size: clamp(13px, 3.6vw, 16px);
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+
+  .hearts {
+    top: max(8px, env(safe-area-inset-top));
+    left: max(8px, env(safe-area-inset-left));
+    gap: 3px;
+    padding: 5px 7px;
+  }
+  .heart { width: 18px; height: 18px; }
+  .hearts-hp { font-size: 9px; }
+
+  .level-badge {
+    top: 46px;
+    left: auto;
+    right: max(8px, env(safe-area-inset-right));
+    padding: 4px 8px;
+    font-size: 11px;
+    letter-spacing: 0.02em;
+  }
+  .combo-chip {
+    top: 43px;
+    left: 50%;
+    padding: 4px 9px;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+  }
+
+  .menu-hud {
+    top: max(8px, env(safe-area-inset-top));
+    right: max(8px, env(safe-area-inset-right));
+    gap: 4px;
+  }
+  .menu-hud-row { gap: 4px; }
+  .icon-button {
+    width: 31px;
+    height: 31px;
+    font-size: 13px;
+    flex: 0 0 auto;
+  }
+  .mode-pill {
+    padding: 4px 7px;
+    gap: 4px;
+    font-size: 8px;
+    letter-spacing: 0.06em;
+  }
+  .mode-pill::before { width: 5px; height: 5px; }
+  .mode-pill-clock { font-size: 8px; }
+
+  .joystick-base {
+    left: max(14px, env(safe-area-inset-left));
+    bottom: max(14px, env(safe-area-inset-bottom));
+    width: 100px;
+    height: 100px;
+    border-width: 2px;
+    background: rgba(7, 16, 36, 0.50);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.20), inset 0 0 0 1px rgba(255,255,255,0.04);
+  }
+  .joystick-knob {
+    top: 26px;
+    left: 26px;
+    width: 44px;
+    height: 44px;
+    box-shadow: 0 0 12px rgba(255, 226, 122, 0.40);
+  }
+  .touch-buttons {
+    right: max(14px, env(safe-area-inset-right));
+    bottom: max(16px, env(safe-area-inset-bottom));
+    gap: 9px;
+  }
+  .touch-button {
+    width: 64px;
+    height: 64px;
+    font-size: 13px;
+    letter-spacing: 0.04em;
+    border-width: 2px;
+    box-shadow: 0 5px 16px rgba(0,0,0,0.24), inset 0 1px 0 rgba(255,255,255,0.12);
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  .touch-button:active { transform: scale(0.95); }
+  .toast-host {
+    top: 88px;
+    right: 8px;
+    max-width: min(250px, calc(100vw - 16px));
+  }
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+  .score {
+    top: max(6px, env(safe-area-inset-top));
+    max-width: 30vw;
+    padding: 4px 10px;
+    font-size: 13px;
+  }
+  .hearts {
+    top: max(6px, env(safe-area-inset-top));
+    left: max(7px, env(safe-area-inset-left));
+    padding: 4px 6px;
+    gap: 2px;
+  }
+  .heart { width: 16px; height: 16px; }
+  .hearts-hp { font-size: 8px; padding-left: 3px; margin-left: 2px; }
+
+  .level-badge {
+    top: 38px;
+    right: max(7px, env(safe-area-inset-right));
+    padding: 3px 7px;
+    font-size: 10px;
+  }
+  .combo-chip {
+    top: 35px;
+    padding: 3px 8px;
+    font-size: 10px;
+  }
+  .menu-hud {
+    top: max(6px, env(safe-area-inset-top));
+    right: max(7px, env(safe-area-inset-right));
+    gap: 3px;
+  }
+  .menu-hud-row { gap: 3px; }
+  .icon-button { width: 27px; height: 27px; font-size: 11px; }
+  .mode-pill { display: none; }
+
+  .joystick-base {
+    left: max(10px, env(safe-area-inset-left));
+    bottom: max(8px, env(safe-area-inset-bottom));
+    width: 82px;
+    height: 82px;
+  }
+  .joystick-knob {
+    top: 21px;
+    left: 21px;
+    width: 36px;
+    height: 36px;
+  }
+  .touch-buttons {
+    right: max(10px, env(safe-area-inset-right));
+    bottom: max(8px, env(safe-area-inset-bottom));
+    gap: 7px;
+  }
+  .touch-button {
+    width: 56px;
+    height: 56px;
+    font-size: 11px;
+  }
+  .toast-host { top: 66px; right: 7px; gap: 4px; }
+  .toast-notification { padding: 5px 8px; }
+  .toast-label, .toast-desc { font-size: 10px; }
+}
+
+/* Prevent browser double-tap zoom from stealing game control taps. */
+body:has(.touch-root) .touch-button,
+body:has(.touch-root) .joystick-base,
+body:has(.touch-root) .menu-hud button {
+  touch-action: manipulation;
+}
