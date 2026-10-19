@@ -930,7 +930,12 @@ const dash = createDash(player.group, camera, () => {
   if (fromKeys) return fromKeys;
   if (touch && touch.getDirection) return touch.getDirection();
   return null;
-}, (dx, dy) => movement.translate(dx, dy));
+}, (dx, dy) => {
+  // Pond slowdown also affects dash travel, without changing dash duration,
+  // invulnerability timing, cooldowns, or the normal movement speed setting.
+  const environmentalSpeed = movement.getEnvironmentalSpeedMultiplier();
+  movement.translate(dx * environmentalSpeed, dy * environmentalSpeed);
+});
 
 // Power-ups
 const powerUps = createPowerUpManager(scene, player.group);
@@ -1204,6 +1209,14 @@ function animate(currentTime) {
         touch.markMoveQueued?.(joystickDirection);
       }
     }
+
+    // Apply a separate environmental factor so pond water slows movement
+    // by 30% without overwriting level speed or a temporary speed power-up.
+    // The actual water radius includes all lily pads, and the factor resets
+    // immediately when the frog's ground position leaves the pond.
+    movement.setEnvironmentalSpeedMultiplier(
+      obstacles.isPositionOverPond(player.group.position.x, player.group.position.y) ? 0.7 : 1
+    );
 
     movement.update(effectiveDelta);
     // Apply dash after normal movement for this frame, while Movement's
