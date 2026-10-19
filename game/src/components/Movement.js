@@ -4,8 +4,8 @@ import { easeInOutCubic, easeInOutQuart, easeOutQuad, easeInQuad } from '../util
 import { PLAYABLE_RADIUS } from './WorldBounds.js';
 
 const MOVE_DISTANCE = 40;
-const JUMP_HEIGHT = 28;
-const JUMP_DURATION = 0.38;
+const JUMP_HEIGHT = 25;
+const JUMP_DURATION = 0.35;
 
 const _camDir = new THREE.Vector3();
 const _proposedPos = { x: 0, y: 0, z: 0 };
@@ -245,13 +245,9 @@ export function createMovement(playerGroup, getModel, input, camera, canMoveCall
 
     rotationProgress += delta / ROTATION_DURATION;
     const rotT = Math.min(rotationProgress, 1);
-    const rotEased = easeInOutQuart(rotT);
-    let rotFactor = rotEased;
-    if (rotT > 0.85) {
-      const overshootT = (rotT - 0.85) / 0.15;
-      rotFactor = 1 + Math.sin(overshootT * Math.PI) * 0.08;
-    }
-
+    // Keep rotation continuous and monotonic. The previous overshoot briefly
+    // rotated past the target and snapped back, which looked jittery on touch.
+    const rotFactor = easeInOutQuart(rotT);
     currentRotation = lerpAngle(startRotation, targetRotation, rotFactor);
     if (model) {
       if (model.parent) model.parent.rotation.z = currentRotation;
