@@ -3,7 +3,7 @@
 
 import { el, clear, isTouchDevice } from '../utils/dom.js';
 import { loadProfile, saveProfile } from './Profile.js';
-import { getTop } from './Leaderboard.js';
+import { getTop, isLeaderboardUnavailable } from './Leaderboard.js';
 import { getAttempts } from './PlayCounter.js';
 import { COUNTRIES } from '../data/countries.js';
 
@@ -519,6 +519,12 @@ export function createMenus({ onStart, onResume, onRestart, onTogglePause, onTog
       } catch {
         playedEl.style.display = 'none';
       }
+    }
+
+    if (isLeaderboardUnavailable()) {
+      target.appendChild(el('p', { class: 'leaderboard-empty' }, ['Leaderboard temporarily unavailable. Please try again.']));
+      if (rankEl) rankEl.textContent = '';
+      return;
     }
 
     if (top.length === 0) {

@@ -62,6 +62,33 @@ async function readRecord() {
   return { record: record && typeof record === 'object' && !Array.isArray(record) ? record : {}, leaderboard: cleanBoard(leaderboard) };
 }
 
+// JSONBin does not provide compare-and-swap. Mutations are serialized by the
+// in-process queue below to prevent simultaneous requests handled by this API
+// instance from overwriting one another. This is not a cross-instance lock.
+async function incrementAttempts() {
+  const { record, leaderboard } = await readRecord();
+  const current = Number.isSafeInteger(record.attempts) && record.attempts >= 0 ? record.attempts : 0;
+  const next = current + 1;
+  const response = await fetch(`${JSONBIN_BASE_URL}/b/${encodeURIComponent(JSONBIN_BIN_ID)}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Master-Key': JSONBIN_MASTER_KEY,
+    },
+    body: JSON.stringify({ ...record, leaderboard, attempts: next }),
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!response.ok) throw new Error(`JSONBin write failed (${response.status})`);
+  return next;
+}
+
+let mutationQueue = Promise.resolve();
+function serializeMutation(operation) {
+  const result = mutationQueue.then(operation, operation);
+  mutationQueue = result.then(() => undefined, () => undefined);
+  return result;
+}
+
 async function writeRecord(leaderboard, attempts) {
   const current = await readRecord();
   const nextAttempts = Number.isFinite(attempts)
@@ -82,54 +109,6 @@ async function writeRecord(leaderboard, attempts) {
   });
   if (!response.ok) throw new Error(`JSONBin write failed (${response.status})`);
   return { leaderboard: cleanBoard(leaderboard), attempts: nextAttempts };
-}
-
-// Atomic increment with compare-and-swap semantics: re-reads the record
-// until the local copy of `attempts` matches the server's, then writes
-// `attempts + 1`. Bounded retries prevent infinite loops when many
-// clients race simultaneously. The previous implementation in PlayCounter
-// (read-then-write) could lose increments under concurrency.
-async function incrementAttempts() {
-  const MAX_ATTEMPTS = 8;
-  for (let i = 0; i < MAX_ATTEMPTS; i++) {
-    const { record, leaderboard } = await readRecord();
-    const current = Number.isFinite(record.attempts) ? Math.floor(record.attempts) : 0;
-    const next = current + 1;
-    const response = await fetch(`${JSONBIN_BASE_URL}/b/${encodeURIComponent(JSONBIN_BIN_ID)}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Master-Key': JSONBIN_MASTER_KEY,
-      },
-      body: JSON.stringify({
-        ...record,
-        leaderboard,
-        attempts: next,
-      }),
-      signal: AbortSignal.timeout(8000),
-    });
-    if (response.ok) return next;
-  }
-  throw new Error('Attempts increment lost the CAS race too many times');
-}
-
-async function writeRecord(leaderboard) {
-  const current = await readRecord();
-  const response = await fetch(`${JSONBIN_BASE_URL}/b/${encodeURIComponent(JSONBIN_BIN_ID)}`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Master-Key': JSONBIN_MASTER_KEY,
-    },
-    body: JSON.stringify({
-      ...current.record,
-      leaderboard: cleanBoard(leaderboard),
-      attempts: Number.isFinite(current.record.attempts) ? current.record.attempts : 0,
-    }),
-    signal: AbortSignal.timeout(8000),
-  });
-  if (!response.ok) throw new Error(`JSONBin write failed (${response.status})`);
-  return cleanBoard(leaderboard);
 }
 
 function isRateLimited(req) {
@@ -171,7 +150,7 @@ const server = http.createServer(async (req, res) => {
         'Access-Control-Allow-Origin': origin,
         'Vary': 'Origin',
       } : {}),
-      'Access-Control-Allow-Methods': 'GET, PUT, OPTIONS',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type',
       'Access-Control-Max-Age': '600',
     });
@@ -184,9 +163,9 @@ const server = http.createServer(async (req, res) => {
   if (origin && origin !== ALLOWED_ORIGIN) return send(res, 403, { error: 'Origin not allowed' }, null);
   if (url.pathname === '/health' && req.method === 'GET') return send(res, 200, { ok: true }, origin);
 
-  // /attempts: GET reads the counter, POST atomically increments it.
-  // Implemented as a CAS loop on the server so concurrent players don't
-  // lose increments. The client never sees the JSONBin master key.
+  // /attempts: GET reads the counter, POST increments it.
+  // Mutations are serialized within this API process; JSONBin does not provide
+  // cross-instance atomicity. The client never sees the JSONBin master key.
   if (url.pathname === '/attempts') {
     if (!['GET', 'POST'].includes(req.method || '')) return send(res, 405, { error: 'Method not allowed' }, origin);
     if (isRateLimited(req)) return send(res, 429, { error: 'Too many requests; try again shortly' }, origin);
@@ -196,7 +175,7 @@ const server = http.createServer(async (req, res) => {
         const attempts = Number.isFinite(record.attempts) ? Math.floor(record.attempts) : 0;
         return send(res, 200, { attempts }, origin);
       }
-      const result = await incrementAttempts();
+      const result = await serializeMutation(incrementAttempts);
       return send(res, 200, { attempts: result }, origin);
     } catch (error) {
       return send(res, 502, { error: 'Attempts service is temporarily unavailable' }, origin);
@@ -218,9 +197,11 @@ const server = http.createServer(async (req, res) => {
     if (incoming.length > 50) return send(res, 400, { error: 'Too many entries' }, origin);
     // Merge rather than replacing the shared board, so a stale browser cannot
     // accidentally erase entries submitted by other players.
-    const current = await readRecord();
-    const { leaderboard } = await writeRecord(cleanBoard([...current.leaderboard, ...incoming]), current.record.attempts);
-    return send(res, 200, { leaderboard }, origin);
+    const result = await serializeMutation(async () => {
+      const current = await readRecord();
+      return writeRecord(cleanBoard([...current.leaderboard, ...incoming]), current.record.attempts);
+    });
+    return send(res, 200, { leaderboard: result.leaderboard }, origin);
   } catch (error) {
     const status = error?.message === 'BODY_TOO_LARGE' ? 413 : error instanceof SyntaxError ? 400 : 502;
     return send(res, status, { error: status === 502 ? 'Leaderboard storage is temporarily unavailable' : 'Invalid request body' }, origin);
