@@ -1116,6 +1116,7 @@ if (import.meta.env.DEV) {
     input, movement, dash, attack, powerUps,
     gameManager,
     onPowerUpPickup: gameManager.onPowerUpPickup,
+    onMysteryBoxPickup: gameManager.onMysteryBoxPickup,
     currentState: gameManager.currentState,
     // Test-only: setting __testFreezeCamera to true short-circuits the
     // camera-follow update so headless screenshot scripts can pose the
