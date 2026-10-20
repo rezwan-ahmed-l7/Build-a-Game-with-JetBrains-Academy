@@ -209,16 +209,16 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
     const birdGroup = new THREE.Group();
 
     // Color variation: dark grey to near-black, with subtle warm/cool tones
-    const colorVariation = [0x2a2a2e, 0x333338, 0x252528, 0x3a3a3e, 0x1e1e22][i % 5];
-    const bellyColor = [0x5a5a60, 0x606068, 0x505058, 0x6a6a70, 0x4a4a50][i % 5];
+    const colorVariation = [0x252b35, 0x30343b, 0x292d32, 0x3a3b40, 0x20252d][i % 5];
+    const bellyColor = [0x9298a2, 0xa4a5a8, 0x828c99, 0xb0a89a, 0x87909a][i % 5];
 
     const birdMat = new THREE.MeshStandardMaterial({
       color: colorVariation, roughness: 0.7, metalness: 0.05,
-      transparent: true, opacity: 0, depthWrite: false, fog: false
+      transparent: true, opacity: 0, depthWrite: true, fog: false
     });
     const bellyMat = new THREE.MeshStandardMaterial({
-      color: bellyColor, roughness: 0.75, metalness: 0.05,
-      transparent: true, opacity: 0, depthWrite: false, fog: false
+      color: bellyColor, roughness: 0.75, metalness: 0.02,
+      transparent: true, opacity: 0, depthWrite: true, fog: false
     });
 
     // --- Body: sleek torpedo shape using custom lathe ---
@@ -420,6 +420,9 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
       wingTexture
     };
 
+    // Slightly enlarge every bird so the silhouette and feather shape remain
+    // readable at normal gameplay camera distance.
+    birdGroup.scale.setScalar(1.65);
     scene.add(birdGroup);
     birds.push(birdGroup);
   }
@@ -855,7 +858,8 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
     // Birds fly in the sky around the player's view area. Each bird is a 3D
     // model with body, wings, head, beak, and tail. They circle independently
     // in the distant sky, staying visible but far from the camera lens.
-    const birdVisibility = Math.max(0, Math.min(1, (dayFactor - 0.2) / 0.3));
+    const visibilityT = Math.max(0, Math.min(1, (dayFactor - 0.12) / 0.3));
+    const birdVisibility = visibilityT * visibilityT * (3 - 2 * visibilityT);
     for (let i = 0; i < birds.length; i++) {
       const bird = birds[i];
       const data = bird.userData;
@@ -874,11 +878,16 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
 
       // Face the direction of movement
       bird.rotation.z = data.angle + Math.PI / 2;
+      // Gentle banking and pitch keep the flock from looking like rigid icons.
+      bird.rotation.x = Math.sin(elapsed * 0.7 + data.flapPhase) * 0.055;
+      bird.rotation.y = Math.cos(elapsed * 0.55 + data.flapPhase) * 0.07;
 
       // Wing flapping animation — rotate wings up and down
-      const flapAngle = Math.sin(elapsed * data.flapSpeed + data.flapPhase) * 0.5;
+      const flapCycle = elapsed * data.flapSpeed + data.flapPhase;
+      const flapAngle = Math.sin(flapCycle) * 0.62;
+      // Opposing wing pivots create a mirrored, more natural flap.
       data.leftWing.rotation.x = flapAngle;
-      data.rightWing.rotation.x = flapAngle;
+      data.rightWing.rotation.x = -flapAngle;
       // Tail fork slight bob
       data.tailL.rotation.x = Math.sin(elapsed * data.flapSpeed * 0.5 + data.flapPhase) * 0.15;
       data.tailR.rotation.x = Math.sin(elapsed * data.flapSpeed * 0.5 + data.flapPhase) * 0.15;
