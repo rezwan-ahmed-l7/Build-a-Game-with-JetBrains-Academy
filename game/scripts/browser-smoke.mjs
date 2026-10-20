@@ -264,6 +264,117 @@ try {
   const renderedMode = await page.evaluate(() => window.__game.environment.getMode());
   if (renderedMode !== modeAfter) throw new Error(`Environment mode mismatch: expected ${modeAfter}, got ${renderedMode}`);
 
+  // Mobile smoke: force touch-device detection, complete onboarding, and
+  // exercise the virtual joystick with a quick flick that may end between frames.
+  const mobileContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+    deviceScaleFactor: 1
+  });
+  const mobilePage = await mobileContext.newPage();
+  mobilePage.on('pageerror', (error) => browserErrors.push(`Mobile page error: ${error.message}`));
+  mobilePage.on('console', (message) => {
+    if (message.type() === 'error') browserErrors.push(`Mobile console: ${message.text()}`);
+  });
+  mobilePage.on('requestfailed', (request) => {
+    if (!request.url().startsWith('data:')) browserErrors.push(`Mobile request failed: ${request.url()} — ${request.failure()?.errorText}`);
+  });
+  await mobilePage.goto(baseUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await mobilePage.locator('#menu-start').waitFor({ state: 'visible', timeout: 10000 });
+  if (!(await mobilePage.locator('.touch-root').count())) {
+    throw new Error('Touch device detection did not mount virtual controls on mobile viewport');
+  }
+  await mobilePage.locator('#profile-name').fill('MobileSmoke');
+  await mobilePage.locator('#profile-flag').click();
+  await mobilePage.locator('.flag-cell[data-code="BD"]').click();
+  await mobilePage.locator('#flag-confirm').click();
+  await mobilePage.waitForFunction(() => {
+    const button = document.querySelector('#btn-start');
+    return button && !button.disabled;
+  });
+  await mobilePage.locator('#btn-start').click();
+  await mobilePage.locator('#menu-start').waitFor({ state: 'hidden' });
+  await mobilePage.waitForFunction(() => window.__game?.currentState() === 'playing');
+
+  const touchButtonVisibility = await mobilePage.evaluate(() => ({
+    joystick: !!document.querySelector('.joystick-base') &&
+      getComputedStyle(document.querySelector('.joystick-base')).pointerEvents !== 'none',
+    attack: !!document.querySelector('#touch-attack'),
+    dash: !!document.querySelector('#touch-dash')
+  }));
+  if (!touchButtonVisibility.joystick || !touchButtonVisibility.attack || !touchButtonVisibility.dash) {
+    throw new Error(`Mobile controls are missing or not interactive: ${JSON.stringify(touchButtonVisibility)}`);
+  }
+
+  let mobileMovement = null;
+  let mobileDirection = null;
+  for (const direction of [
+    { name: 'right', dx: 28, dy: 0 },
+    { name: 'left', dx: -28, dy: 0 },
+    { name: 'forward', dx: 0, dy: -28 },
+    { name: 'backward', dx: 0, dy: 28 }
+  ]) {
+    const joystickBox = await mobilePage.locator('.joystick-base').boundingBox();
+    if (!joystickBox) throw new Error('Mobile joystick has no visible bounding box');
+    const centerX = joystickBox.x + joystickBox.width / 2;
+    const centerY = joystickBox.y + joystickBox.height / 2;
+    const startPosition = await mobilePage.evaluate(() => ({
+      x: window.__game.player.group.position.x,
+      y: window.__game.player.group.position.y
+    }));
+    await mobilePage.mouse.move(centerX, centerY);
+    await mobilePage.mouse.down();
+    await mobilePage.mouse.move(centerX + direction.dx, centerY + direction.dy, { steps: 1 });
+    await mobilePage.mouse.up();
+    await mobilePage.waitForTimeout(480);
+    const endPosition = await mobilePage.evaluate(() => ({
+      x: window.__game.player.group.position.x,
+      y: window.__game.player.group.position.y
+    }));
+    if (Math.hypot(endPosition.x - startPosition.x, endPosition.y - startPosition.y) > 10) {
+      mobileMovement = endPosition;
+      mobileDirection = direction.name;
+      break;
+    }
+  }
+  if (!mobileMovement) {
+    const diagnostics = await mobilePage.evaluate(() => ({
+      state: window.__game.currentState(),
+      moveDirection: window.__game.touch?.getMoveDirection?.() ?? null,
+      queuedInput: window.__game.input.peek(),
+      moving: window.__game.movement.isCurrentlyMoving(),
+      position: { x: window.__game.player.group.position.x, y: window.__game.player.group.position.y }
+    }));
+    throw new Error(`Mobile joystick quick flick did not move the player. Diagnostics: ${JSON.stringify(diagnostics)}`);
+  }
+
+  await mobilePage.evaluate(() => {
+    window.__mobileAttackCalls = 0;
+    const originalAttack = window.__game.attack.attack.bind(window.__game.attack);
+    window.__game.attack.attack = (...args) => {
+      window.__mobileAttackCalls++;
+      return originalAttack(...args);
+    };
+    window.__mobileDashCalls = 0;
+    const originalDash = window.__game.dash.tryStart.bind(window.__game.dash);
+    window.__game.dash.tryStart = (...args) => {
+      window.__mobileDashCalls++;
+      return originalDash(...args);
+    };
+  });
+  await mobilePage.locator('#touch-attack').click();
+  await mobilePage.locator('#touch-dash').click();
+  const mobileActionCalls = await mobilePage.evaluate(() => ({
+    attack: window.__mobileAttackCalls,
+    dash: window.__mobileDashCalls
+  }));
+  if (mobileActionCalls.attack < 1 || mobileActionCalls.dash < 1) {
+    throw new Error(`Mobile action button handlers did not fire: ${JSON.stringify(mobileActionCalls)}`);
+  }
+  await mobilePage.screenshot({ path: 'browser-smoke-mobile.png' });
+  await mobileContext.close();
+
   await page.screenshot({ path: 'browser-smoke-playing.png' });
   if (browserErrors.length) throw new Error(`Browser console/runtime issues:\n- ${browserErrors.join('\n- ')}`);
 
