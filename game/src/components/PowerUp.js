@@ -468,6 +468,9 @@ export function createMysteryBox(x, y) {
   const dark = material(0x21143c, 0x36155f, 0.35, 0.3);
   const mint = material(0x8ffff0, 0x32f5dd, 1.5, 0.25);
 
+  const base = new THREE.Mesh(new THREE.BoxGeometry(22, 2, 12), dark);
+  base.position.set(0, -8.1, -0.5);
+  group.add(base);
   const body = new THREE.Mesh(new THREE.BoxGeometry(20, 15, 11), purple);
   body.position.z = 0;
   group.add(body);
