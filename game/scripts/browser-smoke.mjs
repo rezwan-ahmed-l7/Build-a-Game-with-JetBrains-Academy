@@ -77,7 +77,9 @@ try {
 
   await page.locator('#btn-start').click();
   await page.locator('#menu-start').waitFor({ state: 'hidden' });
-  await page.waitForTimeout(700);
+  // The game intentionally enters a short ready/countdown state after Play.
+  // Wait for the actual gameplay state instead of assuming a fixed frame delay.
+  await page.waitForFunction(() => window.__game?.currentState() === 'playing', null, { timeout: 10000 });
 
   const before = await page.evaluate(() => ({
     x: window.__game.player.group.position.x,
