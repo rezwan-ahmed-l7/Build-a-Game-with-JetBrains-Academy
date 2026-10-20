@@ -514,7 +514,7 @@ for (let i = 0; i < 18; i++) {
   const crab = createCrabShape(crabColors[i % crabColors.length]);
   crab.position.set(Math.cos(angle) * radius, Math.sin(angle) * radius, 0.15);
   crab.rotation.z = angle + Math.PI / 2;
-  crab.scale.setScalar([1.8, 2.25, 2.7][i % 3]);
+  crab.scale.setScalar([2.5, 3.15, 3.8][i % 3]);
   crab.userData.anchorAngle = angle;
   crab.userData.anchorRadius = radius;
   crab.userData.phase = Math.random() * Math.PI * 2;
