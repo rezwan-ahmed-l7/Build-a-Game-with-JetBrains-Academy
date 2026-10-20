@@ -249,7 +249,7 @@ export function createAudio() {
       arpStep++;
       arpTimer = setTimeout(arpTick, 190);
     }
-    arpTimer = setTimeout(arpTick, 380);
+    arpTimer = setTimeout(arpTick, 190);
   }
 
   // A looping, filtered noise layer creates a soft surf wash. Its gain
@@ -344,7 +344,7 @@ export function createAudio() {
   function setAmbientNightness(t) {
     if (!ambientGain) return;
     ambientGain.gain.linearRampToValueAtTime(
-      0.10 + 0.10 * t, ctx.currentTime + 0.4
+      0.38 + 0.06 * t, ctx.currentTime + 0.4
     );
   }
 
