@@ -17,15 +17,15 @@ let countdownTimer = 0; // handle for the in-flight 3-2-1 start countdown
 // Level-based frog stat scaling config
 // { maxHp, attackDamage, attackCooldown, moveSpeedMult, dashCooldownMs }
 const LEVEL_STATS = {
-  1: { maxHp: 3, attackRadius: 45, attackDamage: 2, attackCooldown: 0.50, moveSpeedMult: 1.0, dashCooldownMs: 3000 },
-  2: { maxHp: 3, attackRadius: 48, attackDamage: 2.5, attackCooldown: 0.50, moveSpeedMult: 1.0, dashCooldownMs: 3000 },
-  3: { maxHp: 4, attackRadius: 51, attackDamage: 3, attackCooldown: 0.40, moveSpeedMult: 1.1, dashCooldownMs: 2500 },
-  4: { maxHp: 4, attackRadius: 54, attackDamage: 3.5, attackCooldown: 0.40, moveSpeedMult: 1.1, dashCooldownMs: 2500 },
-  5: { maxHp: 5, attackRadius: 57, attackDamage: 4, attackCooldown: 0.30, moveSpeedMult: 1.2, dashCooldownMs: 2000 },
-  6: { maxHp: 5, attackRadius: 60, attackDamage: 4.5, attackCooldown: 0.30, moveSpeedMult: 1.2, dashCooldownMs: 2000 },
-  7: { maxHp: 5, attackRadius: 63, attackDamage: 5, attackCooldown: 0.20, moveSpeedMult: 1.2, dashCooldownMs: 2000 },
-  8: { maxHp: 5, attackRadius: 66, attackDamage: 5.5, attackCooldown: 0.20, moveSpeedMult: 1.2, dashCooldownMs: 2000 },
-  9: { maxHp: 6, attackRadius: 69, attackDamage: 6, attackCooldown: 0.10, moveSpeedMult: 1.3, dashCooldownMs: 1500 },
+  1: { maxHp: 3, attackRadius: 42, attackDamage: 2, attackCooldown: 0.50, moveSpeedMult: 1.0, dashCooldownMs: 3000 },
+  2: { maxHp: 3, attackRadius: 42, attackDamage: 2.5, attackCooldown: 0.50, moveSpeedMult: 1.0, dashCooldownMs: 3000 },
+  3: { maxHp: 4, attackRadius: 45, attackDamage: 3, attackCooldown: 0.40, moveSpeedMult: 1.1, dashCooldownMs: 2500 },
+  4: { maxHp: 4, attackRadius: 45, attackDamage: 3.5, attackCooldown: 0.40, moveSpeedMult: 1.1, dashCooldownMs: 2500 },
+  5: { maxHp: 5, attackRadius: 48, attackDamage: 4, attackCooldown: 0.30, moveSpeedMult: 1.2, dashCooldownMs: 2000 },
+  6: { maxHp: 5, attackRadius: 51, attackDamage: 4.5, attackCooldown: 0.30, moveSpeedMult: 1.2, dashCooldownMs: 2000 },
+  7: { maxHp: 5, attackRadius: 51, attackDamage: 5, attackCooldown: 0.20, moveSpeedMult: 1.2, dashCooldownMs: 2000 },
+  8: { maxHp: 5, attackRadius: 55, attackDamage: 5.5, attackCooldown: 0.20, moveSpeedMult: 1.2, dashCooldownMs: 2000 },
+  9: { maxHp: 6, attackRadius: 60, attackDamage: 6, attackCooldown: 0.10, moveSpeedMult: 1.3, dashCooldownMs: 1500 },
 };
 
 function getLevelStats(level) {
@@ -624,6 +624,6 @@ export function createGameManager({
     ATTACK_BOOST_MULT,
     SPEED_BOOST_MULT,
     LEVEL_STATS,
-    BASE_ATTACK_RADIUS: 40
+    BASE_ATTACK_RADIUS: 42
   };
 }
