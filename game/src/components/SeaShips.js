@@ -76,10 +76,10 @@ function createShip(kind) {
 }
 export function createSeaShips(scene) {
   const ships = [
-    {kind:'pirate', radius:1765, angle:0.42, drift:0.00072, scale:1, phase:0.4},
-    {kind:'merchant',radius:1840, angle:2.05, drift:-0.00048,scale:0.88,phase:2},
-    {kind:'sail',radius:1900,angle:3.62,drift:0.00058,scale:0.82,phase:3.2},
-    {kind:'boat',radius:1805,angle:5.08,drift:-0.00082,scale:0.95,phase:4.6}
+    {kind:'pirate', radius:1765, angle:0.42, drift:0.0058, scale:1, phase:0.4},
+    {kind:'merchant',radius:1840, angle:2.05, drift:-0.0042,scale:0.88,phase:2},
+    {kind:'sail',radius:1900, angle:3.62, drift:0.0048,scale:0.82,phase:3.2},
+    {kind:'boat',radius:1805, angle:5.08, drift:-0.0062,scale:0.95,phase:4.6}
   ].map(c => {
     const ship=createShip(c.kind); ship.scale.setScalar(c.scale);
     ship.userData={...c}; scene.add(ship); return ship;
@@ -89,13 +89,13 @@ export function createSeaShips(scene) {
       const d=ship.userData, a=d.angle+time*d.drift;
       const x=Math.cos(a)*d.radius, y=Math.sin(a)*d.radius;
       const polar=Math.atan2(y,x), dist=Math.hypot(x,y);
-      const wave=Math.sin(dist*0.008-time*0.72)*2.8
-        +Math.sin(dist*0.004+time*0.46+polar*1.5)*1.7
-        +Math.sin(dist*0.015-time*1.05+polar*3)*0.65;
-      ship.position.set(x,y,-2+wave+2+Math.sin(time*0.8+d.phase)*1.2);
-      // Broadside faces inward toward the island so the silhouette is readable from shore.
-      ship.rotation.set(Math.sin(time*0.72+d.phase)*0.018,
-        Math.sin(time*0.83+d.phase)*0.025,a+Math.PI/2);
+      const wave=Math.sin(dist*0.008-time*1.05)*5.2
+        +Math.sin(dist*0.004+time*0.72+polar*1.5)*3.1
+        +Math.sin(dist*0.015-time*1.55+polar*3)*1.25;
+      ship.position.set(x,y,-2+wave+2+Math.sin(time*1.15+d.phase)*2.0);
+      // Noticeable but restrained pitch/roll follows the stronger ocean swell.
+      ship.rotation.set(Math.sin(time*1.05+d.phase)*0.035,
+        Math.sin(time*1.22+d.phase)*0.045,a+Math.PI/2);
     }
   }
   return { update };
