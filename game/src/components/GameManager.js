@@ -111,6 +111,9 @@ export function createGameManager({
   let magnetRemaining = 0;       // auto-pickup radius from magnet power-up
   let freezeRemaining = 0;       // enemies frozen
   let resumeCountdownTimer = 0;  // handle for the in-flight 3-2-1 chain
+  let mysteryChoiceTimer = 0;
+  let mysteryChoiceActive = false;
+  let attackBoostMultiplier = 1;
   const RESUME_TICK_MS = 800;
 
   function getAttack() {
@@ -131,9 +134,9 @@ export function createGameManager({
 
   function getBoostedAttackRadius() {
     const lvl = currentLevel;
-    const eff = getPowerUpEffect('attack', lvl);
+    const eff = effectOverride || getPowerUpEffect('attack', lvl);
     const stats = getLevelStats(lvl);
-    return stats.attackRadius * eff.mult;
+    return stats.attackRadius * attackBoostMultiplier;
   }
 
   function flashDamage() {
@@ -166,20 +169,20 @@ export function createGameManager({
     score.setCombo(combo.getCount(), combo.getTimeLeft());
   }
 
-  function onPowerUpPickup(type, pos) {
-    audio.playPickup();
+  function onPowerUpPickup(type, pos, effectOverride = null) {
+    audio.playPowerUp ? audio.playPowerUp() : audio.playPickup();
     const lvl = currentLevel;
     if (type === 'heal') {
-      const eff = getPowerUpEffect('heal', lvl);
+      const eff = effectOverride || getPowerUpEffect('heal', lvl);
       health.heal(eff.amount);
       damageNumbers.spawn(eff.label, pos.x, pos.y, pos.z + 6, '#7ee08a', { kind: 'heal' });
     } else if (type === 'score') {
-      const eff = getPowerUpEffect('score', lvl);
+      const eff = effectOverride || getPowerUpEffect('score', lvl);
       score.addFlatBonus(eff.bonus);
       damageNumbers.spawn(eff.label, pos.x, pos.y, pos.z + 6, '#ffd166', { kind: 'power' });
       particles.spawnBurst(pos.x, pos.y, pos.z, { count: 24, color: 0xffd166, speed: 90, life: 0.7, size: 7 });
     } else if (type === 'speed') {
-      const eff = getPowerUpEffect('speed', lvl);
+      const eff = effectOverride || getPowerUpEffect('speed', lvl);
       speedBoostRemaining = eff.duration;
       movement.setSpeedMultiplier(eff.mult);
       score.addKillBonus(2);
@@ -188,27 +191,28 @@ export function createGameManager({
     } else if (type === 'attack') {
       const eff = getPowerUpEffect('attack', lvl);
       attackBoostRemaining = eff.duration;
-      attackRef.setRadius(attackRef.getRadius() * eff.mult);
+      attackBoostMultiplier = eff.mult;
+      attackRef.setRadius(getBoostedAttackRadius());
       score.addKillBonus(4);
       damageNumbers.spawn(eff.label, pos.x, pos.y, pos.z + 6, '#9ee7ff', { kind: 'power' });
       particles.spawnBurst(pos.x, pos.y, pos.z, { count: 28, color: 0x9ee7ff, speed: 100, life: 0.8, size: 7 });
     } else if (type === 'shield') {
-      const eff = getPowerUpEffect('shield', lvl);
+      const eff = effectOverride || getPowerUpEffect('shield', lvl);
       shieldRemaining = eff.duration;
       damageNumbers.spawn(eff.label, pos.x, pos.y, pos.z + 6, '#ffffff', { kind: 'power' });
       particles.spawnBurst(pos.x, pos.y, pos.z, { count: 20, color: 0xffffff, speed: 80, life: 0.7, size: 6 });
     } else if (type === 'doubleAttack') {
-      const eff = getPowerUpEffect('doubleAttack', lvl);
+      const eff = effectOverride || getPowerUpEffect('doubleAttack', lvl);
       doubleAttackRemaining = eff.duration;
       damageNumbers.spawn(eff.label, pos.x, pos.y, pos.z + 6, '#ffdd44', { kind: 'crit' });
       particles.spawnBurst(pos.x, pos.y, pos.z, { count: 20, color: 0xffdd44, speed: 80, life: 0.7, size: 6 });
     } else if (type === 'magnet') {
-      const eff = getPowerUpEffect('magnet', lvl);
+      const eff = effectOverride || getPowerUpEffect('magnet', lvl);
       magnetRemaining = eff.duration;
       damageNumbers.spawn(eff.label, pos.x, pos.y, pos.z + 6, '#aa88ff', { kind: 'power' });
       particles.spawnBurst(pos.x, pos.y, pos.z, { count: 20, color: 0xaa88ff, speed: 80, life: 0.7, size: 6 });
     } else if (type === 'freeze') {
-      const eff = getPowerUpEffect('freeze', lvl);
+      const eff = effectOverride || getPowerUpEffect('freeze', lvl);
       freezeRemaining = eff.duration;
       damageNumbers.spawn(eff.label, pos.x, pos.y, pos.z + 6, '#88ddff', { kind: 'power' });
       particles.spawnBurst(pos.x, pos.y, pos.z, { count: 24, color: 0x88ddff, speed: 100, life: 0.8, size: 7 });
@@ -343,6 +347,7 @@ export function createGameManager({
     applyLevelStats(1);
 
     attackBoostRemaining = 0;
+    attackBoostMultiplier = 1;
     speedBoostRemaining = 0;
     shieldRemaining = 0;
     doubleAttackRemaining = 0;
@@ -382,6 +387,144 @@ export function createGameManager({
       input.setEnabled(true);
       menusRef.hidePause();
     }
+  }
+
+  const MYSTERY_COMMON = ['heal', 'attack', 'score', 'speed'];
+  const MYSTERY_BETTER = ['freeze', 'doubleAttack', 'shield', 'magnet'];
+
+  function weightedMysteryType(pool) {
+    // Rare-tier odds are deliberately low early on, then rise with level.
+    const weights = currentLevel >= 9
+      ? { freeze: 7, doubleAttack: 10, shield: 12, magnet: 14 }
+      : currentLevel >= 7
+        ? { freeze: 5, doubleAttack: 8, shield: 10, magnet: 12 }
+        : currentLevel >= 5
+          ? { freeze: 3, doubleAttack: 5, shield: 8, magnet: 10 }
+          : { freeze: 1, doubleAttack: 2, shield: 4, magnet: 6 };
+    const total = pool.reduce((sum, type) => sum + (weights[type] || 1), 0);
+    let roll = Math.random() * total;
+    for (const type of pool) {
+      roll -= weights[type] || 1;
+      if (roll < 0) return type;
+    }
+    return pool[pool.length - 1];
+  }
+
+  function sampleDistinct(pool, count, tier) {
+    const remaining = [...pool];
+    const picked = [];
+    while (picked.length < count && remaining.length) {
+      const type = tier === 'better'
+        ? weightedMysteryType(remaining)
+        : remaining[Math.floor(Math.random() * remaining.length)];
+      picked.push(type);
+      remaining.splice(remaining.indexOf(type), 1);
+    }
+    return picked;
+  }
+
+  function mysteryEffect(type) {
+    const lvl = currentLevel;
+    if (type === 'freeze') {
+      const duration = lvl >= 9 ? 3 : lvl >= 7 ? 2.5 : lvl >= 5 ? 2 : 1.5;
+      return { duration, label: `Freeze ${duration}s` };
+    }
+    if (type === 'doubleAttack') {
+      const duration = lvl >= 9 ? 8 : lvl >= 7 ? 7 : lvl >= 5 ? 6 : 5;
+      return { duration, label: `2x Damage ${duration}s` };
+    }
+    if (type === 'shield') {
+      const duration = lvl >= 9 ? 5 : lvl >= 7 ? 4 : lvl >= 5 ? 3 : 2;
+      return { duration, label: `Shield ${duration}s` };
+    }
+    if (type === 'magnet') {
+      const duration = lvl >= 9 ? 10 : lvl >= 7 ? 8 : lvl >= 5 ? 6 : 4;
+      return { duration, radius: 50, label: `Magnet ${duration}s` };
+    }
+    return getPowerUpEffect(type, lvl);
+  }
+
+  function createMysteryOptions() {
+    const twoBetter = Math.random() < 0.35;
+    const commonCount = twoBetter ? 1 : 2;
+    const betterCount = 3 - commonCount;
+    const common = sampleDistinct(MYSTERY_COMMON, commonCount, 'common');
+    const better = sampleDistinct(MYSTERY_BETTER, betterCount, 'better');
+    const options = [
+      ...common.map((type) => ({ type, tier: 'common' })),
+      ...better.map((type) => ({ type, tier: 'better' }))
+    ];
+    // Shuffle card order so rarity isn't always on the right.
+    for (let i = options.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [options[i], options[j]] = [options[j], options[i]];
+    }
+    return options.map((option) => {
+      const def = POWERUP_TYPES[option.type];
+      const effect = mysteryEffect(option.type);
+      const rarity = option.type === 'freeze' ? 'MYTHIC'
+        : option.type === 'doubleAttack' ? 'LEGENDARY'
+          : option.type === 'shield' ? 'EPIC'
+            : option.type === 'magnet' ? 'RARE' : 'COMMON';
+      return { ...option, desc: effect.label, rarity, color: def?.color };
+    });
+  }
+
+  function startMysteryResumeCountdown() {
+    if (resumeCountdownTimer) clearTimeout(resumeCountdownTimer);
+    let n = 3;
+    const tick = () => {
+      resumeCountdownTimer = 0;
+      if (currentState !== GameState.PAUSED || currentState === GameState.GAMEOVER) return;
+      if (n <= 0) {
+        currentState = GameState.PLAYING;
+        input.setEnabled(true);
+        menusRef.clearResumeCountdown && menusRef.clearResumeCountdown();
+        return;
+      }
+      menusRef.showResumeCountdown && menusRef.showResumeCountdown(n);
+      n -= 1;
+      resumeCountdownTimer = setTimeout(tick, RESUME_TICK_MS);
+    };
+    tick();
+  }
+
+  function finishMysteryChoice(type = null, expired = false) {
+    if (!mysteryChoiceActive || currentState !== GameState.PAUSED) return;
+    mysteryChoiceActive = false;
+    if (mysteryChoiceTimer) clearTimeout(mysteryChoiceTimer);
+    mysteryChoiceTimer = 0;
+    menusRef.hideMysteryChoice && menusRef.hideMysteryChoice(expired);
+    if (type) {
+      const pos = player.group.position;
+      audio.playRewardBurst ? audio.playRewardBurst() : audio.playPowerUp();
+      particles.spawnBurst(pos.x, pos.y, pos.z + 9, {
+        count: 54, color: 0xffd166, speed: 145, life: 1.0, size: 8, upBias: 30
+      });
+      particles.spawnBurst(pos.x, pos.y, pos.z + 10, {
+        count: 30, color: 0xb77aff, speed: 105, life: 0.85, size: 6, upBias: 20
+      });
+      onPowerUpPickup(type, { x: pos.x, y: pos.y, z: pos.z + 4 }, mysteryEffect(type));
+    }
+    startMysteryResumeCountdown();
+  }
+
+  function onMysteryBoxPickup(pos) {
+    if (currentState !== GameState.PLAYING || currentLevel < 3 || mysteryChoiceActive) return;
+    currentState = GameState.PAUSED;
+    input.setEnabled(false);
+    dash.cancel();
+    audio.playMysteryBox ? audio.playMysteryBox() : audio.playLevelUp();
+    particles.spawnBurst(pos.x, pos.y, pos.z + 8, {
+      count: 46, color: 0xffc247, speed: 135, life: 0.9, size: 8, upBias: 28
+    });
+    particles.spawnBurst(pos.x, pos.y, pos.z + 10, {
+      count: 30, color: 0xb77aff, speed: 100, life: 0.8, size: 6, upBias: 20
+    });
+    mysteryChoiceActive = true;
+    const options = createMysteryOptions();
+    menusRef.showMysteryChoice(options, (type) => finishMysteryChoice(type, false));
+    mysteryChoiceTimer = setTimeout(() => finishMysteryChoice(null, true), 15000);
   }
 
   // 3-2-1 countdown before resuming. Gives the player a beat to
@@ -587,6 +730,7 @@ export function createGameManager({
     beginResumeCountdown,
     triggerGameOver,
     onPowerUpPickup,
+    onMysteryBoxPickup,
     tickComboHud,
     isPlaying,
     isPaused,
