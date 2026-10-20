@@ -254,7 +254,6 @@ try {
   await page.locator('#mystery-overlay').waitFor({ state: 'visible' });
   await page.locator('#mystery-overlay').waitFor({ state: 'hidden', timeout: 18000 });
   await page.locator('.resume-countdown').waitFor({ state: 'visible' });
-  await page.waitForFunction(() => window.__game.currentState() === 'playing', null, { timeout: 6000 });
   const afterMysteryTimeout = await page.evaluate(() => ({
     score: window.__game.score.getScore(),
     hp: window.__game.health.getHp(),
@@ -268,6 +267,7 @@ try {
   if (JSON.stringify(beforeMysteryTimeout) !== JSON.stringify(afterMysteryTimeout)) {
     throw new Error(`Mystery Box timeout unexpectedly granted a reward or advanced paused gameplay: ${JSON.stringify({ beforeMysteryTimeout, afterMysteryTimeout })}`);
   }
+  await page.waitForFunction(() => window.__game.currentState() === 'playing', null, { timeout: 6000 });
 
   await page.keyboard.press('Escape');
   await page.locator('#menu-pause').waitFor({ state: 'visible' });
