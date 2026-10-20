@@ -882,7 +882,7 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
       bird.position.set(bx, by, bz);
 
       // Face the direction of movement
-      bird.rotation.z = data.angle + Math.PI / 2;
+      bird.rotation.z = data.angle + (data.direction > 0 ? Math.PI / 2 : -Math.PI / 2);
       // Gentle banking and pitch keep the flock from looking like rigid icons.
       bird.rotation.x = Math.sin(elapsed * 0.7 + data.flapPhase) * 0.055;
       bird.rotation.y = Math.cos(elapsed * 0.55 + data.flapPhase) * 0.07;
