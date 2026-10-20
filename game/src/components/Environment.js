@@ -388,8 +388,8 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
     birdGroup.add(jointR);
 
     // Flight parameters
-    const birdHeight = randomRange(120, 250);
-    const birdDistance = randomRange(200, 450);
+    const birdHeight = randomRange(95, 205);
+    const birdDistance = randomRange(125, 300);
     const birdAngle = randomRange(0, Math.PI * 2);
     const birdSpeed = randomRange(5, 15);
     const birdFlapSpeed = randomRange(3, 6);
@@ -422,7 +422,7 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
 
     // Slightly enlarge every bird so the silhouette and feather shape remain
     // readable at normal gameplay camera distance.
-    birdGroup.scale.setScalar(1.18);
+    birdGroup.scale.setScalar(1.65);
     scene.add(birdGroup);
     birds.push(birdGroup);
   }
