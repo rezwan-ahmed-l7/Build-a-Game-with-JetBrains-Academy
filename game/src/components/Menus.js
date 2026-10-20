@@ -81,12 +81,15 @@ export function createMenus({ onStart, onResume, onRestart, onTogglePause, onTog
   document.body.appendChild(mysteryOverlay);
   let mysteryChoiceHandler = null;
   let mysteryLocked = false;
+  let mysteryTimerInterval = 0;
   const mysteryIcons = {
     freeze: '❄', doubleAttack: '⚡⚡', shield: '🛡', magnet: '🧲',
     heal: '♥', attack: '⚔', score: '★', speed: '➤'
   };
 
   function showMysteryChoice(options, onSelect) {
+    if (mysteryTimerInterval) clearInterval(mysteryTimerInterval);
+    mysteryTimerInterval = 0;
     mysteryLocked = false;
     mysteryChoiceHandler = onSelect;
     clear(mysteryCards);
@@ -116,7 +119,12 @@ export function createMenus({ onStart, onResume, onRestart, onTogglePause, onTog
       });
       mysteryCards.appendChild(card);
     });
+    let secondsLeft = 15;
     mysteryTimerText.textContent = '15s to choose';
+    mysteryTimerInterval = setInterval(() => {
+      secondsLeft = Math.max(0, secondsLeft - 1);
+      mysteryTimerText.textContent = secondsLeft > 0 ? `${secondsLeft}s to choose` : 'Time is up';
+    }, 1000);
     mysteryOverlay.classList.remove('is-claimed', 'is-expired');
     mysteryOverlay.style.display = 'flex';
     mysteryTimerTrack.classList.remove('is-running');
@@ -124,6 +132,8 @@ export function createMenus({ onStart, onResume, onRestart, onTogglePause, onTog
     mysteryTimerTrack.classList.add('is-running');
   }
   function hideMysteryChoice(expired = false) {
+    if (mysteryTimerInterval) clearInterval(mysteryTimerInterval);
+    mysteryTimerInterval = 0;
     mysteryOverlay.classList.toggle('is-expired', expired);
     mysteryOverlay.style.display = 'none';
     mysteryTimerTrack.classList.remove('is-running');
