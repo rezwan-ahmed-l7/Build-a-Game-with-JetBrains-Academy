@@ -101,9 +101,11 @@ export function createAudio() {
 
   // Cached one-shots. Each is a function() -> play().
   const sfx = {
-    attack: build({ type: 'sawtooth', freq: 880, freqEnd: 220, dur: 0.18,
-                    attack: 0.005, decay: 0.18, gain: 0.18,
-                    noise: 0.12, filterFreq: 2400 }),
+    // Punchy, playful arcade swipe: a quick bright attack with a deeper
+    // descending body and crisp filtered impact noise.
+    attack: build({ type: 'sawtooth', freq: 760, freqEnd: 145, dur: 0.16,
+                    attack: 0.002, decay: 0.16, gain: 0.27,
+                    noise: 0.24, filterFreq: 1900 }),
     hit: build({ type: 'square', freq: 320, freqEnd: 80, dur: 0.18,
                  attack: 0.001, decay: 0.18, gain: 0.22,
                  noise: 0.18, filterFreq: 1400 }),
