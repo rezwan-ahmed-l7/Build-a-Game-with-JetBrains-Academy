@@ -11,7 +11,7 @@ const chromeCandidates = [
   process.env.CHROMIUM_PATH,
   process.env.PUPPETEER_EXECUTABLE_PATH,
   ...(process.platform === 'win32'
-    ? ['C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe']
+    ? ['C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe']
     : process.platform === 'darwin'
       ? ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome']
       : ['/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser'])
