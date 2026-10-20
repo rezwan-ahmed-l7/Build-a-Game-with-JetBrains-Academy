@@ -1,0 +1,40 @@
+name: Game validation
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  validate-game:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: game/package-lock.json
+
+      - name: Install locked game dependencies
+        run: npm ci --prefix game
+
+      - name: Install Playwright for browser smoke tests
+        run: npm install --prefix game --no-save --package-lock=false playwright
+
+      - name: Install Chromium and browser system dependencies
+        run: npx --prefix game playwright install --with-deps chromium
+
+      - name: Run game regression tests
+        run: npm test --prefix game
+
+      - name: Build production game
+        run: npm run build --prefix game
+
+      - name: Run desktop and mobile browser smoke tests
+        working-directory: game
+        run: node scripts/browser-smoke.mjs
