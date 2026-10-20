@@ -394,6 +394,7 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
     const birdCenterY = randomRange(-1250, 1250);
     const birdAngle = randomRange(0, Math.PI * 2);
     const birdSpeed = randomRange(8, 19);
+    const birdDirection = Math.random() < 0.5 ? -1 : 1;
     const birdFlapSpeed = randomRange(3, 6);
     const birdFlapPhase = randomRange(0, Math.PI * 2);
     const birdWobble = randomRange(0.5, 2);
@@ -406,6 +407,7 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
       centerY: birdCenterY,
       angle: birdAngle,
       speed: birdSpeed,
+      direction: birdDirection,
       flapSpeed: birdFlapSpeed,
       flapPhase: birdFlapPhase,
       wobble: birdWobble,
@@ -868,7 +870,7 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
       const data = bird.userData;
 
       // Each bird has its own fixed flight path
-      data.angle += data.speed * delta * 0.016;
+      data.angle += data.speed * delta * 0.016 * data.direction;
       const wobbleOffset = Math.sin(elapsed * data.wobbleSpeed + i) * data.wobble;
       
       // Birds circle an independent world-space flight path. Keeping the
