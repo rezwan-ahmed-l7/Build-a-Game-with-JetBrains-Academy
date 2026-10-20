@@ -163,17 +163,18 @@ export function createAudio() {
     try { snd(); } catch { /* ignore */ }
   }
 
-  // Ambient music: bass + chord pad + slow arpeggio through a lowpass.
-  // Drives a sleepy nighttime-frog mood; the brightness follows day/night.
+  // Energetic arcade music: punchier bass, bright chord pad, fast arpeggio
+  // and a light synthesized kick pulse. All music still routes through the
+  // shared master gain, so the existing Music ON/OFF control mutes everything.
   let arpTimer = null;
   function buildAmbientGraph() {
     if (!ctx || ambientNodes) return;
     ambientGain = ctx.createGain();
-    ambientGain.gain.value = 0.20;
+    ambientGain.gain.value = 0.42;
     ambientGain.connect(masterGain);
     const filter = ctx.createBiquadFilter();
     filter.type = 'lowpass';
-    filter.frequency.value = 900;
+    filter.frequency.value = 1700;
     filter.Q.value = 0.6;
     filter.connect(ambientGain);
 
@@ -188,7 +189,7 @@ export function createAudio() {
     bass.type = 'triangle';
     bass.frequency.value = rootHz / 2; // A1
     const bassGain = ctx.createGain();
-    bassGain.gain.value = 0.12;
+    bassGain.gain.value = 0.20;
     bass.connect(bassGain).connect(filter);
     bass.start();
     ambientNodes.push(bass);
@@ -205,15 +206,15 @@ export function createAudio() {
       lfoGain.gain.value = 4; // Hz of detune
       lfo.connect(lfoGain).connect(o.detune);
       const g = ctx.createGain();
-      g.gain.value = 0.055;
+      g.gain.value = 0.075;
       o.connect(g).connect(filter);
       o.start();
       lfo.start();
       ambientNodes.push(o, lfo);
     });
 
-    // Arpeggio: pluck each chord note every 380ms in sequence using
-    // setTimeout chain instead of setInterval — survives tab throttling.
+    // Bright, quick arpeggio plus a soft kick pulse keeps the loop playful
+    // and energetic without needing external audio assets.
     let arpStep = 0;
     function arpTick() {
       if (!ctx) return;
@@ -224,13 +225,29 @@ export function createAudio() {
       const g = ctx.createGain();
       const t0 = ctx.currentTime;
       g.gain.setValueAtTime(0, t0);
-      g.gain.linearRampToValueAtTime(0.10, t0 + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.5);
+      g.gain.linearRampToValueAtTime(0.17, t0 + 0.008);
+      g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.22);
       o.connect(g).connect(filter);
       o.start(t0);
-      o.stop(t0 + 0.55);
+      o.stop(t0 + 0.24);
+
+      // A short, rounded low-end pulse every four steps adds a simple arcade beat.
+      if (arpStep % 4 === 0) {
+        const kick = ctx.createOscillator();
+        const kickGain = ctx.createGain();
+        kick.type = 'sine';
+        kick.frequency.setValueAtTime(125, t0);
+        kick.frequency.exponentialRampToValueAtTime(48, t0 + 0.12);
+        kickGain.gain.setValueAtTime(0.0001, t0);
+        kickGain.gain.linearRampToValueAtTime(0.14, t0 + 0.006);
+        kickGain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.14);
+        kick.connect(kickGain).connect(ambientGain);
+        kick.start(t0);
+        kick.stop(t0 + 0.16);
+      }
+
       arpStep++;
-      arpTimer = setTimeout(arpTick, 380);
+      arpTimer = setTimeout(arpTick, 190);
     }
     arpTimer = setTimeout(arpTick, 380);
   }
