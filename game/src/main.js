@@ -418,7 +418,7 @@ for (let i = 0; i < 10; i++) {
   ripple.position.x = Math.cos(angle) * 1060;
   ripple.position.y = Math.sin(angle) * 1060;
   ripple.userData.phase = i * 0.6;
-  ripple.userData.speed = 0.15 + Math.random() * 0.1;
+  ripple.userData.speed = 0.30 + Math.random() * 0.20;
   ripple.userData.angle = angle;
   scene.add(ripple);
   seaRipples.push(ripple);
@@ -434,7 +434,7 @@ for (let i = 0; i < 36; i++) {
   });
   const foam = new THREE.Mesh(new THREE.SphereGeometry(1, 14, 8), foamMaterial);
   const angle = (i / 36) * Math.PI * 2 + (Math.random() - 0.5) * 0.12;
-  foam.userData = { angle, phase: Math.random() * Math.PI * 2, speed: 0.65 + Math.random() * 0.55 };
+  foam.userData = { angle, phase: Math.random() * Math.PI * 2, speed: 1.0 + Math.random() * 0.8 };
   foam.scale.set(9 + Math.random() * 8, 3 + Math.random() * 4, 0.22);
   foam.position.set(Math.cos(angle) * 991, Math.sin(angle) * 991, -0.12);
   scene.add(foam);
@@ -514,7 +514,7 @@ for (let i = 0; i < 18; i++) {
   const crab = createCrabShape(crabColors[i % crabColors.length]);
   crab.position.set(Math.cos(angle) * radius, Math.sin(angle) * radius, 0.15);
   crab.rotation.z = angle + Math.PI / 2;
-  crab.scale.setScalar([2.5, 3.15, 3.8][i % 3]);
+  crab.scale.setScalar([3.25, 4.1, 4.95][i % 3]);
   crab.userData.anchorAngle = angle;
   crab.userData.anchorRadius = radius;
   crab.userData.phase = Math.random() * Math.PI * 2;
@@ -618,7 +618,7 @@ function addPalmLeaflet(vertices, indices, a, b, c) {
 
 function makeCoconutPalm() {
   const palm = new THREE.Group();
-  const trunkHeight = 25 + Math.random() * 7;
+  const trunkHeight = 34 + Math.random() * 8;
   const bendAngle = Math.random() * Math.PI * 2;
   const bend = 1.5 + Math.random() * 2.8;
   const trunkPoints = [];
@@ -761,7 +761,7 @@ for (let i = 0; i < 9; i++) {
   const palm = makeCoconutPalm();
   palm.position.set(Math.cos(angle) * radius, Math.sin(angle) * radius, 0.02);
   palm.rotation.z = Math.random() * Math.PI * 2;
-  palm.scale.setScalar(0.82 + Math.random() * 0.38);
+  palm.scale.setScalar(0.92 + Math.random() * 0.30);
   palmGroup.add(palm);
 }
 scene.add(palmGroup);
@@ -1302,12 +1302,12 @@ function animate(currentTime) {
     // Smaller shoreline travel and eased opacity make the wash feel continuous,
     // rather than making bright foam jump visibly across the beach.
     const easedCrest = crest * crest * (3 - 2 * crest);
-    const radius = 1012 + swell * 22;
+    const radius = 1012 + swell * 30;
     const driftAngle = d.angle + Math.sin(time * 0.22 + d.phase) * 0.012;
     foam.position.set(Math.cos(driftAngle) * radius, Math.sin(driftAngle) * radius, -0.10 + easedCrest * 0.08);
     foam.rotation.z = driftAngle + Math.PI / 2;
-    foam.material.opacity = 0.08 + easedCrest * 0.25;
-    foam.scale.x = 8 + easedCrest * 5;
+    foam.material.opacity = 0.10 + easedCrest * 0.34;
+    foam.scale.x = 9 + easedCrest * 7;
   }
   for (const crab of crabGroup.children) {
     const d = crab.userData;
@@ -1346,9 +1346,9 @@ function animate(currentTime) {
     const angle = Math.atan2(oy, ox);
     // Three low-amplitude, different-frequency layers create broad rolling motion
     // without lifting the ocean into the beach or causing a visibly jagged surface.
-    const wave = Math.sin(dist * 0.008 - time * 0.72) * 2.8
-               + Math.sin(dist * 0.004 + time * 0.46 + angle * 1.5) * 1.7
-               + Math.sin(dist * 0.015 - time * 1.05 + angle * 3) * 0.65;
+    const wave = Math.sin(dist * 0.008 - time * 1.05) * 5.2
+               + Math.sin(dist * 0.004 + time * 0.72 + angle * 1.5) * 3.1
+               + Math.sin(dist * 0.015 - time * 1.55 + angle * 3) * 1.25;
     pos.setZ(i, wave);
   }
   pos.needsUpdate = true;
