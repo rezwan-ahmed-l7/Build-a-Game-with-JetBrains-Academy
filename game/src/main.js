@@ -127,59 +127,138 @@ function createMeadowTexture() {
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#ffffff';
+
+  // Earthy base under the grass: exposed soil should be part of the meadow,
+  // not a uniformly green carpet. The environment tint still drives day/night.
+  ctx.fillStyle = '#c0ad83';
   ctx.fillRect(0, 0, size, size);
 
-  // Deterministic noise so the meadow looks consistent between runs.
   let seed = 0x51a7e;
   const random = () => {
     seed = (seed * 1664525 + 1013904223) >>> 0;
     return seed / 4294967296;
   };
-  // Large, soft color patches that create a natural meadow feel.
-  for (let i = 0; i < 120; i++) {
-    const x = random() * size;
-    const y = random() * size;
-    const radius = 30 + random() * 70;
-    const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
-    const tint = random() > 0.5
-      ? 'rgba(190, 192, 126, 0.08)'
-      : 'rgba(45, 83, 45, 0.06)';
-    gradient.addColorStop(0, tint);
-    gradient.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(x - radius, y - radius, radius * 2, radius * 2);
-  }
 
-  // Subtle grass strokes for texture without noise.
-  for (let i = 0; i < 3000; i++) {
+  // Fine mineral/soil grain across the entire ground.
+  for (let i = 0; i < 14500; i++) {
     const x = random() * size;
     const y = random() * size;
-    const radius = 0.35 + random() * 0.6;
-    ctx.fillStyle = random() > 0.5
-      ? 'rgba(72, 112, 48, 0.05)'
-      : 'rgba(180, 198, 126, 0.04)';
+    const r = 0.35 + random() * 1.25;
+    const shade = random();
+    ctx.fillStyle = shade > 0.55
+      ? `rgba(83, 68, 43, ${0.035 + random() * 0.07})`
+      : `rgba(244, 224, 177, ${0.04 + random() * 0.09})`;
     ctx.beginPath();
-    ctx.ellipse(x, y, radius * 1.4, radius * 0.65, random() * Math.PI, 0, Math.PI * 2);
+    ctx.ellipse(x, y, r * 1.5, r * 0.7, random() * Math.PI, 0, Math.PI * 2);
     ctx.fill();
   }
 
-  // Tiny bright specks — wildflowers scattered sparsely across the meadow.
-  for (let i = 0; i < 180; i++) {
+  // Irregular dry-soil clearings with soft, broken edges; no perfect circles.
+  for (let i = 0; i < 155; i++) {
     const x = random() * size;
     const y = random() * size;
-    const r = 0.5 + random() * 0.8;
-    const hue = random() > 0.5 ? 'rgba(255,240,180,0.12)' : 'rgba(200,220,255,0.08)';
-    ctx.fillStyle = hue;
+    const rx = 9 + random() * 38;
+    const ry = rx * (0.42 + random() * 0.75);
+    const rotation = random() * Math.PI;
+    const palette = [
+      'rgba(153, 119, 73, 0.30)',
+      'rgba(184, 151, 99, 0.34)',
+      'rgba(104, 91, 60, 0.18)',
+      'rgba(208, 184, 132, 0.32)'
+    ];
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rotation);
+    ctx.fillStyle = palette[Math.floor(random() * palette.length)];
     ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
+    const points = 9;
+    for (let p = 0; p <= points; p++) {
+      const a = (p / points) * Math.PI * 2;
+      const wobble = 0.72 + random() * 0.42;
+      const px = Math.cos(a) * rx * wobble;
+      const py = Math.sin(a) * ry * wobble;
+      if (p === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Grass cover grows in uneven clumps, leaving gaps of visible earth.
+  for (let i = 0; i < 245; i++) {
+    const x = random() * size;
+    const y = random() * size;
+    const rx = 12 + random() * 45;
+    const ry = rx * (0.45 + random() * 0.8);
+    const hue = random();
+    const tint = hue > 0.72
+      ? 'rgba(116, 133, 64, 0.42)'
+      : hue > 0.38
+        ? 'rgba(87, 119, 54, 0.56)'
+        : 'rgba(54, 91, 43, 0.48)';
+    const grad = ctx.createRadialGradient(x, y, 0, x, y, Math.max(rx, ry));
+    grad.addColorStop(0, tint);
+    grad.addColorStop(0.65, tint.replace(/0\.\d+\)$/, '0.20)'));
+    grad.addColorStop(1, 'rgba(80, 104, 48, 0)');
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(random() * Math.PI);
+    ctx.scale(1, ry / rx);
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, rx, rx, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Tiny blades and flattened grass strokes, grouped in natural directions.
+  for (let i = 0; i < 5600; i++) {
+    const x = random() * size;
+    const y = random() * size;
+    const len = 0.8 + random() * 3.1;
+    const angle = random() * Math.PI;
+    const color = random() > 0.52
+      ? `rgba(49, 83, 35, ${0.10 + random() * 0.13})`
+      : `rgba(191, 190, 113, ${0.09 + random() * 0.12})`;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 0.45 + random() * 0.55;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + Math.cos(angle) * len, y + Math.sin(angle) * len * 0.6);
+    ctx.stroke();
+  }
+
+  // A few pebbles and dry leaf flecks help exposed patches read as soil.
+  for (let i = 0; i < 360; i++) {
+    const x = random() * size;
+    const y = random() * size;
+    const rx = 0.6 + random() * 2.0;
+    const ry = rx * (0.45 + random() * 0.55);
+    ctx.fillStyle = random() > 0.5
+      ? 'rgba(76, 72, 61, 0.24)'
+      : 'rgba(228, 210, 169, 0.30)';
+    ctx.beginPath();
+    ctx.ellipse(x, y, rx, ry, random() * Math.PI, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Sparse tiny meadow flowers; kept subtle so the arena remains readable.
+  for (let i = 0; i < 105; i++) {
+    const x = random() * size;
+    const y = random() * size;
+    ctx.fillStyle = random() > 0.5
+      ? 'rgba(255, 235, 176, 0.38)'
+      : 'rgba(232, 224, 244, 0.26)';
+    ctx.beginPath();
+    ctx.arc(x, y, 0.6 + random() * 0.8, 0, Math.PI * 2);
     ctx.fill();
   }
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(12, 12);
+  texture.repeat.set(8, 8);
   texture.anisotropy = 4;
   texture.needsUpdate = true;
   return texture;
@@ -187,42 +266,75 @@ function createMeadowTexture() {
 
 const groundGeometry = new THREE.CircleGeometry(GROUND_RADIUS, 128);
 const groundMaterial = new THREE.MeshStandardMaterial({
-  color: 0x344b2b, map: createMeadowTexture(), roughness: 1.0, metalness: 0
+  color: 0x344b2b,
+  map: createMeadowTexture(),
+  roughness: 1.0,
+  metalness: 0
 });
 const ground = new THREE.Mesh(groundGeometry, groundMaterial);
 ground.position.z = -0.5;
 ground.receiveShadow = true;
 scene.add(ground);
 
-// Sand beach ring — a sandy shore around the ground edge (840–900)
-// that gives the island a natural beach look before the dark water beyond.
+// Sand beach ring — extends from the ground edge (900) to the outer shore (1090).
 function createSandTexture() {
-  const size = 256;
+  const size = 512;
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext('2d');
-  // Base sandy color
-  ctx.fillStyle = '#c4a96a';
+  ctx.fillStyle = '#c9b184';
   ctx.fillRect(0, 0, size, size);
-  // Add noise for grain
-  for (let i = 0; i < 3000; i++) {
-    const x = Math.random() * size;
-    const y = Math.random() * size;
-    const r = Math.random() * 1.5;
-    const brightness = 160 + Math.random() * 60;
-    ctx.fillStyle = `rgba(${brightness},${brightness - 30},${brightness - 60},0.3)`;
+
+  // Deterministic fine sand grains and mineral flecks.
+  let seed = 0x5ea51;
+  const random = () => {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    return seed / 4294967296;
+  };
+  for (let i = 0; i < 12500; i++) {
+    const x = random() * size, y = random() * size;
+    const r = 0.3 + random() * 1.4;
+    const warm = random() > 0.5;
+    ctx.fillStyle = warm
+      ? `rgba(111, 83, 48, ${0.035 + random() * 0.09})`
+      : `rgba(255, 241, 204, ${0.05 + random() * 0.13})`;
     ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.ellipse(x, y, r * (1.1 + random()), r * 0.65, random() * Math.PI, 0, Math.PI * 2);
     ctx.fill();
   }
+
+  // Uneven dry patches and wind-swept sand streaks.
+  for (let i = 0; i < 115; i++) {
+    const x = random() * size, y = random() * size;
+    const rx = 8 + random() * 38, ry = 2 + random() * 7;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate((random() - 0.5) * 0.7);
+    ctx.fillStyle = random() > 0.5 ? 'rgba(150, 119, 77, 0.11)' : 'rgba(255, 239, 198, 0.20)';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Tiny shell fragments and dark wet-sand specks.
+  for (let i = 0; i < 230; i++) {
+    const x = random() * size, y = random() * size;
+    ctx.fillStyle = random() > 0.45 ? 'rgba(248, 235, 205, 0.58)' : 'rgba(93, 85, 66, 0.20)';
+    ctx.beginPath();
+    ctx.ellipse(x, y, 0.6 + random() * 1.5, 0.35 + random() * 0.75, random() * Math.PI, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(8, 1);
+  texture.repeat.set(10, 2);
+  texture.anisotropy = 4;
   texture.needsUpdate = true;
   return texture;
 }
-const sandGeometry = new THREE.RingGeometry(GROUND_RADIUS, GROUND_RADIUS + 150, 128);
+const sandGeometry = new THREE.RingGeometry(GROUND_RADIUS, 1090, 128);
 const sandMaterial = new THREE.MeshStandardMaterial({
   color: 0xc4a96a, map: createSandTexture(), roughness: 1.0, metalness: 0
 });
@@ -269,7 +381,7 @@ function createSeaTexture() {
   texture.needsUpdate = true;
   return texture;
 }
-const seaGeometry = new THREE.RingGeometry(1000, 2000, 256, 24);
+const seaGeometry = new THREE.RingGeometry(1060, 2000, 256, 24);
 const seaMaterial = new THREE.MeshStandardMaterial({
   color: 0xffffff, map: createSeaTexture(), roughness: 0.34, metalness: 0.04,
   transparent: true, opacity: 0.97, depthWrite: false,
@@ -302,9 +414,9 @@ for (let i = 0; i < 10; i++) {
   );
   ripple.position.z = -1.5;
   const angle = (i / 10) * Math.PI * 2;
-  // Start at shore edge (1000)
-  ripple.position.x = Math.cos(angle) * 1000;
-  ripple.position.y = Math.sin(angle) * 1000;
+  // Start at the sea boundary (1060).
+  ripple.position.x = Math.cos(angle) * 1060;
+  ripple.position.y = Math.sin(angle) * 1060;
   ripple.userData.phase = i * 0.6;
   ripple.userData.speed = 0.15 + Math.random() * 0.1;
   ripple.userData.angle = angle;
@@ -393,37 +505,289 @@ function createStarfishShape(mat) {
   return g;
 }
 
-// Crabs on sand beach — small simple crab shapes
+// Bright scarlet and vermilion shore crabs, roaming along the beach.
 const crabGroup = new THREE.Group();
-const crabColors = [0x8a3a2a, 0x7a2a1a, 0x9a4a3a];
-for (let i = 0; i < 15; i++) {
+const crabColors = [0xe53935, 0xc92724, 0xf04b32, 0xb91f24];
+for (let i = 0; i < 18; i++) {
   const angle = Math.random() * Math.PI * 2;
-  const radius = GROUND_RADIUS + 5 + Math.random() * 140; // on sand ring
-  const crab = createCrabShape(crabColors[i % 3]);
+  const radius = GROUND_RADIUS + 18 + Math.random() * 118;
+  const crab = createCrabShape(crabColors[i % crabColors.length]);
   crab.position.set(Math.cos(angle) * radius, Math.sin(angle) * radius, 0.15);
-  crab.rotation.z = Math.random() * Math.PI * 2;
+  crab.rotation.z = angle + Math.PI / 2;
   crab.scale.setScalar([2.5, 3.15, 3.8][i % 3]);
-  crab.userData.anchorX = crab.position.x;
-  crab.userData.anchorY = crab.position.y;
   crab.userData.anchorAngle = angle;
   crab.userData.anchorRadius = radius;
-  crab.userData.baseAngle = crab.rotation.z;
   crab.userData.phase = Math.random() * Math.PI * 2;
-  crab.userData.speed = 3 + Math.random() * 4;
-  crab.userData.drift = 5 + Math.random() * 10;
+  crab.userData.speed = 0.24 + Math.random() * 0.16;
+  crab.userData.roamSpan = 28 + Math.random() * 52;
+  crab.userData.legs = crab.userData.legs || [];
   crabGroup.add(crab);
 }
 scene.add(crabGroup);
 
+// Sparse coastal dune vegetation: sea-oat seed heads, beach grass and low
+// salt-tolerant shrubs. Groups are scattered irregularly on the sand, leaving
+// open beach lanes for the crabs and keeping the shoreline visually readable.
+const beachPlants = new THREE.Group();
+const duneGrassMat = [
+  new THREE.MeshStandardMaterial({ color: 0x71864a, roughness: 0.96 }),
+  new THREE.MeshStandardMaterial({ color: 0x9b9b5a, roughness: 0.98 }),
+  new THREE.MeshStandardMaterial({ color: 0x526c3b, roughness: 0.96 })
+];
+const oatStemMat = new THREE.MeshStandardMaterial({ color: 0x9b8650, roughness: 0.95 });
+const oatHeadMat = new THREE.MeshStandardMaterial({ color: 0xc5ad70, roughness: 0.94 });
+const beachShrubMat = new THREE.MeshStandardMaterial({ color: 0x496d43, roughness: 0.98 });
+for (let i = 0; i < 34; i++) {
+  const angle = Math.random() * Math.PI * 2;
+  const radius = GROUND_RADIUS + 42 + Math.random() * 94;
+  const cluster = new THREE.Group();
+  cluster.position.set(Math.cos(angle) * radius, Math.sin(angle) * radius, 0.02);
+  cluster.rotation.z = Math.random() * Math.PI * 2;
+  const clumpScale = 0.7 + Math.random() * 0.85;
+  cluster.scale.setScalar(clumpScale);
+
+  const blades = 5 + Math.floor(Math.random() * 5);
+  for (let b = 0; b < blades; b++) {
+    const a = (b / blades) * Math.PI * 2 + Math.random() * 0.5;
+    const h = 3.5 + Math.random() * 5.5;
+    const blade = new THREE.Mesh(
+      new THREE.SphereGeometry(1, 7, 5),
+      duneGrassMat[Math.floor(Math.random() * duneGrassMat.length)]
+    );
+    blade.position.set(Math.cos(a) * (1.8 + Math.random() * 2.5), Math.sin(a) * (1.8 + Math.random() * 2.5), h * 0.38);
+    blade.scale.set(0.42, 0.20, h * 0.62);
+    blade.rotation.x = (Math.random() - 0.5) * 0.24;
+    blade.rotation.y = Math.cos(a) * 0.22;
+    blade.rotation.z = a;
+    blade.castShadow = true;
+    cluster.add(blade);
+  }
+
+  // A few taller sea oats with warm seed heads create a recognizable coastal silhouette.
+  if (i % 2 === 0) {
+    for (let s = 0; s < 2; s++) {
+      const a = Math.random() * Math.PI * 2;
+      const h = 7 + Math.random() * 4;
+      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.14, h, 5), oatStemMat);
+      stem.position.set(Math.cos(a) * 2, Math.sin(a) * 2, h / 2);
+      stem.rotation.x = Math.PI / 2 - Math.cos(a) * 0.12;
+      stem.rotation.y = Math.sin(a) * 0.12;
+      cluster.add(stem);
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.8, 7, 5), oatHeadMat);
+      head.position.set(Math.cos(a) * (2 + h * 0.14), Math.sin(a) * (2 + h * 0.14), h + 0.4);
+      head.scale.set(0.52, 0.52, 1.25);
+      cluster.add(head);
+    }
+  }
+  if (i % 4 === 0) {
+    const shrub = new THREE.Mesh(new THREE.IcosahedronGeometry(2.6 + Math.random() * 1.5, 1), beachShrubMat);
+    shrub.position.set((Math.random() - 0.5) * 5, (Math.random() - 0.5) * 5, 1.2);
+    shrub.scale.set(1.2, 0.9, 0.65);
+    shrub.castShadow = true;
+    cluster.add(shrub);
+  }
+  beachPlants.add(cluster);
+}
+scene.add(beachPlants);
+
+// Coconut palms on the beach: curved ringed trunks, clustered coconuts,
+// and feather-like fronds made from opaque solid-color geometry. Palm bases
+// stay between radius 960 and 1015, safely inside the sea boundary at 1060.
+const palmGroup = new THREE.Group();
+const palmBarkMat = new THREE.MeshStandardMaterial({
+  color: 0x765036, roughness: 0.96, metalness: 0, transparent: false, opacity: 1
+});
+const palmRingMat = new THREE.MeshStandardMaterial({
+  color: 0xb18a5a, roughness: 0.95, metalness: 0, transparent: false, opacity: 1
+});
+const coconutMats = [
+  new THREE.MeshStandardMaterial({ color: 0x4b5a2b, roughness: 0.88, transparent: false, opacity: 1 }),
+  new THREE.MeshStandardMaterial({ color: 0x72502c, roughness: 0.92, transparent: false, opacity: 1 })
+];
+const palmFrondMats = [
+  new THREE.MeshStandardMaterial({ color: 0x285d35, roughness: 0.9, side: THREE.DoubleSide, transparent: false, opacity: 1 }),
+  new THREE.MeshStandardMaterial({ color: 0x397943, roughness: 0.9, side: THREE.DoubleSide, transparent: false, opacity: 1 }),
+  new THREE.MeshStandardMaterial({ color: 0x568747, roughness: 0.92, side: THREE.DoubleSide, transparent: false, opacity: 1 })
+];
+
+function addPalmLeaflet(vertices, indices, a, b, c) {
+  const base = vertices.length / 3;
+  vertices.push(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z);
+  indices.push(base, base + 1, base + 2, base + 2, base + 1, base);
+}
+
+function makeCoconutPalm() {
+  const palm = new THREE.Group();
+  const trunkHeight = 25 + Math.random() * 7;
+  const bendAngle = Math.random() * Math.PI * 2;
+  const bend = 1.5 + Math.random() * 2.8;
+  const trunkPoints = [];
+  for (let i = 0; i <= 6; i++) {
+    const t = i / 6;
+    trunkPoints.push(new THREE.Vector3(
+      Math.cos(bendAngle) * bend * t * t,
+      Math.sin(bendAngle) * bend * t * t,
+      trunkHeight * t
+    ));
+  }
+
+  // Tapered trunk sections follow a subtle natural curve.
+  for (let i = 0; i < trunkPoints.length - 1; i++) {
+    const start = trunkPoints[i];
+    const end = trunkPoints[i + 1];
+    const direction = end.clone().sub(start);
+    const trunkSegment = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.95 - i * 0.065, 1.2 - i * 0.075, direction.length(), 9, 1),
+      palmBarkMat
+    );
+    trunkSegment.position.copy(start).add(end).multiplyScalar(0.5);
+    trunkSegment.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.normalize());
+    trunkSegment.castShadow = true;
+    trunkSegment.receiveShadow = true;
+    palm.add(trunkSegment);
+
+    // Subtle raised growth rings help the trunk read as fibrous palm wood.
+    if (i > 0 && i < 6) {
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.86 - i * 0.055, 0.075, 5, 10), palmRingMat);
+      ring.position.copy(start);
+      ring.rotation.x = Math.PI / 2;
+      ring.scale.set(1, 1, 0.85);
+      palm.add(ring);
+    }
+  }
+
+  const crown = trunkPoints[trunkPoints.length - 1].clone();
+  const frondVertices = [];
+  const frondIndices = [];
+  const frondGroups = [[], [], []];
+  const frondCount = 7 + Math.floor(Math.random() * 2);
+  for (let f = 0; f < frondCount; f++) {
+    const angle = (f / frondCount) * Math.PI * 2 + Math.random() * 0.28;
+    const length = 14 + Math.random() * 7;
+    const droop = 5.5 + Math.random() * 4.5;
+    const direction = new THREE.Vector3(Math.cos(angle), Math.sin(angle), 0);
+    const side = new THREE.Vector3(-Math.sin(angle), Math.cos(angle), 0);
+    const spinePoints = [];
+    for (let s = 0; s <= 4; s++) {
+      const t = s / 4;
+      spinePoints.push(new THREE.Vector3(
+        crown.x + direction.x * length * t,
+        crown.y + direction.y * length * t,
+        crown.z + 2.5 * t - droop * t * t
+      ));
+    }
+    for (let s = 0; s < spinePoints.length - 1; s++) {
+      const a = spinePoints[s], b = spinePoints[s + 1];
+      const delta = b.clone().sub(a);
+      const rachis = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.13 * (1 - s * 0.12), 0.25 * (1 - s * 0.12), delta.length(), 5),
+        palmRingMat
+      );
+      rachis.position.copy(a).add(b).multiplyScalar(0.5);
+      rachis.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), delta.normalize());
+      palm.add(rachis);
+    }
+
+    const matIndex = f % palmFrondMats.length;
+    for (let k = 1; k <= 9; k++) {
+      const t = 0.12 + k * 0.078;
+      const spine = new THREE.Vector3(
+        crown.x + direction.x * length * t,
+        crown.y + direction.y * length * t,
+        crown.z + 2.5 * t - droop * t * t
+      );
+      const leafletLength = (2.6 + Math.random() * 1.6) * (1 - t * 0.38);
+      for (const sign of [-1, 1]) {
+        const root = spine.clone();
+        const outer = spine.clone().addScaledVector(side, sign * leafletLength);
+        outer.z -= 1.2 + t * 1.5;
+        const tip = outer.clone().addScaledVector(direction, length * 0.065);
+        tip.z -= 0.45;
+        const center = root.clone().lerp(outer, 0.48);
+        center.z += 0.28;
+        const target = frondGroups[matIndex];
+        addPalmLeaflet(target, frondIndices, root, center, tip);
+        addPalmLeaflet(target, frondIndices, root, outer, center);
+      }
+    }
+  }
+
+  // Build each color family into one mesh to keep the extra palm detail light.
+  for (let m = 0; m < frondGroups.length; m++) {
+    const positions = [];
+    const indices = [];
+    const vertices = frondGroups[m];
+    for (let i = 0; i < vertices.length; i += 9) {
+      const base = positions.length / 3;
+      positions.push(...vertices.slice(i, i + 9));
+      indices.push(base, base + 1, base + 2, base + 2, base + 1, base);
+    }
+    if (positions.length) {
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+      geometry.setIndex(indices);
+      geometry.computeVertexNormals();
+      const fronds = new THREE.Mesh(geometry, palmFrondMats[m]);
+      fronds.castShadow = true;
+      fronds.receiveShadow = true;
+      palm.add(fronds);
+    }
+  }
+
+  // A tight cluster of coconuts sits directly below the frond crown.
+  const coconutCount = 3 + Math.floor(Math.random() * 3);
+  for (let i = 0; i < coconutCount; i++) {
+    const a = (i / coconutCount) * Math.PI * 2;
+    const coconut = new THREE.Mesh(
+      new THREE.SphereGeometry(0.95 + Math.random() * 0.22, 9, 7),
+      coconutMats[i % coconutMats.length]
+    );
+    coconut.position.set(
+      crown.x + Math.cos(a) * 1.1,
+      crown.y + Math.sin(a) * 1.1,
+      crown.z - 1.1 + Math.random() * 0.5
+    );
+    coconut.scale.set(1, 0.9, 1.15);
+    coconut.castShadow = true;
+    palm.add(coconut);
+  }
+
+  return palm;
+}
+
+for (let i = 0; i < 9; i++) {
+  const angle = (i / 9) * Math.PI * 2 + (Math.random() - 0.5) * 0.28;
+  const radius = 960 + Math.random() * 55;
+  const palm = makeCoconutPalm();
+  palm.position.set(Math.cos(angle) * radius, Math.sin(angle) * radius, 0.02);
+  palm.rotation.z = Math.random() * Math.PI * 2;
+  palm.scale.setScalar(0.82 + Math.random() * 0.38);
+  palmGroup.add(palm);
+}
+scene.add(palmGroup);
+
 function createCrabShape(color) {
   const g = new THREE.Group();
-  const bodyMat = new THREE.MeshStandardMaterial({ color: color || 0x8a3a2a, roughness: 0.6, metalness: 0.05 });
-  const darkMat = new THREE.MeshStandardMaterial({ color: 0x5a2a1a, roughness: 0.7, metalness: 0.05 });
+  const shellColor = new THREE.Color(color || 0xe53935);
+  const bodyMat = new THREE.MeshStandardMaterial({ color: shellColor, roughness: 0.48, metalness: 0.02, flatShading: false });
+  const darkMat = new THREE.MeshStandardMaterial({ color: shellColor.clone().multiplyScalar(0.48), roughness: 0.68, metalness: 0.01 });
+  const highlightMat = new THREE.MeshStandardMaterial({ color: shellColor.clone().lerp(new THREE.Color(0xffb09a), 0.42), roughness: 0.42 });
   // Body — wider, flatter oval with shell texture
   const bodyGeo = new THREE.SphereGeometry(1, 24, 16);
   const body = new THREE.Mesh(bodyGeo, bodyMat);
-  body.scale.set(1.2, 0.8, 0.28);
+  body.scale.set(1.22, 0.9, 0.34);
+  body.castShadow = true;
+  body.receiveShadow = true;
   g.add(body);
+  // Raised shell rim and a restrained highlight catch light like a hard carapace.
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(0.83, 0.055, 6, 24), darkMat);
+  rim.scale.set(1.2, 0.84, 0.35);
+  rim.position.z = 0.12;
+  g.add(rim);
+  const shellHighlight = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 8), highlightMat);
+  shellHighlight.position.set(-0.12, 0.02, 0.27);
+  shellHighlight.scale.set(0.52, 0.24, 0.035);
+  g.add(shellHighlight);
   // Shell ridge
   const ridgeGeo = new THREE.SphereGeometry(1, 18, 12);
   const ridge = new THREE.Mesh(ridgeGeo, darkMat);
@@ -431,7 +795,7 @@ function createCrabShape(color) {
   ridge.scale.set(0.72, 0.16, 0.055);
   g.add(ridge);
   // Claws — more detailed with segments
-  const clawMat = new THREE.MeshStandardMaterial({ color: color || 0x8a3a2a, roughness: 0.5, metalness: 0.08 });
+  const clawMat = new THREE.MeshStandardMaterial({ color: shellColor.clone().multiplyScalar(0.88), roughness: 0.45, metalness: 0.01 });
   for (let side = -1; side <= 1; side += 2) {
     const clawGroup = new THREE.Group();
     // Arm segment
@@ -466,6 +830,7 @@ function createCrabShape(color) {
       leg.position.set(Math.cos(la) * 0.4, side * (0.5 + l * 0.15), 0.05);
       leg.rotation.z = side * (0.3 + l * 0.2);
       leg.userData.baseRotation = leg.rotation.z;
+      leg.userData.baseZ = leg.position.z;
       leg.userData.phase = l * 0.9 + (side > 0 ? Math.PI : 0);
       g.add(leg);
       g.userData = g.userData || {};
@@ -565,7 +930,12 @@ const dash = createDash(player.group, camera, () => {
   if (fromKeys) return fromKeys;
   if (touch && touch.getDirection) return touch.getDirection();
   return null;
-}, (dx, dy) => movement.translate(dx, dy));
+}, (dx, dy) => {
+  // Pond slowdown also affects dash travel, without changing dash duration,
+  // invulnerability timing, cooldowns, or the normal movement speed setting.
+  const environmentalSpeed = movement.getEnvironmentalSpeedMultiplier();
+  movement.translate(dx * environmentalSpeed, dy * environmentalSpeed);
+});
 
 // Power-ups
 const powerUps = createPowerUpManager(scene, player.group);
@@ -806,7 +1176,7 @@ function animate(currentTime) {
     } else {
       // Restore base attack radius when boost expires
       const lvl = gameManager.getCurrentLevel();
-      const baseRadius = gameManager.BASE_ATTACK_RADIUS;
+      const baseRadius = gameManager.LEVEL_STATS[Math.min(lvl, 9)]?.attackRadius ?? gameManager.BASE_ATTACK_RADIUS;
       attack.setRadius(baseRadius);
     }
 
@@ -840,8 +1210,10 @@ function animate(currentTime) {
       }
     }
 
-    // Water and lily pads slow movement by 30% without overwriting level or
-    // power-up speed. Restore the normal environmental factor outside ponds.
+    // Apply a separate environmental factor so pond water slows movement
+    // by 30% without overwriting level speed or a temporary speed power-up.
+    // The actual water radius includes all lily pads, and the factor resets
+    // immediately when the frog's ground position leaves the pond.
     movement.setEnvironmentalSpeedMultiplier(
       obstacles.isPositionOverPond(player.group.position.x, player.group.position.y) ? 0.7 : 1
     );
@@ -940,15 +1312,25 @@ function animate(currentTime) {
   for (const crab of crabGroup.children) {
     const d = crab.userData;
     const t = time * d.speed + d.phase;
-    // Roam tangentially along the beach so crabs don't wander into grass
-    // or out into the sea.
-    const roamAngle = d.anchorAngle + Math.sin(t * 0.28) * (d.drift / d.anchorRadius);
+    // Crabs scuttle back and forth along a short shoreline arc, keeping a
+    // stable beach radius while their body faces the direction of travel.
+    const roamOffset = Math.sin(t) * d.roamSpan;
+    const roamAngle = d.anchorAngle + roamOffset / d.anchorRadius;
+    const movingForward = Math.cos(t) >= 0;
     crab.position.x = Math.cos(roamAngle) * d.anchorRadius;
     crab.position.y = Math.sin(roamAngle) * d.anchorRadius;
-    crab.rotation.z = d.baseAngle + Math.sin(t * 0.65) * 0.18;
-    crab.position.z = 0.15 + Math.abs(Math.sin(t * 3.2)) * 0.035;
-    for (const leg of d.legs || []) leg.rotation.z = leg.userData.baseRotation + Math.sin(t * 7 + leg.userData.phase) * 0.16;
-    for (const claw of d.claws || []) claw.rotation.z = Math.sin(t * 2.3 + claw.userData.side) * 0.09;
+    crab.rotation.z = roamAngle + (movingForward ? Math.PI / 2 : -Math.PI / 2);
+    crab.position.z = 0.15 + Math.abs(Math.sin(t * 9)) * 0.045;
+    crab.position.x += Math.cos(roamAngle) * Math.sin(t * 5) * 0.8;
+    crab.position.y += Math.sin(roamAngle) * Math.sin(t * 5) * 0.8;
+    for (const leg of d.legs || []) {
+      const stride = Math.sin(t * 12 + leg.userData.phase);
+      leg.rotation.z = leg.userData.baseRotation + stride * 0.32;
+      leg.position.z = leg.userData.baseZ + Math.max(0, stride) * 0.055;
+    }
+    for (const claw of d.claws || []) {
+      claw.rotation.z = Math.sin(t * 3.4 + claw.userData.side) * 0.14;
+    }
   }
   // Blend ocean color continuously with the same day/dusk/night state as the sky.
   // The tint is intentionally restrained so the shore-to-deep-water gradient remains visible.
@@ -978,8 +1360,8 @@ function animate(currentTime) {
   for (const ripple of seaRipples) {
     const phase = (time * ripple.userData.speed + ripple.userData.phase) % 3;
     const t = phase / 3;
-    // Move from shore (1000) outward into sea
-    const dist = 1000 + t * 600;
+    // Move from the sea boundary (1060) outward into sea.
+    const dist = 1060 + t * 600;
     ripple.position.x = Math.cos(ripple.userData.angle) * dist;
     ripple.position.y = Math.sin(ripple.userData.angle) * dist;
     ripple.scale.setScalar(1 + t * 30);
