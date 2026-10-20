@@ -402,7 +402,7 @@ for (let i = 0; i < 15; i++) {
   const crab = createCrabShape(crabColors[i % 3]);
   crab.position.set(Math.cos(angle) * radius, Math.sin(angle) * radius, 0.15);
   crab.rotation.z = Math.random() * Math.PI * 2;
-  crab.scale.setScalar([1.8, 2.5, 3.2][i % 3]);
+  crab.scale.setScalar([2.5, 3.15, 3.8][i % 3]);
   crab.userData.anchorX = crab.position.x;
   crab.userData.anchorY = crab.position.y;
   crab.userData.anchorAngle = angle;
@@ -835,8 +835,16 @@ function animate(currentTime) {
     // jump finishes, so holding the stick keeps moving without flooding input.
     if (touch && touch.getMoveDirection && !movement.isCurrentlyMoving()) {
       const joystickDirection = touch.getMoveDirection();
-      if (joystickDirection) input.enqueueDirection(joystickDirection);
+      if (joystickDirection && input.enqueueDirection(joystickDirection)) {
+        touch.markMoveQueued?.(joystickDirection);
+      }
     }
+
+    // Water and lily pads slow movement by 30% without overwriting level or
+    // power-up speed. Restore the normal environmental factor outside ponds.
+    movement.setEnvironmentalSpeedMultiplier(
+      obstacles.isPositionOverPond(player.group.position.x, player.group.position.y) ? 0.7 : 1
+    );
 
     movement.update(effectiveDelta);
     // Apply dash after normal movement for this frame, while Movement's
