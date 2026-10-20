@@ -404,7 +404,7 @@ function makeBush(rand) {
 // gentle distortion = no jagged facets, just a rounded weathered stone.
 function makeBigRock(rand) {
   const group = new THREE.Group();
-  const size = 4.0 + rand() * 3.2;
+  const size = 5.2 + rand() * 5.0;
   // 2 subdivisions → ~162 verts vs 12 for 1 subdivision. Smooth silhouette.
   const geo = new THREE.IcosahedronGeometry(size, 2);
   distortGeometry(geo, rand, 0.52);
@@ -802,6 +802,16 @@ function placeTree(rand, avoid, minDist) {
   return { x: Math.cos(angle) * r, y: Math.sin(angle) * r };
 }
 
+// Pure pond-water footprint check, kept separate so pond boundaries can be
+// regression-tested without constructing the full Three.js environment.
+export function isPositionOverAnyPond(x, y, ponds) {
+  return ponds.some((pond) => {
+    const dx = x - pond.x;
+    const dy = y - pond.y;
+    return Math.hypot(dx, dy) <= pond.ref.radius * 0.91;
+  });
+}
+
 export function createObstacles(scene) {
   const obstacles = [];
   const rand = mulberry32(12345);
@@ -828,14 +838,13 @@ export function createObstacles(scene) {
 
     let placed2 = false;
     for (let attempt = 0; attempt < 40; attempt++) {
-      const angle = rand() * Math.PI * 2;
-      // Main pond sits a bit closer to the action; smaller ponds spread
-      // out further so they appear in different regions of the world.
-      // Also keep the ponds outside the player clearing so the player
-      // spawn area stays dry.
+      // Keep one pond reliably visible from the starting area without
+      // overlapping the player clearing; other ponds remain distributed.
+      const showcasePond = p === 0;
+      const angle = showcasePond ? Math.PI / 2 : rand() * Math.PI * 2;
       const minR = Math.max(CLEARING_RADIUS + POND_EXCLUSION_RADIUS, PLAYER_CLEARING_RADIUS + 60);
-      const maxR = isMain ? 280 : 600;  // small ponds can go further out with expanded playable area
-      const r = minR + rand() * (maxR - minR);
+      const maxR = isMain ? 280 : 600;
+      const r = showcasePond ? 178 : minR + rand() * (maxR - minR);
       const x = Math.cos(angle) * r;
       const y = Math.sin(angle) * r;
 
@@ -1104,5 +1113,10 @@ export function createObstacles(scene) {
     return obstacles;
   }
 
-  return { getObstacles, updatePond, ponds };
+  // Water footprint includes lily-pad positions; pads are inside the water disc.
+  function isPositionOverPond(x, y) {
+    return isPositionOverAnyPond(x, y, ponds);
+  }
+
+  return { getObstacles, updatePond, ponds, isPositionOverPond };
 }
