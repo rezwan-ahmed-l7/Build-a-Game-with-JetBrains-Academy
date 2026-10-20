@@ -416,13 +416,25 @@ export function createGameManager({
     return pool[pool.length - 1];
   }
 
+  function weightedCommonType(pool) {
+    // Common rarity still matters: Heal < Attack < Score < Speed in spawn frequency.
+    const weights = { heal: 15, attack: 20, score: 25, speed: 40 };
+    const total = pool.reduce((sum, type) => sum + weights[type], 0);
+    let roll = Math.random() * total;
+    for (const type of pool) {
+      roll -= weights[type];
+      if (roll < 0) return type;
+    }
+    return pool[pool.length - 1];
+  }
+
   function sampleDistinct(pool, count, tier) {
     const remaining = [...pool];
     const picked = [];
     while (picked.length < count && remaining.length) {
       const type = tier === 'better'
         ? weightedMysteryType(remaining)
-        : remaining[Math.floor(Math.random() * remaining.length)];
+        : weightedCommonType(remaining);
       picked.push(type);
       remaining.splice(remaining.indexOf(type), 1);
     }
