@@ -271,6 +271,11 @@ try {
   const renderedMode = await page.evaluate(() => window.__game.environment.getMode());
   if (renderedMode !== modeAfter) throw new Error(`Environment mode mismatch: expected ${modeAfter}, got ${renderedMode}`);
 
+  // Save and close the desktop game before booting a second WebGL scene.
+  // This keeps software-rendered CI runners from running two heavy scenes at once.
+  await page.screenshot({ path: 'browser-smoke-playing.png' });
+  await page.close();
+
   // Mobile smoke: force touch-device detection, complete onboarding, and
   // exercise the virtual joystick with a quick flick that may end between frames.
   const mobileContext = await browser.newContext({
@@ -287,8 +292,8 @@ try {
   mobilePage.on('requestfailed', (request) => {
     if (!request.url().startsWith('data:')) browserErrors.push(`Mobile request failed: ${request.url()} — ${request.failure()?.errorText}`);
   });
-  await mobilePage.goto(baseUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
-  await mobilePage.locator('#menu-start').waitFor({ state: 'visible', timeout: 10000 });
+  await mobilePage.goto(baseUrl, { waitUntil: 'commit', timeout: 60000 });
+  await mobilePage.locator('#menu-start').waitFor({ state: 'visible', timeout: 60000 });
   if (!(await mobilePage.locator('.touch-root').count())) {
     throw new Error('Touch device detection did not mount virtual controls on mobile viewport');
   }
@@ -382,7 +387,6 @@ try {
   await mobilePage.screenshot({ path: 'browser-smoke-mobile.png' });
   await mobileContext.close();
 
-  await page.screenshot({ path: 'browser-smoke-playing.png' });
   if (browserErrors.length) throw new Error(`Browser console/runtime issues:\n- ${browserErrors.join('\n- ')}`);
 
   console.log(JSON.stringify({
