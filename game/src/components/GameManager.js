@@ -187,7 +187,7 @@ export function createGameManager({
       damageNumbers.spawn(eff.label, pos.x, pos.y, pos.z + 6, '#4cc9f0', { kind: 'power' });
       particles.spawnBurst(pos.x, pos.y, pos.z, { count: 22, color: 0x4cc9f0, speed: 80, life: 0.7, size: 6 });
     } else if (type === 'attack') {
-      const eff = getPowerUpEffect('attack', lvl);
+      const eff = effectOverride || getPowerUpEffect('attack', lvl);
       attackBoostRemaining = eff.duration;
       attackBoostMultiplier = eff.mult;
       attackRef.setRadius(getBoostedAttackRadius());
