@@ -1262,7 +1262,7 @@ function animate(currentTime) {
     combo.update(delta);
     gameManager.tickComboHud();
 
-    powerUps.update(delta, currentTime / 1000, gameManager.onPowerUpPickup, gameManager.getMagnetRemaining() > 0);
+    powerUps.update(delta, currentTime / 1000, gameManager.onPowerUpPickup, gameManager.getMagnetRemaining() > 0, gameManager.onMysteryBoxPickup);
     score.tick(delta);
     score.render();
     } // end else (not countdown)
