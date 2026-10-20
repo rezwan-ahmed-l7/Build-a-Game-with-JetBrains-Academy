@@ -142,22 +142,25 @@ function makeSwordGeometry() {
   return geom;
 }
 
-// Shield — thicker ring for better visibility
+// Shield — solid heraldic crest silhouette (readable at gameplay distance).
 function makeShieldGeometry() {
   const shape = new THREE.Shape();
-  const outerR = 6;
-  const innerR = 4.2;
-  shape.absarc(0, 0, outerR, 0, Math.PI * 2, false);
-  const hole = new THREE.Path();
-  hole.absarc(0, 0, innerR, 0, Math.PI * 2, true);
-  shape.holes.push(hole);
+  shape.moveTo(0, 7);
+  shape.lineTo(5.5, 5);
+  shape.lineTo(5, 0.5);
+  shape.lineTo(3.5, -3);
+  shape.lineTo(0, -6.5);
+  shape.lineTo(-3.5, -3);
+  shape.lineTo(-5, 0.5);
+  shape.lineTo(-5.5, 5);
+  shape.closePath();
   const geom = new THREE.ExtrudeGeometry(shape, {
-    depth: 2,
+    depth: 2.8,
     bevelEnabled: true,
-    bevelThickness: 0.5,
-    bevelSize: 0.5,
-    bevelSegments: 3,
-    curveSegments: 24
+    bevelThickness: 0.8,
+    bevelSize: 0.65,
+    bevelSegments: 4,
+    curveSegments: 8
   });
   geom.center();
   return geom;
@@ -236,23 +239,33 @@ function mergeGeometries(geoms) {
   return merged;
 }
 
-// Magnet — spiral shape
+// Magnet — unmistakable U silhouette instead of a spiral-like ring.
 function makeMagnetGeometry() {
   const shape = new THREE.Shape();
-  // Spiral approximation using arcs
-  const r = 5;
-  shape.absarc(0, 0, r, 0, Math.PI * 1.5, false);
-  // Inner spiral
-  const inner = new THREE.Path();
-  inner.absarc(0, 0, r * 0.6, Math.PI * 1.5, Math.PI * 2.5, true);
-  shape.holes.push(inner);
+  shape.moveTo(-5.5, 6);
+  shape.lineTo(-5.5, -0.5);
+  shape.lineTo(-4.8, -3.2);
+  shape.lineTo(-2.8, -5.4);
+  shape.lineTo(0, -6.2);
+  shape.lineTo(2.8, -5.4);
+  shape.lineTo(4.8, -3.2);
+  shape.lineTo(5.5, -0.5);
+  shape.lineTo(5.5, 6);
+  shape.lineTo(2.5, 6);
+  shape.lineTo(2.5, -0.5);
+  shape.lineTo(1.8, -2.2);
+  shape.lineTo(0, -3);
+  shape.lineTo(-1.8, -2.2);
+  shape.lineTo(-2.5, -0.5);
+  shape.lineTo(-2.5, 6);
+  shape.closePath();
   const geom = new THREE.ExtrudeGeometry(shape, {
-    depth: 2,
+    depth: 2.6,
     bevelEnabled: true,
     bevelThickness: 0.8,
-    bevelSize: 0.6,
+    bevelSize: 0.55,
     bevelSegments: 3,
-    curveSegments: 32
+    curveSegments: 4
   });
   geom.center();
   return geom;
@@ -309,16 +322,36 @@ export function createPowerUp(type, x, y) {
   // ----- The iconic shape -----
   // Slightly oversized so it reads from the top-down camera.
   const shapeGeom = buildShape();
+  // Accent silhouette sits just behind the main icon, creating a crisp
+  // colored edge without a ground ring or an expensive point light.
+  const outlineGeom = shapeGeom.clone();
+  const outlineMat = new THREE.MeshStandardMaterial({
+    color: def.accent,
+    emissive: def.accent,
+    emissiveIntensity: 0.35,
+    roughness: 0.32,
+    metalness: 0.18,
+    transparent: true,
+    opacity: 0.9,
+    depthWrite: false
+  });
+  const outlineMesh = new THREE.Mesh(outlineGeom, outlineMat);
+  outlineMesh.scale.setScalar(1.31);
+  outlineMesh.position.z = -1.15;
+  outlineMesh.castShadow = false;
+  group.add(outlineMesh);
+
   const shapeMat = new THREE.MeshStandardMaterial({
     color: def.color,
     emissive: def.color,
-    emissiveIntensity: 0.95,
-    roughness: 0.25,
-    metalness: 0.4
+    emissiveIntensity: 0.55,
+    roughness: 0.3,
+    metalness: 0.28
   });
   const shapeMesh = new THREE.Mesh(shapeGeom, shapeMat);
   shapeMesh.scale.setScalar(1.15);
   shapeMesh.castShadow = true;
+  shapeMesh.renderOrder = 2;
   group.add(shapeMesh);
 
   // ----- Halo ring hidden — user prefers no visible circle -----
@@ -374,26 +407,30 @@ export function createPowerUp(type, x, y) {
     group.position.z = 8 + Math.sin(time * 2.4) * 2;
     // Spin the shape on Y so different facets catch the light.
     shapeMesh.rotation.y += delta * 1.2;
+    outlineMesh.rotation.y = shapeMesh.rotation.y;
     // Subtle tilt so the shape never looks pasted on flat.
     shapeMesh.rotation.x = Math.sin(time * 1.4) * 0.08;
+    outlineMesh.rotation.x = shapeMesh.rotation.x;
 
-
-    // Last 3 seconds: blink the icon (not the halo, so it's still findable).
+    // Last 3 seconds: blink both layers together; keep the ground ring hidden.
     const remaining = lifetime - life;
     if (remaining < 3) {
       const blink = Math.sin(time * 12) > 0;
       shapeMesh.visible = blink;
-      halo.visible = blink;
+      outlineMesh.visible = blink;
     } else {
       shapeMesh.visible = true;
-      halo.visible = true;
+      outlineMesh.visible = true;
     }
+    halo.visible = false;
     return true;
   }
 
   function dispose() {
     shapeGeom.dispose();
     shapeMat.dispose();
+    outlineGeom.dispose();
+    outlineMat.dispose();
     halo.geometry.dispose();
     halo.material.dispose();
     shadow.geometry.dispose();
