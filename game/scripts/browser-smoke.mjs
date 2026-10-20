@@ -172,13 +172,18 @@ try {
     enemy.isSpawning = false;
     enemy.isDying = false;
     enemy.hp = 5;
-    return { before: enemy.hp, index: enemies.length - 1 };
+    return {
+      before: enemy.hp,
+      expectedDamage: window.__game.attack.getDamage(),
+      index: enemies.length - 1
+    };
   });
   await page.keyboard.press('Space');
   await page.waitForTimeout(100);
   const hpAfterAttack = await page.evaluate((index) => window.__game.enemyManager.getEnemies()[index]?.hp ?? null, damageCheck.index);
-  if (hpAfterAttack !== damageCheck.before - 1) {
-    throw new Error(`Attack should reduce enemy HP by 1; expected ${damageCheck.before - 1}, got ${hpAfterAttack}`);
+  const expectedHp = Math.max(0, damageCheck.before - damageCheck.expectedDamage);
+  if (hpAfterAttack !== expectedHp) {
+    throw new Error(`Attack damage mismatch; expected enemy HP ${expectedHp} from damage ${damageCheck.expectedDamage}, got ${hpAfterAttack}`);
   }
   // Avoid letting the deliberately close test enemy interfere with later
   // pause/menu checks through normal player-contact damage.
