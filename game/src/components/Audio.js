@@ -115,6 +115,12 @@ export function createAudio() {
                     attack: 0.001, decay: 0.18, gain: 0.22 }),
     powerUp: build({ type: 'triangle', freq: 440, freqEnd: 880, dur: 0.45,
                      attack: 0.005, decay: 0.45, gain: 0.20 }),
+    mysteryBox: build({ type: 'square', freq: 240, freqEnd: 1120, dur: 0.58,
+                        attack: 0.008, decay: 0.58, gain: 0.28,
+                        noise: 0.09, filterFreq: 2600 }),
+    rewardBurst: build({ type: 'sine', freq: 740, freqEnd: 1580, dur: 0.38,
+                         attack: 0.002, decay: 0.38, gain: 0.29,
+                         noise: 0.045, filterFreq: 3200 }),
     levelUp: build({ type: 'sine', freq: 523, freqEnd: 1046, dur: 0.6,
                      attack: 0.005, decay: 0.6, gain: 0.25 }),
     death: build({ type: 'sawtooth', freq: 220, freqEnd: 40, dur: 0.9,
@@ -372,6 +378,15 @@ export function createAudio() {
     playHurt: () => safePlay(sfx.hurt),
     playPickup: () => safePlay(sfx.pickup),
     playPowerUp: () => safePlay(sfx.powerUp),
+    playMysteryBox: () => {
+      safePlay(sfx.mysteryBox);
+      setTimeout(() => safePlay(sfx.rewardBurst), 115);
+      setTimeout(() => safePlay(sfx.powerUp), 245);
+    },
+    playRewardBurst: () => {
+      safePlay(sfx.rewardBurst);
+      setTimeout(() => safePlay(sfx.levelUp), 90);
+    },
     playLevelUp: () => safePlay(sfx.levelUp),
     playDeath: () => safePlay(sfx.death),
     playDash: () => safePlay(sfx.dash),
