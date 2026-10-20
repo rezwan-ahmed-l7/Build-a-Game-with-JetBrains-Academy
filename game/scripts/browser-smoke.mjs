@@ -239,6 +239,36 @@ try {
   await page.locator('.resume-countdown').waitFor({ state: 'visible' });
   await page.waitForFunction(() => window.__game.currentState() === 'playing', null, { timeout: 6000 });
 
+  // Timeout path: the reward is missed, then the same 3-2-1 resume sequence runs.
+  const beforeMysteryTimeout = await page.evaluate(() => ({
+    score: window.__game.score.getScore(),
+    hp: window.__game.health.getHp(),
+    attack: window.__game.gameManager.getAttackBoostRemaining(),
+    speed: window.__game.gameManager.getSpeedBoostRemaining(),
+    shield: window.__game.gameManager.getShieldRemaining(),
+    doubleAttack: window.__game.gameManager.getDoubleAttackRemaining(),
+    magnet: window.__game.gameManager.getMagnetRemaining(),
+    freeze: window.__game.gameManager.getFreezeRemaining()
+  }));
+  await page.evaluate((position) => window.__game.onMysteryBoxPickup(position), powerupPosition);
+  await page.locator('#mystery-overlay').waitFor({ state: 'visible' });
+  await page.locator('#mystery-overlay').waitFor({ state: 'hidden', timeout: 18000 });
+  await page.locator('.resume-countdown').waitFor({ state: 'visible' });
+  await page.waitForFunction(() => window.__game.currentState() === 'playing', null, { timeout: 6000 });
+  const afterMysteryTimeout = await page.evaluate(() => ({
+    score: window.__game.score.getScore(),
+    hp: window.__game.health.getHp(),
+    attack: window.__game.gameManager.getAttackBoostRemaining(),
+    speed: window.__game.gameManager.getSpeedBoostRemaining(),
+    shield: window.__game.gameManager.getShieldRemaining(),
+    doubleAttack: window.__game.gameManager.getDoubleAttackRemaining(),
+    magnet: window.__game.gameManager.getMagnetRemaining(),
+    freeze: window.__game.gameManager.getFreezeRemaining()
+  }));
+  if (JSON.stringify(beforeMysteryTimeout) !== JSON.stringify(afterMysteryTimeout)) {
+    throw new Error(`Mystery Box timeout unexpectedly granted a reward or advanced paused gameplay: ${JSON.stringify({ beforeMysteryTimeout, afterMysteryTimeout })}`);
+  }
+
   await page.keyboard.press('Escape');
   await page.locator('#menu-pause').waitFor({ state: 'visible' });
   await page.locator('#btn-resume').click();
