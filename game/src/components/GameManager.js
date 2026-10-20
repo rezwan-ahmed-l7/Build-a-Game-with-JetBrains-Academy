@@ -133,9 +133,7 @@ export function createGameManager({
   }
 
   function getBoostedAttackRadius() {
-    const lvl = currentLevel;
-    const eff = effectOverride || getPowerUpEffect('attack', lvl);
-    const stats = getLevelStats(lvl);
+    const stats = getLevelStats(currentLevel);
     return stats.attackRadius * attackBoostMultiplier;
   }
 
@@ -323,6 +321,13 @@ export function createGameManager({
   }
 
   function resetGame() {
+    if (mysteryChoiceTimer) clearTimeout(mysteryChoiceTimer);
+    mysteryChoiceTimer = 0;
+    mysteryChoiceActive = false;
+    menusRef.hideMysteryChoice && menusRef.hideMysteryChoice();
+    if (resumeCountdownTimer) clearTimeout(resumeCountdownTimer);
+    resumeCountdownTimer = 0;
+    menusRef.clearResumeCountdown && menusRef.clearResumeCountdown();
     // Bump the community play counter. This is the single funnel point
     // for "player is starting a fresh run" (startGame + onRestart from
     // game-over both route through here), so pause/resume won't double
@@ -371,6 +376,7 @@ export function createGameManager({
   }
 
   function togglePause() {
+    if (mysteryChoiceActive) return;
     if (currentState === GameState.PLAYING) {
       currentState = GameState.PAUSED;
       input.setEnabled(false);
@@ -533,7 +539,7 @@ export function createGameManager({
   // no game logic ticks while it's running because currentState stays
   // PAUSED.
   function beginResumeCountdown() {
-    if (currentState !== GameState.PAUSED) return;
+    if (currentState !== GameState.PAUSED || mysteryChoiceActive) return;
     if (resumeCountdownTimer) clearTimeout(resumeCountdownTimer);
     let n = 3;
     const tick = () => {
