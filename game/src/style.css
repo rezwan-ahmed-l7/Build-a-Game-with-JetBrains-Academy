@@ -1907,10 +1907,10 @@ body:has(.touch-root) .controls-strip { display: none; }
   .mode-pill-clock { font-size: 8px; }
 
   .joystick-base {
-    left: max(16px, env(safe-area-inset-left));
-    bottom: max(16px, env(safe-area-inset-bottom));
-    width: 124px;
-    height: 124px;
+    left: max(25px, env(safe-area-inset-left));
+    bottom: max(25px, env(safe-area-inset-bottom));
+    width: 132px;
+    height: 132px;
     border-width: 2px;
     background: rgba(7, 16, 36, 0.54);
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.22), inset 0 0 0 1px rgba(255,255,255,0.05);
@@ -1919,22 +1919,31 @@ body:has(.touch-root) .controls-strip { display: none; }
   .joystick-knob {
     top: 50%;
     left: 50%;
-    width: 54px;
-    height: 54px;
+    width: 58px;
+    height: 58px;
     transform: translate(-50%, -50%);
     --stick-x: 0px;
     --stick-y: 0px;
     margin: 0;
     box-shadow: 0 0 14px rgba(255, 226, 122, 0.46);
     pointer-events: none;
-    transition: none;
+    transition: transform 0.075s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.12s ease, background 0.12s ease;
+  }
+  .joystick-base.is-active {
+    border-color: rgba(255, 226, 122, 0.78);
+    background: rgba(14, 28, 48, 0.72);
+    box-shadow: 0 0 0 5px rgba(255, 226, 122, 0.08), 0 8px 24px rgba(0,0,0,0.28), inset 0 0 18px rgba(255,226,122,0.10);
+  }
+  .joystick-knob.is-moving {
+    background: linear-gradient(145deg, rgba(255, 238, 164, 0.98), rgba(255, 190, 66, 0.96));
+    box-shadow: 0 0 22px rgba(255, 214, 92, 0.78), inset 0 2px 5px rgba(255,255,255,0.72);
   }
   .joystick-knob[style] {
     transform: translate(calc(-50% + var(--stick-x, 0px)), calc(-50% + var(--stick-y, 0px)));
   }
   .touch-buttons {
-    right: max(14px, env(safe-area-inset-right));
-    bottom: max(16px, env(safe-area-inset-bottom));
+    right: max(22px, env(safe-area-inset-right));
+    bottom: max(24px, env(safe-area-inset-bottom));
     gap: 9px;
   }
   .touch-button {
@@ -1950,6 +1959,9 @@ body:has(.touch-root) .controls-strip { display: none; }
     -webkit-backdrop-filter: blur(8px);
   }
   .touch-button.attack {
+    width: 76px;
+    height: 76px;
+    font-size: 13px;
     color: #fff;
     background: linear-gradient(145deg, rgba(255,91,116,0.96), rgba(190,31,76,0.92));
     border-color: rgba(255,173,190,0.88);
