@@ -38,8 +38,8 @@ function sail(ship, x, height, color) {
 function createShip(kind) {
   const g = new THREE.Group();
   const pirate = kind === 'pirate', boat = kind === 'boat';
-  const length = boat ? 52 : pirate ? 112 : 94;
-  const width = boat ? 19 : pirate ? 30 : 25;
+  const length = kind === 'cargo' ? 142 : kind === 'liner' ? 128 : kind === 'fishing' ? 68 : boat ? 52 : pirate ? 112 : 94;
+  const width = kind === 'cargo' ? 36 : kind === 'liner' ? 34 : kind === 'fishing' ? 23 : boat ? 19 : pirate ? 30 : 25;
   const hull = new THREE.Shape();
   hull.moveTo(-length/2, -width*0.12); hull.lineTo(-length*0.34, -width/2);
   hull.lineTo(length*0.3, -width/2); hull.lineTo(length/2, -width*0.12);
@@ -53,9 +53,28 @@ function createShip(kind) {
   box(g, [length*0.82, 1.5, 2], 0xd0aa66, [0,width*0.37,7.4]);
   if (!boat) {
     box(g, [length*0.18,width*0.48,13], 0x493024, [-length*0.28,0,14]);
-    const mainHeight = pirate ? 75 : 66;
-    sail(g, -length*0.18, mainHeight, pirate ? 0x9b3035 : kind === 'merchant' ? 0xe4dcc3 : 0xf0e7d0);
-    sail(g, length*0.16, mainHeight*0.78, pirate ? 0x9b3035 : 0xf0e7d0);
+    const mainHeight = kind === 'liner' ? 46 : kind === 'cargo' ? 34 : pirate ? 75 : 66;
+    if (kind === 'cargo' || kind === 'liner') {
+      // Raised bridge and deckhouses make these read as larger modern vessels.
+      box(g, [length*0.22, width*0.72, 20], kind === 'liner' ? 0xf1eee5 : 0xb9c4c8, [length*0.22, 0, 19]);
+      box(g, [length*0.10, width*0.55, 10], 0x4c6572, [length*0.22, 0, 34]);
+      for (let deck = 0; deck < (kind === 'liner' ? 3 : 2); deck++) {
+        box(g, [length*0.11, width*0.58, 3], deck % 2 ? 0xd6e5e9 : 0x8faab6,
+          [-length*0.16 + deck * length*0.10, 0, 13 + deck*4]);
+      }
+      if (kind === 'cargo') {
+        const containerColors = [0xc64f3d, 0x2f7192, 0xd7a442, 0x477b55];
+        for (let row = 0; row < 2; row++) {
+          for (let boxIndex = 0; boxIndex < 4; boxIndex++) {
+            box(g, [length*0.105, width*0.20, 10], containerColors[(row + boxIndex) % containerColors.length],
+              [-length*0.28 + boxIndex*length*0.13, row ? width*0.20 : -width*0.20, 18 + row*10]);
+          }
+        }
+      }
+    } else {
+      sail(g, -length*0.18, mainHeight, pirate ? 0x9b3035 : kind === 'merchant' ? 0xe4dcc3 : 0xf0e7d0);
+      sail(g, length*0.16, mainHeight*0.78, pirate ? 0x9b3035 : 0xf0e7d0);
+    }
     if (pirate) {
       sail(g, length*0.35, mainHeight*0.52, 0x29262b);
       const flag = new THREE.Mesh(new THREE.PlaneGeometry(14, 7), mat(0x29262b));
@@ -63,8 +82,10 @@ function createShip(kind) {
       const skull = new THREE.Mesh(new THREE.SphereGeometry(2.1,8,6),mat(0xf0e7d0));
       skull.position.set(-length*0.18+5,-1.4,mainHeight+13); g.add(skull);
     }
-    person(g,-length*0.03,-width*0.12,1,pirate?0x702b2b:0x315568);
-    person(g,length*0.22,width*0.13,0.9,0x8e6d45);
+    if (kind !== 'cargo' && kind !== 'liner') {
+      person(g,-length*0.03,-width*0.12,1,pirate?0x702b2b:0x315568);
+      person(g,length*0.22,width*0.13,0.9,0x8e6d45);
+    }
     if (pirate) person(g,-length*0.31,width*0.1,0.85,0x2b3546);
   } else {
     box(g,[22,2,1.5],0xd0aa66,[0,0,8.3]);
@@ -76,10 +97,13 @@ function createShip(kind) {
 }
 export function createSeaShips(scene) {
   const ships = [
-    {kind:'pirate', radius:1765, angle:0.42, drift:0.00072, scale:1, phase:0.4},
-    {kind:'merchant',radius:1840, angle:2.05, drift:-0.00048,scale:0.88,phase:2},
-    {kind:'sail',radius:1900,angle:3.62,drift:0.00058,scale:0.82,phase:3.2},
-    {kind:'boat',radius:1805,angle:5.08,drift:-0.00082,scale:0.95,phase:4.6}
+    {kind:'pirate', radius:1765, angle:0.42, drift:0.0058, scale:1, phase:0.4},
+    {kind:'merchant',radius:1840, angle:2.05, drift:-0.0042,scale:0.88,phase:2},
+    {kind:'sail',radius:1900, angle:3.62, drift:0.0048,scale:0.82,phase:3.2},
+    {kind:'boat',radius:1805, angle:5.08, drift:-0.0062,scale:0.95,phase:4.6},
+    {kind:'cargo', radius:1945, angle:1.12, drift:0.0036, scale:0.82, phase:1.4},
+    {kind:'liner', radius:1980, angle:4.15, drift:-0.0028, scale:0.76, phase:5.1},
+    {kind:'fishing', radius:1725, angle:5.72, drift:0.0072, scale:0.78, phase:2.8}
   ].map(c => {
     const ship=createShip(c.kind); ship.scale.setScalar(c.scale);
     ship.userData={...c}; scene.add(ship); return ship;
@@ -89,13 +113,13 @@ export function createSeaShips(scene) {
       const d=ship.userData, a=d.angle+time*d.drift;
       const x=Math.cos(a)*d.radius, y=Math.sin(a)*d.radius;
       const polar=Math.atan2(y,x), dist=Math.hypot(x,y);
-      const wave=Math.sin(dist*0.008-time*0.72)*2.8
-        +Math.sin(dist*0.004+time*0.46+polar*1.5)*1.7
-        +Math.sin(dist*0.015-time*1.05+polar*3)*0.65;
-      ship.position.set(x,y,-2+wave+2+Math.sin(time*0.8+d.phase)*1.2);
-      // Broadside faces inward toward the island so the silhouette is readable from shore.
-      ship.rotation.set(Math.sin(time*0.72+d.phase)*0.018,
-        Math.sin(time*0.83+d.phase)*0.025,a+Math.PI/2);
+      const wave=Math.sin(dist*0.008-time*1.05)*5.2
+        +Math.sin(dist*0.004+time*0.72+polar*1.5)*3.1
+        +Math.sin(dist*0.015-time*1.55+polar*3)*1.25;
+      ship.position.set(x,y,-2+wave+2+Math.sin(time*1.15+d.phase)*2.0);
+      // Noticeable but restrained pitch/roll follows the stronger ocean swell.
+      ship.rotation.set(Math.sin(time*1.05+d.phase)*0.035,
+        Math.sin(time*1.22+d.phase)*0.045,a+Math.PI/2);
     }
   }
   return { update };

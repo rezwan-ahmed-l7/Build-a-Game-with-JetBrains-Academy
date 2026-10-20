@@ -2,7 +2,7 @@
 // expired ones, and detects pickup by the player.
 
 import * as THREE from 'three';
-import { createPowerUp, POWERUP_TYPES } from './PowerUp.js';
+import { createPowerUp, createMysteryBox } from './PowerUp.js';
 import { PLAYABLE_RADIUS } from './WorldBounds.js';
 
 const PICKUP_RADIUS = 22;
@@ -10,6 +10,7 @@ const SPAWN_RADIUS = 120;
 
 export function createPowerUpManager(scene, playerGroup) {
   const active = [];
+  const mysteryBoxes = [];
   let nextSpawnIn = 8; // first one is quick so the player sees it
   let elapsed = 0;
   let currentLevel = 1;
@@ -19,17 +20,25 @@ export function createPowerUpManager(scene, playerGroup) {
   }
 
   function pickType() {
-    // Weighted spawn — cumulative, level-aware
-    // Heal is rarer now so it doesn't spawn too often
+    // Disjoint probability bands preserve the intended rarity and keep Heal reachable.
     const r = Math.random();
-    if (currentLevel >= 9 && r < 0.02) return 'freeze';
-    if (currentLevel >= 7 && r < 0.05) return 'magnet';
-    if (currentLevel >= 5 && r < 0.10) return 'doubleAttack';
-    if (currentLevel >= 3 && r < 0.18) return 'shield';
-    if (r < 0.15) return 'heal';
-    if (r < 0.35) return 'score';
-    if (r < 0.55) return 'attack';
+    if (currentLevel >= 9 && r < 0.02) return 'freeze';          // 2%
+    if (currentLevel >= 7 && r < 0.05) return 'magnet';          // next 3%
+    if (currentLevel >= 5 && r < 0.10) return 'doubleAttack';    // next 5%
+    if (currentLevel >= 3 && r < 0.18) return 'shield';          // next 8%
+    const commonRoll = currentLevel >= 3 ? r - 0.18 : r;
+    if (commonRoll < 0.15) return 'heal';                        // 15%
+    if (commonRoll < 0.35) return 'score';                       // 20%
+    if (commonRoll < 0.55) return 'attack';                      // 20%
     return 'speed';
+  }
+
+  function mysteryBoxChance() {
+    if (currentLevel < 3) return 0;
+    if (currentLevel >= 9) return 0.06;
+    if (currentLevel >= 7) return 0.05;
+    if (currentLevel >= 5) return 0.04;
+    return 0.03;
   }
 
   function spawn() {
@@ -47,18 +56,46 @@ export function createPowerUpManager(scene, playerGroup) {
       y *= scale;
     }
 
+    // Mystery boxes are rare and never chain from another Mystery Box.
+    // Only one may exist at a time; its own reward is handled by GameManager.
+    if (currentLevel >= 3 && mysteryBoxes.length === 0 && Math.random() < mysteryBoxChance()) {
+      const box = createMysteryBox(x, y);
+      scene.add(box.group);
+      mysteryBoxes.push(box);
+      return;
+    }
     const type = pickType();
     const pu = createPowerUp(type, x, y);
     scene.add(pu.group);
     active.push(pu);
   }
 
-  function update(delta, time, onPickup, magnetActive) {
+  function update(delta, time, onPickup, magnetActive, onMysteryBoxPickup) {
     elapsed += delta;
     nextSpawnIn -= delta;
     if (nextSpawnIn <= 0) {
       nextSpawnIn = 10 + Math.random() * 5;
       spawn();
+    }
+
+    for (let i = mysteryBoxes.length - 1; i >= 0; i--) {
+      const box = mysteryBoxes[i];
+      const alive = box.update(delta, time);
+      if (!alive) {
+        scene.remove(box.group);
+        box.dispose();
+        mysteryBoxes.splice(i, 1);
+        continue;
+      }
+      const pos = box.getPosition();
+      if (Math.hypot(pos.x - playerGroup.position.x, pos.y - playerGroup.position.y) < PICKUP_RADIUS) {
+        box.markCollected();
+        scene.remove(box.group);
+        box.dispose();
+        mysteryBoxes.splice(i, 1);
+        if (onMysteryBoxPickup) onMysteryBoxPickup({ x: pos.x, y: pos.y, z: pos.z });
+        return; // Do not also collect a regular power-up in the same frame.
+      }
     }
 
     for (let i = active.length - 1; i >= 0; i--) {
@@ -115,6 +152,11 @@ export function createPowerUpManager(scene, playerGroup) {
       pu.dispose();
     }
     active.length = 0;
+    for (const box of mysteryBoxes) {
+      scene.remove(box.group);
+      box.dispose();
+    }
+    mysteryBoxes.length = 0;
   }
 
   return { update, removeAll, setLevel };

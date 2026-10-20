@@ -48,7 +48,7 @@ const _greenTint = new THREE.Color();
 
 const BUSH_FOLIAGE_GEOMETRY = new THREE.IcosahedronGeometry(1, 1);
 const BUSH_FOLIAGE_MATERIALS = [
-  0x315b32, 0x3d6a37, 0x4c743b, 0x587c40, 0x2f6346, 0x6b8546
+  0x24543a, 0x34764a, 0x4b8a48, 0x6a944b, 0x286b55, 0x879b4b
 ].map((color) => new THREE.MeshStandardMaterial({
   color, roughness: 0.96, metalness: 0, flatShading: true
 }));
@@ -547,14 +547,14 @@ function makeFlowerPatch(rand) {
 function makeBigRock(rand) {
   const group = new THREE.Group();
   const size = 5.2 + rand() * 5.0;
-  const geo = new THREE.IcosahedronGeometry(size, 2);
-  distortGeometry(geo, rand, 0.52);
-  const palette = [0x777b78, 0x89877d, 0x6f7779, 0x938b7b, 0x686f70, 0x81766b];
+  const geo = new THREE.IcosahedronGeometry(size, 3);
+  distortGeometry(geo, rand, 0.62);
+  const palette = [0x858b8a, 0x96958a, 0x78888a, 0xa39a88, 0x737d80, 0x8d8176];
   const rockMat = new THREE.MeshStandardMaterial({
     color: palette[Math.floor(rand() * palette.length)],
-    roughness: 0.98,
+    roughness: 0.92,
     metalness: 0,
-    flatShading: true
+    flatShading: false
   });
   const rock = new THREE.Mesh(geo, rockMat);
   rock.scale.set(0.88 + rand() * 0.42, 0.78 + rand() * 0.48, 0.62 + rand() * 0.35);
@@ -593,16 +593,16 @@ function makeBigRock(rand) {
 
 function makeSmallRock(rand) {
   const size = 0.65 + rand() * 1.35;
-  const geo = new THREE.IcosahedronGeometry(size, 1);
-  distortGeometry(geo, rand, 0.48);
-  const palette = [0xaaa394, 0x827f77, 0x6c7777, 0xb3a68d, 0x77716a, 0x8d9996];
+  const geo = new THREE.IcosahedronGeometry(size, 2);
+  distortGeometry(geo, rand, 0.60);
+  const palette = [0xb6b2a5, 0x92918a, 0x7e8c8d, 0xc0b49b, 0x87817a, 0xa0aeaa];
   const rock = new THREE.Mesh(
     geo,
     new THREE.MeshStandardMaterial({
       color: palette[Math.floor(rand() * palette.length)],
-      roughness: 0.98,
+      roughness: 0.92,
       metalness: 0,
-      flatShading: true
+      flatShading: false
     })
   );
   rock.scale.set(0.72 + rand() * 0.65, 0.68 + rand() * 0.7, 0.48 + rand() * 0.68);
@@ -1221,6 +1221,10 @@ export function createObstacles(scene) {
     if (record.index % 5 === 0 && totalHeight > 0) {
       const targetHeight = 70 + ((record.index * 7) % 11);
       group.scale.z = targetHeight / totalHeight;
+    } else {
+      // Preserve the already-tall landmark trees while lifting the rest of
+      // the forest canopy for a more consistent, mature tree line.
+      group.scale.z = 1.24;
     }
 
     group.position.x = record.pos.x;

@@ -209,7 +209,7 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
     const birdGroup = new THREE.Group();
 
     // Color variation: dark grey to near-black, with subtle warm/cool tones
-    const colorVariation = [0x252b35, 0x30343b, 0x292d32, 0x3a3b40, 0x20252d][i % 5];
+    const colorVariation = [0x273544, 0x39424c, 0x303a42, 0x4b4540, 0x202c38][i % 5];
     const bellyColor = [0x9298a2, 0xa4a5a8, 0x828c99, 0xb0a89a, 0x87909a][i % 5];
 
     const birdMat = new THREE.MeshStandardMaterial({
@@ -388,10 +388,13 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
     birdGroup.add(jointR);
 
     // Flight parameters
-    const birdHeight = randomRange(95, 205);
-    const birdDistance = randomRange(125, 300);
+    const birdHeight = randomRange(165, 285);
+    const birdDistance = randomRange(150, 620);
+    const birdCenterX = randomRange(-1250, 1250);
+    const birdCenterY = randomRange(-1250, 1250);
     const birdAngle = randomRange(0, Math.PI * 2);
-    const birdSpeed = randomRange(5, 15);
+    const birdSpeed = randomRange(8, 19);
+    const birdDirection = Math.random() < 0.5 ? -1 : 1;
     const birdFlapSpeed = randomRange(3, 6);
     const birdFlapPhase = randomRange(0, Math.PI * 2);
     const birdWobble = randomRange(0.5, 2);
@@ -400,8 +403,11 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
     birdGroup.userData = {
       height: birdHeight,
       distance: birdDistance,
+      centerX: birdCenterX,
+      centerY: birdCenterY,
       angle: birdAngle,
       speed: birdSpeed,
+      direction: birdDirection,
       flapSpeed: birdFlapSpeed,
       flapPhase: birdFlapPhase,
       wobble: birdWobble,
@@ -718,7 +724,6 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
     const orbit = phase * Math.PI * 2;
     const px = playerGroup.position.x;
     const py = playerGroup.position.y;
-    const pz = playerGroup.position.z;
 
     // The camera sits at ~21° elevation, distance 138 from the player.
     // The visual horizon from this angle is roughly 50 units above ground.
@@ -737,16 +742,16 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
     // Half-arc for height: reuses sunHeightFrac from above (0 at sunrise,
     // 1 at noon, 0 at sunset) so the arc positioning matches the sky
     // color. Do NOT redeclare sunHeightFrac here.
-    const sunX = px + Math.cos(orbit) * HORIZONTAL_DIST;
-    const sunY = py + Math.sin(orbit) * 300;
+    const sunX = Math.cos(orbit) * HORIZONTAL_DIST;
+    const sunY = Math.sin(orbit) * 300;
     const sunZ = HORIZON_HEIGHT + sunHeightFrac * (PEAK_HEIGHT - HORIZON_HEIGHT);
     // Moon is "up" during the night portion of the cycle (when sun is low)
     // Keep the moon high when the sun is near the horizon, and low when
     // the sun is near noon. The previous (orbit + 1) * PI expression mixed
     // radians with a cycle offset and produced an unrelated moon arc.
     const moonHeightFrac = 1 - sunHeightFrac;
-    const moonX = px - Math.cos(orbit) * HORIZONTAL_DIST;
-    const moonY = py - Math.sin(orbit) * 300;
+    const moonX = -Math.cos(orbit) * HORIZONTAL_DIST;
+    const moonY = -Math.sin(orbit) * 300;
     const moonZ = HORIZON_HEIGHT + moonHeightFrac * (PEAK_HEIGHT - HORIZON_HEIGHT);
 
     if (mode === 'day') {
@@ -795,8 +800,9 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
     stars.visible = dayFactor < 0.78;
     starMaterial.opacity = Math.max(0, (0.78 - dayFactor) / 0.78) * 0.9;
 
-    // Star coordinates are local offsets, so only move the Points object with the player.
-    stars.position.set(px, py, 0);
+    // Keep the star field in fixed world space; never translate it with the frog.
+    // This matches the fixed-world anchors used by clouds, birds, sun, and moon.
+    stars.position.set(0, 0, 0);
 
     // Fireflies drift around fixed world anchor points — they do NOT follow
     // the player. Each firefly has its own speed, radius, and phase so the
@@ -865,26 +871,26 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
       const data = bird.userData;
 
       // Each bird has its own fixed flight path
-      data.angle += data.speed * delta * 0.005;
+      data.angle += data.speed * delta * 0.016 * data.direction;
       const wobbleOffset = Math.sin(elapsed * data.wobbleSpeed + i) * data.wobble;
       
       // Birds circle an independent world-space flight path. Keeping the
       // path detached from player coordinates prevents the flock from
       // appearing glued to the frog as the camera follows it.
-      const bx = Math.cos(data.angle) * data.distance + wobbleOffset;
-      const by = Math.sin(data.angle) * data.distance;
-      const bz = data.height + Math.sin(elapsed * 0.5 + i * 2) * 10;
+      const bx = data.centerX + Math.cos(data.angle) * data.distance + wobbleOffset;
+      const by = data.centerY + Math.sin(data.angle) * data.distance;
+      const bz = data.height + Math.sin(elapsed * 0.8 + data.flapPhase) * 13;
       bird.position.set(bx, by, bz);
 
       // Face the direction of movement
-      bird.rotation.z = data.angle + Math.PI / 2;
+      bird.rotation.z = data.angle + (data.direction > 0 ? Math.PI / 2 : -Math.PI / 2);
       // Gentle banking and pitch keep the flock from looking like rigid icons.
       bird.rotation.x = Math.sin(elapsed * 0.7 + data.flapPhase) * 0.055;
       bird.rotation.y = Math.cos(elapsed * 0.55 + data.flapPhase) * 0.07;
 
       // Wing flapping animation — rotate wings up and down
       const flapCycle = elapsed * data.flapSpeed + data.flapPhase;
-      const flapAngle = Math.sin(flapCycle) * 0.62;
+      const flapAngle = Math.sin(flapCycle) * 0.82;
       // Opposing wing pivots create a mirrored, more natural flap.
       data.leftWing.rotation.x = flapAngle;
       data.rightWing.rotation.x = -flapAngle;

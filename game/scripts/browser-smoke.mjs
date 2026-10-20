@@ -211,6 +211,65 @@ try {
   const speedMultiplier = await page.evaluate(() => window.__game.movement.getSpeedMultiplier());
   if (speedMultiplier <= 1) throw new Error(`Speed power-up did not increase movement speed: ${speedMultiplier}`);
 
+  // Exercise the Mystery Box UI and its full selection -> 3-2-1 -> resume flow.
+  await page.evaluate(() => window.__game.score.addFlatBonus(1000));
+  await page.waitForFunction(() => window.__game.gameManager.getCurrentLevel() >= 3, null, { timeout: 5000 });
+  await page.evaluate((position) => window.__game.onMysteryBoxPickup(position), powerupPosition);
+  await page.locator('#mystery-overlay').waitFor({ state: 'visible' });
+  const mysteryOptions = await page.locator('.mystery-card').evaluateAll((cards) => cards.map((card) => ({
+    name: card.querySelector('.mystery-card-name')?.textContent,
+    tier: card.classList.contains('is-rare') ? 'better' : 'common'
+  })));
+  if (mysteryOptions.length !== 3) {
+    throw new Error(`Mystery Box should show exactly 3 options; got ${mysteryOptions.length}`);
+  }
+  if (new Set(mysteryOptions.map((option) => option.name)).size !== 3) {
+    throw new Error(`Mystery Box options must be distinct: ${JSON.stringify(mysteryOptions)}`);
+  }
+  const betterCount = mysteryOptions.filter((option) => option.tier === 'better').length;
+  if (![1, 2].includes(betterCount)) {
+    throw new Error(`Mystery Box composition should contain one or two better rewards: ${JSON.stringify(mysteryOptions)}`);
+  }
+  if (await page.evaluate(() => window.__game.currentState()) !== 'paused') {
+    throw new Error('Gameplay did not pause while Mystery Box choices were open');
+  }
+  await page.screenshot({ path: 'browser-smoke-mystery-box.png' });
+  await page.locator('.mystery-card').first().click();
+  await page.locator('#mystery-overlay').waitFor({ state: 'hidden' });
+  await page.locator('.resume-countdown').waitFor({ state: 'visible' });
+  await page.waitForFunction(() => window.__game.currentState() === 'playing', null, { timeout: 6000 });
+
+  // Timeout path: the reward is missed, then the same 3-2-1 resume sequence runs.
+  await page.evaluate((position) => window.__game.onMysteryBoxPickup(position), powerupPosition);
+  await page.locator('#mystery-overlay').waitFor({ state: 'visible' });
+  // Capture after the pause is active so no in-flight gameplay frame can alter the baseline.
+  const beforeMysteryTimeout = await page.evaluate(() => ({
+    score: window.__game.score.getScore(),
+    hp: window.__game.health.getHp(),
+    attack: window.__game.gameManager.getAttackBoostRemaining(),
+    speed: window.__game.gameManager.getSpeedBoostRemaining(),
+    shield: window.__game.gameManager.getShieldRemaining(),
+    doubleAttack: window.__game.gameManager.getDoubleAttackRemaining(),
+    magnet: window.__game.gameManager.getMagnetRemaining(),
+    freeze: window.__game.gameManager.getFreezeRemaining()
+  }));
+  await page.locator('#mystery-overlay').waitFor({ state: 'hidden', timeout: 18000 });
+  await page.locator('.resume-countdown').waitFor({ state: 'visible' });
+  const afterMysteryTimeout = await page.evaluate(() => ({
+    score: window.__game.score.getScore(),
+    hp: window.__game.health.getHp(),
+    attack: window.__game.gameManager.getAttackBoostRemaining(),
+    speed: window.__game.gameManager.getSpeedBoostRemaining(),
+    shield: window.__game.gameManager.getShieldRemaining(),
+    doubleAttack: window.__game.gameManager.getDoubleAttackRemaining(),
+    magnet: window.__game.gameManager.getMagnetRemaining(),
+    freeze: window.__game.gameManager.getFreezeRemaining()
+  }));
+  if (JSON.stringify(beforeMysteryTimeout) !== JSON.stringify(afterMysteryTimeout)) {
+    throw new Error(`Mystery Box timeout unexpectedly granted a reward or advanced paused gameplay: ${JSON.stringify({ beforeMysteryTimeout, afterMysteryTimeout })}`);
+  }
+  await page.waitForFunction(() => window.__game.currentState() === 'playing', null, { timeout: 6000 });
+
   await page.keyboard.press('Escape');
   await page.locator('#menu-pause').waitFor({ state: 'visible' });
   await page.locator('#btn-resume').click();

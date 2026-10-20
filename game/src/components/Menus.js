@@ -6,6 +6,7 @@ import { loadProfile, saveProfile } from './Profile.js';
 import { getTop, isLeaderboardUnavailable } from './Leaderboard.js';
 import { getAttempts } from './PlayCounter.js';
 import { COUNTRIES } from '../data/countries.js';
+import { POWERUP_TYPES } from './PowerUp.js';
 
 const NAME_MIN = 1;
 const NAME_MAX = 12;
@@ -55,6 +56,90 @@ export function createMenus({ onStart, onResume, onRestart, onTogglePause, onTog
   // layout. Toggled by showResumeCountdown / clearResumeCountdown.
   const countdownEl = el('div', { class: 'resume-countdown', style: { display: 'none' } });
   document.body.appendChild(countdownEl);
+
+  // ----- Mystery Box choice overlay: modal, three distinct tappable cards -----
+  const mysteryOverlay = el('div', {
+    class: 'mystery-overlay',
+    id: 'mystery-overlay',
+    style: { display: 'none' },
+    role: 'dialog',
+    'aria-modal': 'true',
+    'aria-label': 'Mystery Box power-up selection'
+  });
+  const mysteryPanel = el('section', { class: 'mystery-panel' });
+  const mysteryKicker = el('div', { class: 'mystery-kicker' }, ['RARE DROP  •  LEVEL BONUS']);
+  const mysteryTitle = el('h2', { class: 'mystery-title' }, ['MYSTERY BOX']);
+  const mysterySubtitle = el('p', { class: 'mystery-subtitle' }, ['Choose one reward']);
+  const mysteryTimerText = el('div', { class: 'mystery-timer-text', 'aria-live': 'polite' }, ['15s to choose']);
+  const mysteryTimerTrack = el('div', { class: 'mystery-timer-track' }, [
+    el('div', { class: 'mystery-timer-fill' })
+  ]);
+  const mysteryCards = el('div', { class: 'mystery-cards' });
+  const mysteryFoot = el('p', { class: 'mystery-foot' }, ['Tap / left-click one card · No pick = no reward']);
+  mysteryPanel.append(mysteryKicker, mysteryTitle, mysterySubtitle, mysteryTimerText, mysteryTimerTrack, mysteryCards, mysteryFoot);
+  mysteryOverlay.appendChild(mysteryPanel);
+  document.body.appendChild(mysteryOverlay);
+  let mysteryChoiceHandler = null;
+  let mysteryLocked = false;
+  let mysteryTimerInterval = 0;
+  const mysteryIcons = {
+    freeze: '❄', doubleAttack: '⚡⚡', shield: '🛡', magnet: '🧲',
+    heal: '♥', attack: '⚔', score: '★', speed: '➤'
+  };
+
+  function showMysteryChoice(options, onSelect) {
+    if (mysteryTimerInterval) clearInterval(mysteryTimerInterval);
+    mysteryTimerInterval = 0;
+    mysteryLocked = false;
+    mysteryChoiceHandler = onSelect;
+    clear(mysteryCards);
+    options.forEach((option, index) => {
+      const def = POWERUP_TYPES[option.type];
+      const card = el('button', {
+        class: 'mystery-card ' + (option.tier === 'better' ? 'is-rare' : 'is-common'),
+        type: 'button',
+        'aria-label': `${def?.label || option.type}: ${option.desc}`,
+        tabindex: '-1'
+      }, [
+        el('span', { class: 'mystery-card-rank' }, [option.tier === 'better' ? (option.rarity || 'RARE') : 'COMMON']),
+        el('span', { class: 'mystery-card-icon', 'aria-hidden': 'true' }, [mysteryIcons[option.type] || '✦']),
+        el('span', { class: 'mystery-card-name' }, [def?.label || option.type.toUpperCase()]),
+        el('span', { class: 'mystery-card-desc' }, [option.desc]),
+        el('span', { class: 'mystery-card-choose' }, ['CHOOSE'])
+      ]);
+      card.style.setProperty('--reward-color', '#' + (def?.color ?? 0xffd166).toString(16).padStart(6, '0'));
+      card.style.setProperty('--reward-accent', '#' + (def?.accent ?? 0xffe39a).toString(16).padStart(6, '0'));
+      card.addEventListener('click', (event) => {
+        // The feature intentionally supports pointer left-click/tap only;
+        // ignore keyboard-generated synthetic clicks (detail === 0).
+        if (event.detail === 0 || event.button === 2 || mysteryLocked) return;
+        mysteryLocked = true;
+        mysteryOverlay.classList.add('is-claimed');
+        if (mysteryChoiceHandler) mysteryChoiceHandler(option.type);
+      });
+      mysteryCards.appendChild(card);
+    });
+    let secondsLeft = 15;
+    mysteryTimerText.textContent = '15s to choose';
+    mysteryTimerInterval = setInterval(() => {
+      secondsLeft = Math.max(0, secondsLeft - 1);
+      mysteryTimerText.textContent = secondsLeft > 0 ? `${secondsLeft}s to choose` : 'Time is up';
+    }, 1000);
+    mysteryOverlay.classList.remove('is-claimed', 'is-expired');
+    mysteryOverlay.style.display = 'flex';
+    mysteryTimerTrack.classList.remove('is-running');
+    void mysteryTimerTrack.offsetWidth;
+    mysteryTimerTrack.classList.add('is-running');
+  }
+  function hideMysteryChoice(expired = false) {
+    if (mysteryTimerInterval) clearInterval(mysteryTimerInterval);
+    mysteryTimerInterval = 0;
+    mysteryOverlay.classList.toggle('is-expired', expired);
+    mysteryOverlay.style.display = 'none';
+    mysteryTimerTrack.classList.remove('is-running');
+    mysteryChoiceHandler = null;
+    mysteryLocked = true;
+  }
 
   // ----- HUD: icon buttons (top-right) -----
   const hud = el('div', { class: 'menu-hud' }, [
@@ -269,7 +354,8 @@ export function createMenus({ onStart, onResume, onRestart, onTogglePause, onTog
 
   return {
     showStart, hideStart, showPause, hidePause, showHud, setEnvironmentMode,
-    refreshLeaderboard, setPauseStats, showResumeCountdown, clearResumeCountdown
+    refreshLeaderboard, setPauseStats, showResumeCountdown, clearResumeCountdown,
+    showMysteryChoice, hideMysteryChoice
   };
 
   // -----------------------------------------------------------------------

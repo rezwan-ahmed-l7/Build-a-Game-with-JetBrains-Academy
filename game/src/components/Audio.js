@@ -101,9 +101,11 @@ export function createAudio() {
 
   // Cached one-shots. Each is a function() -> play().
   const sfx = {
-    attack: build({ type: 'sawtooth', freq: 880, freqEnd: 220, dur: 0.18,
-                    attack: 0.005, decay: 0.18, gain: 0.18,
-                    noise: 0.12, filterFreq: 2400 }),
+    // Punchy, playful arcade swipe: a quick bright attack with a deeper
+    // descending body and crisp filtered impact noise.
+    attack: build({ type: 'sawtooth', freq: 760, freqEnd: 145, dur: 0.16,
+                    attack: 0.002, decay: 0.16, gain: 0.27,
+                    noise: 0.24, filterFreq: 1900 }),
     hit: build({ type: 'square', freq: 320, freqEnd: 80, dur: 0.18,
                  attack: 0.001, decay: 0.18, gain: 0.22,
                  noise: 0.18, filterFreq: 1400 }),
@@ -113,6 +115,12 @@ export function createAudio() {
                     attack: 0.001, decay: 0.18, gain: 0.22 }),
     powerUp: build({ type: 'triangle', freq: 440, freqEnd: 880, dur: 0.45,
                      attack: 0.005, decay: 0.45, gain: 0.20 }),
+    mysteryBox: build({ type: 'square', freq: 240, freqEnd: 1120, dur: 0.58,
+                        attack: 0.008, decay: 0.58, gain: 0.28,
+                        noise: 0.09, filterFreq: 2600 }),
+    rewardBurst: build({ type: 'sine', freq: 740, freqEnd: 1580, dur: 0.38,
+                         attack: 0.002, decay: 0.38, gain: 0.29,
+                         noise: 0.045, filterFreq: 3200 }),
     levelUp: build({ type: 'sine', freq: 523, freqEnd: 1046, dur: 0.6,
                      attack: 0.005, decay: 0.6, gain: 0.25 }),
     death: build({ type: 'sawtooth', freq: 220, freqEnd: 40, dur: 0.9,
@@ -143,7 +151,18 @@ export function createAudio() {
                         noise: 0.018, filterFreq: 850 }),
     frogCroakB: build({ type: 'square', freq: 320, freqEnd: 175, dur: 0.13,
                         attack: 0.006, decay: 0.14, gain: 0.05,
-                        noise: 0.015, filterFreq: 700 })
+                        noise: 0.015, filterFreq: 700 }),
+    // Three short, wavering whistles form a recognizable distant seagull call.
+    // The light noise layer keeps the chirps from sounding like pure UI beeps.
+    seagullA: build({ type: 'sine', freq: 880, freqEnd: 1480, dur: 0.22,
+                      attack: 0.012, decay: 0.22, gain: 0.13,
+                      noise: 0.025, filterFreq: 2100 }),
+    seagullB: build({ type: 'triangle', freq: 1380, freqEnd: 760, dur: 0.25,
+                      attack: 0.008, decay: 0.25, gain: 0.11,
+                      noise: 0.035, filterFreq: 1800 }),
+    seagullC: build({ type: 'sine', freq: 1020, freqEnd: 1640, dur: 0.18,
+                      attack: 0.01, decay: 0.18, gain: 0.085,
+                      noise: 0.018, filterFreq: 2300 })
   };
 
   function safePlay(snd) {
@@ -163,17 +182,18 @@ export function createAudio() {
     try { snd(); } catch { /* ignore */ }
   }
 
-  // Ambient music: bass + chord pad + slow arpeggio through a lowpass.
-  // Drives a sleepy nighttime-frog mood; the brightness follows day/night.
+  // Energetic arcade music: punchier bass, bright chord pad, fast arpeggio
+  // and a light synthesized kick pulse. All music still routes through the
+  // shared master gain, so the existing Music ON/OFF control mutes everything.
   let arpTimer = null;
   function buildAmbientGraph() {
     if (!ctx || ambientNodes) return;
     ambientGain = ctx.createGain();
-    ambientGain.gain.value = 0.20;
+    ambientGain.gain.value = 0.42;
     ambientGain.connect(masterGain);
     const filter = ctx.createBiquadFilter();
     filter.type = 'lowpass';
-    filter.frequency.value = 900;
+    filter.frequency.value = 1700;
     filter.Q.value = 0.6;
     filter.connect(ambientGain);
 
@@ -188,7 +208,7 @@ export function createAudio() {
     bass.type = 'triangle';
     bass.frequency.value = rootHz / 2; // A1
     const bassGain = ctx.createGain();
-    bassGain.gain.value = 0.12;
+    bassGain.gain.value = 0.20;
     bass.connect(bassGain).connect(filter);
     bass.start();
     ambientNodes.push(bass);
@@ -205,15 +225,15 @@ export function createAudio() {
       lfoGain.gain.value = 4; // Hz of detune
       lfo.connect(lfoGain).connect(o.detune);
       const g = ctx.createGain();
-      g.gain.value = 0.055;
+      g.gain.value = 0.075;
       o.connect(g).connect(filter);
       o.start();
       lfo.start();
       ambientNodes.push(o, lfo);
     });
 
-    // Arpeggio: pluck each chord note every 380ms in sequence using
-    // setTimeout chain instead of setInterval — survives tab throttling.
+    // Bright, quick arpeggio plus a soft kick pulse keeps the loop playful
+    // and energetic without needing external audio assets.
     let arpStep = 0;
     function arpTick() {
       if (!ctx) return;
@@ -224,15 +244,31 @@ export function createAudio() {
       const g = ctx.createGain();
       const t0 = ctx.currentTime;
       g.gain.setValueAtTime(0, t0);
-      g.gain.linearRampToValueAtTime(0.10, t0 + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.5);
+      g.gain.linearRampToValueAtTime(0.17, t0 + 0.008);
+      g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.22);
       o.connect(g).connect(filter);
       o.start(t0);
-      o.stop(t0 + 0.55);
+      o.stop(t0 + 0.24);
+
+      // A short, rounded low-end pulse every four steps adds a simple arcade beat.
+      if (arpStep % 4 === 0) {
+        const kick = ctx.createOscillator();
+        const kickGain = ctx.createGain();
+        kick.type = 'sine';
+        kick.frequency.setValueAtTime(125, t0);
+        kick.frequency.exponentialRampToValueAtTime(48, t0 + 0.12);
+        kickGain.gain.setValueAtTime(0.0001, t0);
+        kickGain.gain.linearRampToValueAtTime(0.14, t0 + 0.006);
+        kickGain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.14);
+        kick.connect(kickGain).connect(ambientGain);
+        kick.start(t0);
+        kick.stop(t0 + 0.16);
+      }
+
       arpStep++;
-      arpTimer = setTimeout(arpTick, 380);
+      arpTimer = setTimeout(arpTick, 190);
     }
-    arpTimer = setTimeout(arpTick, 380);
+    arpTimer = setTimeout(arpTick, 190);
   }
 
   // A looping, filtered noise layer creates a soft surf wash. Its gain
@@ -327,7 +363,7 @@ export function createAudio() {
   function setAmbientNightness(t) {
     if (!ambientGain) return;
     ambientGain.gain.linearRampToValueAtTime(
-      0.10 + 0.10 * t, ctx.currentTime + 0.4
+      0.38 + 0.06 * t, ctx.currentTime + 0.4
     );
   }
 
@@ -342,6 +378,15 @@ export function createAudio() {
     playHurt: () => safePlay(sfx.hurt),
     playPickup: () => safePlay(sfx.pickup),
     playPowerUp: () => safePlay(sfx.powerUp),
+    playMysteryBox: () => {
+      safePlay(sfx.mysteryBox);
+      setTimeout(() => safePlay(sfx.rewardBurst), 115);
+      setTimeout(() => safePlay(sfx.powerUp), 245);
+    },
+    playRewardBurst: () => {
+      safePlay(sfx.rewardBurst);
+      setTimeout(() => safePlay(sfx.levelUp), 90);
+    },
     playLevelUp: () => safePlay(sfx.levelUp),
     playDeath: () => safePlay(sfx.death),
     playDash: () => safePlay(sfx.dash),
@@ -353,6 +398,11 @@ export function createAudio() {
     playFrogCroak: () => {
       safePlay(sfx.frogCroakA);
       setTimeout(() => safePlay(sfx.frogCroakB), 85);
+    },
+    playSeagull: () => {
+      safePlay(sfx.seagullA);
+      setTimeout(() => safePlay(sfx.seagullB), 115);
+      setTimeout(() => safePlay(sfx.seagullC), 285);
     },
     startAmbient,
     stopAmbient,
