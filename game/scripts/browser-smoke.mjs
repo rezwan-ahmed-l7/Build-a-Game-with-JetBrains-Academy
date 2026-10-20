@@ -212,10 +212,9 @@ try {
   if (speedMultiplier <= 1) throw new Error(`Speed power-up did not increase movement speed: ${speedMultiplier}`);
 
   // Exercise the Mystery Box UI and its full selection -> 3-2-1 -> resume flow.
-  await page.evaluate((position) => {
-    window.__game.gameManager.triggerLevelUp(3);
-    window.__game.onMysteryBoxPickup(position);
-  }, powerupPosition);
+  await page.evaluate(() => window.__game.score.addFlatBonus(1000));
+  await page.waitForFunction(() => window.__game.gameManager.getCurrentLevel() >= 3, null, { timeout: 5000 });
+  await page.evaluate((position) => window.__game.onMysteryBoxPickup(position), powerupPosition);
   await page.locator('#mystery-overlay').waitFor({ state: 'visible' });
   const mysteryOptions = await page.locator('.mystery-card').evaluateAll((cards) => cards.map((card) => ({
     name: card.querySelector('.mystery-card-name')?.textContent,
