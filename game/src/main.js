@@ -982,9 +982,22 @@ gameManager.setMenus(menus);
 menus.showStart();
 menus.showHud(false); // hidden until start
 
-// Audio ambient brightness follows day/night
+// Audio ambient brightness follows day/night. Seagulls call occasionally in daylight
+// during active gameplay; the timer is gated so the menu and night stay quiet.
+let nextSeagullAt = 0;
 environment.onUpdate((dayFactor) => {
   audio.setAmbientNightness(1 - dayFactor);
+  if (!gameManager.isPlaying() || dayFactor < 0.58) {
+    nextSeagullAt = 0;
+    return;
+  }
+  const now = performance.now();
+  if (nextSeagullAt === 0) {
+    nextSeagullAt = now + 4500 + Math.random() * 5000;
+  } else if (now >= nextSeagullAt) {
+    audio.playSeagull();
+    nextSeagullAt = now + 10000 + Math.random() * 12000;
+  }
 });
 
 // ----- Touch controls (mount only on touch devices) -----
