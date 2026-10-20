@@ -211,6 +211,35 @@ try {
   const speedMultiplier = await page.evaluate(() => window.__game.movement.getSpeedMultiplier());
   if (speedMultiplier <= 1) throw new Error(`Speed power-up did not increase movement speed: ${speedMultiplier}`);
 
+  // Exercise the Mystery Box UI and its full selection -> 3-2-1 -> resume flow.
+  await page.evaluate((position) => {
+    window.__game.gameManager.triggerLevelUp(3);
+    window.__game.onMysteryBoxPickup(position);
+  }, powerupPosition);
+  await page.locator('#mystery-overlay').waitFor({ state: 'visible' });
+  const mysteryOptions = await page.locator('.mystery-card').evaluateAll((cards) => cards.map((card) => ({
+    name: card.querySelector('.mystery-card-name')?.textContent,
+    tier: card.classList.contains('is-rare') ? 'better' : 'common'
+  })));
+  if (mysteryOptions.length !== 3) {
+    throw new Error(`Mystery Box should show exactly 3 options; got ${mysteryOptions.length}`);
+  }
+  if (new Set(mysteryOptions.map((option) => option.name)).size !== 3) {
+    throw new Error(`Mystery Box options must be distinct: ${JSON.stringify(mysteryOptions)}`);
+  }
+  const betterCount = mysteryOptions.filter((option) => option.tier === 'better').length;
+  if (![1, 2].includes(betterCount)) {
+    throw new Error(`Mystery Box composition should contain one or two better rewards: ${JSON.stringify(mysteryOptions)}`);
+  }
+  if (await page.evaluate(() => window.__game.currentState()) !== 'paused') {
+    throw new Error('Gameplay did not pause while Mystery Box choices were open');
+  }
+  await page.screenshot({ path: 'browser-smoke-mystery-box.png' });
+  await page.locator('.mystery-card').first().click();
+  await page.locator('#mystery-overlay').waitFor({ state: 'hidden' });
+  await page.locator('.resume-countdown').waitFor({ state: 'visible' });
+  await page.waitForFunction(() => window.__game.currentState() === 'playing', null, { timeout: 6000 });
+
   await page.keyboard.press('Escape');
   await page.locator('#menu-pause').waitFor({ state: 'visible' });
   await page.locator('#btn-resume').click();
