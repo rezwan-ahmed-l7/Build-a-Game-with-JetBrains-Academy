@@ -40,7 +40,8 @@ export function createTouchControls({ onPause, onAttack, onDash }) {
 
   // Retain the last intentional direction across joystick release.
   let lastDirection = null;
-  // Preserve a quick flick if pointerup happens before the next game frame.
+  // A quick drag can end before the next animation frame reads it. Keep one
+  // unqueued release direction pending so short touch gestures are not lost.
   let pendingMoveDirection = null;
   let lastQueuedMoveDirection = null;
 
@@ -97,10 +98,14 @@ export function createTouchControls({ onPause, onAttack, onDash }) {
         left: state.dx < -dead,
         right: state.dx > dead
       };
-      releasedDirection = Math.abs(state.dx) > Math.abs(state.dy)
-        ? (state.dx < 0 ? 'left' : 'right')
-        : (state.dy < 0 ? 'forward' : 'backward');
+      if (Math.abs(state.dx) > Math.abs(state.dy)) {
+        releasedDirection = state.dx < 0 ? 'left' : 'right';
+      } else {
+        releasedDirection = state.dy < 0 ? 'forward' : 'backward';
+      }
     }
+    // Do not lose a quick flick if pointerup arrives before requestAnimationFrame.
+    // If this direction was already queued while dragging, it needs no replay.
     if (releasedDirection && releasedDirection !== lastQueuedMoveDirection) {
       pendingMoveDirection = releasedDirection;
     }
