@@ -447,5 +447,113 @@ export function createPowerUp(type, x, y) {
   return { group, update, dispose, getType, isCollected, markCollected, getPosition };
 }
 
+
+// A highly readable, emissive treasure chest used only for the rare Mystery Box.
+// Built from lightweight primitives (no textures or external assets).
+export function createMysteryBox(x, y) {
+  const group = new THREE.Group();
+  group.position.set(x, y, 8);
+  const materials = [];
+  const material = (color, emissive, intensity = 0.7, metalness = 0.55) => {
+    const m = new THREE.MeshStandardMaterial({
+      color, emissive, emissiveIntensity: intensity,
+      roughness: 0.28, metalness
+    });
+    materials.push(m);
+    return m;
+  };
+  const gold = material(0xffc247, 0xff9f1c, 1.15);
+  const goldBright = material(0xffe7a0, 0xffc247, 1.35);
+  const purple = material(0x522b9b, 0x6428d9, 1.0, 0.35);
+  const dark = material(0x21143c, 0x36155f, 0.35, 0.3);
+  const mint = material(0x8ffff0, 0x32f5dd, 1.5, 0.25);
+
+  const body = new THREE.Mesh(new THREE.BoxGeometry(20, 15, 11), purple);
+  body.position.z = 0;
+  group.add(body);
+  const front = new THREE.Mesh(new THREE.BoxGeometry(21, 1.5, 12), gold);
+  front.position.set(0, -7.5, 0);
+  group.add(front);
+  const lid = new THREE.Mesh(new THREE.BoxGeometry(22, 8, 5), gold);
+  lid.position.set(0, 6.7, 3.8);
+  lid.rotation.x = -0.08;
+  group.add(lid);
+  const lidTop = new THREE.Mesh(new THREE.BoxGeometry(19, 1.6, 5.4), goldBright);
+  lidTop.position.set(0, 9.9, 4.2);
+  group.add(lidTop);
+  const lockBase = new THREE.Mesh(new THREE.BoxGeometry(5.5, 3.5, 2.4), goldBright);
+  lockBase.position.set(0, -1.5, 6.6);
+  group.add(lockBase);
+  const lockGem = new THREE.Mesh(new THREE.OctahedronGeometry(2.2, 0), mint);
+  lockGem.position.set(0, -1.5, 8.4);
+  group.add(lockGem);
+  const sideA = new THREE.Mesh(new THREE.BoxGeometry(1.5, 12, 12), goldBright);
+  sideA.position.x = -8.5;
+  group.add(sideA);
+  const sideB = sideA.clone();
+  sideB.position.x = 8.5;
+  group.add(sideB);
+
+  const aura = new THREE.Mesh(
+    new THREE.TorusGeometry(18, 0.65, 8, 64),
+    new THREE.MeshBasicMaterial({ color: 0xb77aff, transparent: true, opacity: 0.85 })
+  );
+  aura.rotation.x = Math.PI / 2;
+  aura.position.z = -5;
+  group.add(aura);
+  const halo = new THREE.Mesh(
+    new THREE.TorusGeometry(24, 0.45, 8, 64),
+    new THREE.MeshBasicMaterial({ color: 0xffd166, transparent: true, opacity: 0.6 })
+  );
+  halo.rotation.x = Math.PI / 2;
+  halo.position.z = -6;
+  group.add(halo);
+
+  // Three floating glints make the rare pickup readable even in a busy arena.
+  const glints = [];
+  for (let i = 0; i < 3; i++) {
+    const glint = new THREE.Mesh(new THREE.OctahedronGeometry(1.7, 0), i === 1 ? mint : goldBright);
+    glint.position.set(Math.cos(i * Math.PI * 2 / 3) * 22, Math.sin(i * Math.PI * 2 / 3) * 22, 7 + i * 1.5);
+    group.add(glint);
+    glints.push(glint);
+  }
+
+  let life = 0;
+  let collected = false;
+  function update(delta, time) {
+    if (collected) return false;
+    life += delta;
+    if (life >= 20) { collected = true; return false; }
+    group.position.z = 8 + Math.sin(time * 3.2) * 2.3;
+    group.rotation.z = Math.sin(time * 1.15) * 0.045;
+    const pulse = 1 + Math.sin(time * 5.5) * 0.045;
+    aura.scale.setScalar(pulse);
+    halo.scale.setScalar(1 + Math.sin(time * 4.1 + 1) * 0.035);
+    aura.material.opacity = 0.58 + (Math.sin(time * 6) + 1) * 0.17;
+    halo.material.opacity = 0.38 + (Math.sin(time * 4.7) + 1) * 0.16;
+    glints.forEach((glint, i) => {
+      glint.position.z = 7 + i * 1.5 + Math.sin(time * 4 + i * 2) * 2;
+      glint.rotation.x += delta * (1.2 + i * 0.3);
+      glint.rotation.y += delta * (1.6 + i * 0.2);
+    });
+    return true;
+  }
+  function dispose() {
+    group.traverse((obj) => {
+      if (!obj.isMesh) return;
+      obj.geometry?.dispose();
+      if (Array.isArray(obj.material)) obj.material.forEach((m) => m.dispose());
+      else if (obj.material && !materials.includes(obj.material)) obj.material.dispose();
+    });
+    materials.forEach((m) => m.dispose());
+  }
+  return {
+    group, update, dispose,
+    getPosition: () => group.position,
+    isCollected: () => collected,
+    markCollected: () => { collected = true; }
+  };
+}
+
 // (makeLabel and roundRect removed — power-ups no longer carry a ground
 // text label; the 3D shape itself communicates the buff.)
