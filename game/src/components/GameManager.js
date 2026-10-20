@@ -535,7 +535,12 @@ export function createGameManager({
     },
     onParticles(kind, x, y, z, color) {
       if (kind === 'sparks') {
-        particles.spawnBurst(x, y, z, { count: 12, color, speed: 60, life: 0.4, size: 5 });
+        // Multi-hue spark fan matches the prismatic attack rings without
+        // changing damage, range, cooldown, or enemy behavior.
+        particles.spawnBurst(x, y, z, { count: 12, color: 0xffd166, speed: 72, life: 0.42, size: 5 });
+        particles.spawnBurst(x, y, z + 1, { count: 9, color: 0x54f6ff, speed: 58, life: 0.36, size: 4 });
+        particles.spawnBurst(x, y, z + 2, { count: 8, color: 0xff4fc8, speed: 66, life: 0.38, size: 4 });
+        particles.spawnBurst(x, y, z + 3, { count: 6, color: 0xa7ff58, speed: 48, life: 0.32, size: 3.5 });
       } else if (kind === 'death') {
         particles.spawnBurst(x, y, z, { count: 22, color, speed: 100, life: 0.7, size: 8 });
       }
