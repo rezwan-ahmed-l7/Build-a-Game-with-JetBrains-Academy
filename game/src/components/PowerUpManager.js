@@ -20,15 +20,16 @@ export function createPowerUpManager(scene, playerGroup) {
   }
 
   function pickType() {
-    // Explicit non-overlapping bands prevent rare types from swallowing Heal.
+    // Disjoint probability bands preserve the intended rarity and keep Heal reachable.
     const r = Math.random();
-    if (currentLevel >= 9 && r < 0.02) return 'freeze';
-    if (currentLevel >= 7 && r < 0.05) return 'magnet';
-    if (currentLevel >= 5 && r < 0.10) return 'doubleAttack';
-    if (currentLevel >= 3 && r < 0.18) return 'shield';
-    if (r < 0.33) return 'heal';
-    if (r < 0.55) return 'score';
-    if (r < 0.77) return 'attack';
+    if (currentLevel >= 9 && r < 0.02) return 'freeze';          // 2%
+    if (currentLevel >= 7 && r < 0.05) return 'magnet';          // next 3%
+    if (currentLevel >= 5 && r < 0.10) return 'doubleAttack';    // next 5%
+    if (currentLevel >= 3 && r < 0.18) return 'shield';          // next 8%
+    const commonRoll = currentLevel >= 3 ? r - 0.18 : r;
+    if (commonRoll < 0.15) return 'heal';                        // 15%
+    if (commonRoll < 0.35) return 'score';                       // 20%
+    if (commonRoll < 0.55) return 'attack';                      // 20%
     return 'speed';
   }
 
