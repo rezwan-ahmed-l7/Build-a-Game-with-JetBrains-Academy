@@ -546,7 +546,7 @@ function makeFlowerPatch(rand) {
 
 function makeBigRock(rand) {
   const group = new THREE.Group();
-  const size = 3.6 + rand() * 4.0;
+  const size = 5.2 + rand() * 5.0;
   const geo = new THREE.IcosahedronGeometry(size, 2);
   distortGeometry(geo, rand, 0.52);
   const palette = [0x777b78, 0x89877d, 0x6f7779, 0x938b7b, 0x686f70, 0x81766b];
@@ -1082,14 +1082,15 @@ export function createObstacles(scene) {
 
     let placed2 = false;
     for (let attempt = 0; attempt < 40; attempt++) {
-      const angle = rand() * Math.PI * 2;
-      // Main pond sits a bit closer to the action; smaller ponds spread
-      // out further so they appear in different regions of the world.
-      // Also keep the ponds outside the player clearing so the player
-      // spawn area stays dry.
+      // Guarantee one unmistakable pond landmark just ahead of the starting
+      // clearing. Earlier every pond was randomly scattered 150–600 units
+      // away, so the upgraded water/lilies could be absent from the opening
+      // camera view and appear unchanged during a quick local check.
+      const showcasePond = p === 0;
+      const angle = showcasePond ? Math.PI / 2 : rand() * Math.PI * 2;
       const minR = Math.max(CLEARING_RADIUS + POND_EXCLUSION_RADIUS, PLAYER_CLEARING_RADIUS + 60);
-      const maxR = isMain ? 280 : 600;  // small ponds can go further out with expanded playable area
-      const r = minR + rand() * (maxR - minR);
+      const maxR = isMain ? 280 : 600;
+      const r = showcasePond ? 178 : minR + rand() * (maxR - minR);
       const x = Math.cos(angle) * r;
       const y = Math.sin(angle) * r;
 
