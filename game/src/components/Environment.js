@@ -800,8 +800,9 @@ export function createEnvironment(scene, lights, groundMaterial, playerGroup, sk
     stars.visible = dayFactor < 0.78;
     starMaterial.opacity = Math.max(0, (0.78 - dayFactor) / 0.78) * 0.9;
 
-    // Star coordinates are local offsets, so only move the Points object with the player.
-    stars.position.set(px, py, 0);
+    // Keep the star field in fixed world space; never translate it with the frog.
+    // This matches the fixed-world anchors used by clouds, birds, sun, and moon.
+    stars.position.set(0, 0, 0);
 
     // Fireflies drift around fixed world anchor points — they do NOT follow
     // the player. Each firefly has its own speed, radius, and phase so the
