@@ -2056,3 +2056,255 @@ body:has(.touch-root) .touch-button,
 body:has(.touch-root) .menu-hud button {
   touch-action: manipulation;
 }
+
+
+/* ----- Rare Mystery Box choice screen ----- */
+.mystery-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 36;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(12px, 3vw, 30px);
+  overflow-y: auto;
+  background:
+    radial-gradient(ellipse at 50% 35%, rgba(91, 43, 157, 0.48), transparent 55%),
+    radial-gradient(ellipse at 50% 110%, rgba(255, 176, 54, 0.15), transparent 52%),
+    rgba(3, 6, 18, 0.91);
+  backdrop-filter: blur(12px) saturate(1.25);
+  pointer-events: auto;
+  box-sizing: border-box;
+}
+.mystery-panel {
+  position: relative;
+  width: min(940px, 100%);
+  max-height: 100%;
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(7px, 1.4vh, 13px);
+  padding: clamp(16px, 3.1vw, 30px);
+  border: 1px solid rgba(255, 209, 102, 0.58);
+  border-radius: 24px;
+  background:
+    linear-gradient(145deg, rgba(34, 22, 65, 0.98), rgba(8, 17, 38, 0.98) 62%, rgba(26, 20, 53, 0.98));
+  box-shadow: 0 0 0 1px rgba(183, 122, 255, 0.18), 0 0 44px rgba(133, 70, 255, 0.27),
+    0 24px 90px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  animation: mystery-panel-in 420ms cubic-bezier(.16, 1, .3, 1) both;
+}
+.mystery-panel::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  z-index: -1;
+  border-radius: inherit;
+  background: conic-gradient(from 0deg, transparent 0 20%, rgba(255, 209, 102, .75) 28%, transparent 36% 58%, rgba(183, 122, 255, .7) 68%, transparent 76%);
+  filter: blur(12px);
+  opacity: .62;
+  animation: mystery-border-spin 8s linear infinite;
+}
+.mystery-kicker {
+  color: #aefcf0;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .28em;
+  text-transform: uppercase;
+}
+.mystery-title {
+  margin: 0;
+  color: #ffe7a0;
+  font-size: clamp(27px, 4.8vw, 44px);
+  line-height: 1;
+  letter-spacing: .07em;
+  font-weight: 950;
+  text-shadow: 0 0 12px rgba(255, 194, 71, .55), 0 0 36px rgba(183, 122, 255, .25);
+}
+.mystery-subtitle {
+  margin: 0;
+  color: rgba(242, 240, 255, .86);
+  font-size: clamp(12px, 1.7vw, 15px);
+  letter-spacing: .04em;
+}
+.mystery-timer-text {
+  color: #ffcf72;
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}
+.mystery-timer-track {
+  width: min(390px, 80%);
+  height: 5px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, .12);
+  box-shadow: inset 0 1px 3px rgba(0,0,0,.45);
+}
+.mystery-timer-fill {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #a879ff, #ffd166, #ff7e68);
+  box-shadow: 0 0 12px rgba(255, 209, 102, .8);
+  transform-origin: left center;
+}
+.mystery-timer-track.is-running .mystery-timer-fill {
+  animation: mystery-timeout 15s linear forwards;
+}
+.mystery-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(8px, 1.5vw, 15px);
+  width: 100%;
+  margin-top: 4px;
+}
+.mystery-card {
+  --reward-color: #ffd166;
+  --reward-accent: #ffe39a;
+  position: relative;
+  isolation: isolate;
+  min-width: 0;
+  min-height: 208px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 15px 10px 13px;
+  border-radius: 17px;
+  border: 1px solid color-mix(in srgb, var(--reward-color) 58%, transparent);
+  background:
+    radial-gradient(ellipse at 50% 28%, color-mix(in srgb, var(--reward-color) 18%, transparent), transparent 62%),
+    linear-gradient(165deg, rgba(30, 38, 71, .98), rgba(9, 15, 33, .98));
+  color: #fff;
+  cursor: pointer;
+  text-align: center;
+  box-shadow: 0 8px 25px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.08);
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, opacity 180ms ease;
+  animation: mystery-card-in 420ms cubic-bezier(.16, 1, .3, 1) both;
+}
+.mystery-card:nth-child(2) { animation-delay: 70ms; }
+.mystery-card:nth-child(3) { animation-delay: 140ms; }
+.mystery-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--reward-accent) 12%, transparent), transparent 52%);
+  pointer-events: none;
+  z-index: -1;
+}
+.mystery-card.is-rare {
+  border-color: color-mix(in srgb, var(--reward-color) 88%, white);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--reward-color) 18%, transparent),
+    0 0 23px color-mix(in srgb, var(--reward-color) 25%, transparent),
+    0 10px 30px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.12);
+}
+.mystery-card:hover {
+  transform: translateY(-6px) scale(1.025);
+  border-color: var(--reward-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--reward-color) 24%, transparent),
+    0 0 35px color-mix(in srgb, var(--reward-color) 40%, transparent), 0 16px 36px rgba(0,0,0,.45);
+}
+.mystery-card:active { transform: scale(.975); }
+.mystery-card-rank {
+  font-size: 9px;
+  line-height: 1;
+  font-weight: 950;
+  letter-spacing: .15em;
+  color: var(--reward-accent);
+}
+.mystery-card.is-rare .mystery-card-rank {
+  text-shadow: 0 0 12px var(--reward-color);
+}
+.mystery-card-icon {
+  display: grid;
+  place-items: center;
+  width: 66px;
+  height: 66px;
+  border-radius: 20px;
+  border: 1px solid color-mix(in srgb, var(--reward-color) 58%, transparent);
+  background: radial-gradient(circle, color-mix(in srgb, var(--reward-color) 26%, transparent), rgba(8, 12, 30, .85) 72%);
+  color: var(--reward-accent);
+  font-size: 34px;
+  line-height: 1;
+  text-shadow: 0 0 20px var(--reward-color);
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--reward-color) 45%, transparent));
+}
+.mystery-card-name {
+  font-size: clamp(12px, 1.6vw, 15px);
+  line-height: 1.1;
+  font-weight: 950;
+  letter-spacing: .08em;
+  color: #fff8e8;
+}
+.mystery-card-desc {
+  min-height: 2.2em;
+  max-width: 100%;
+  color: rgba(233, 237, 255, .78);
+  font-size: clamp(10px, 1.25vw, 12px);
+  line-height: 1.35;
+}
+.mystery-card-choose {
+  margin-top: 2px;
+  padding: 6px 12px;
+  border-radius: 99px;
+  border: 1px solid color-mix(in srgb, var(--reward-color) 40%, transparent);
+  background: color-mix(in srgb, var(--reward-color) 13%, transparent);
+  color: var(--reward-accent);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .16em;
+}
+.mystery-foot {
+  margin: 2px 0 0;
+  color: rgba(213, 219, 242, .64);
+  font-size: 10px;
+  letter-spacing: .04em;
+}
+.mystery-overlay.is-claimed .mystery-card:not(:active) { opacity: .58; }
+.mystery-overlay.is-expired .mystery-title { color: #c4c8d8; }
+@keyframes mystery-panel-in {
+  from { opacity: 0; transform: translateY(18px) scale(.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes mystery-card-in {
+  from { opacity: 0; transform: translateY(12px) scale(.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes mystery-border-spin { to { transform: rotate(360deg); } }
+@keyframes mystery-timeout { to { transform: scaleX(0); } }
+
+@media (max-width: 640px) {
+  .mystery-overlay { padding: 10px; }
+  .mystery-panel { gap: 8px; padding: 17px 10px 13px; border-radius: 18px; }
+  .mystery-kicker { font-size: 8px; letter-spacing: .18em; }
+  .mystery-title { font-size: clamp(25px, 7vw, 34px); }
+  .mystery-cards { gap: 7px; }
+  .mystery-card { min-height: 174px; padding: 11px 5px 9px; gap: 7px; border-radius: 13px; }
+  .mystery-card-icon { width: 48px; height: 48px; border-radius: 14px; font-size: 26px; }
+  .mystery-card-rank { font-size: 7px; letter-spacing: .08em; }
+  .mystery-card-name { font-size: 10px; letter-spacing: .03em; }
+  .mystery-card-desc { font-size: 9px; }
+  .mystery-card-choose { padding: 5px 8px; font-size: 8px; }
+  .mystery-foot { font-size: 9px; text-align: center; }
+}
+@media (max-height: 540px) and (orientation: landscape) {
+  .mystery-panel { gap: 5px; padding: 10px 16px; }
+  .mystery-title { font-size: 25px; }
+  .mystery-subtitle { font-size: 11px; }
+  .mystery-timer-text { font-size: 9px; }
+  .mystery-cards { gap: 8px; }
+  .mystery-card { min-height: 145px; padding: 7px; gap: 5px; }
+  .mystery-card-icon { width: 40px; height: 40px; font-size: 22px; }
+  .mystery-card-desc { font-size: 9px; }
+  .mystery-foot { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mystery-panel, .mystery-panel::before, .mystery-card, .mystery-timer-track.is-running .mystery-timer-fill {
+    animation: none !important;
+  }
+}
