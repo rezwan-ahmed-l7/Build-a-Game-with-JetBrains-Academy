@@ -94,8 +94,10 @@ export function createAttack(scene, playerGroup, enemyManager, callbacks = {}) {
 
     const ringLayers = [
       { inner: 0.82, outer: 1.0, color: 0xfff4a3, opacity: 0.98, delay: 0.0, scale: 0.28 },
-      { inner: 0.58, outer: 0.65, color: 0xffb52e, opacity: 0.9, delay: 0.08, scale: 0.38 },
-      { inner: 0.30, outer: 0.36, color: 0x8cf5ff, opacity: 0.88, delay: 0.02, scale: 0.22 }
+      { inner: 0.58, outer: 0.65, color: 0xff4fc8, opacity: 0.94, delay: 0.035, scale: 0.34 },
+      { inner: 0.42, outer: 0.49, color: 0x8c5bff, opacity: 0.92, delay: 0.065, scale: 0.26 },
+      { inner: 0.30, outer: 0.36, color: 0x54f6ff, opacity: 0.92, delay: 0.02, scale: 0.22 },
+      { inner: 0.12, outer: 0.19, color: 0xa7ff58, opacity: 0.90, delay: 0.0, scale: 0.18 }
     ];
     for (const layer of ringLayers) {
       const geometry = new THREE.RingGeometry(radius * layer.inner, radius * layer.outer, 48);
@@ -145,6 +147,29 @@ export function createAttack(scene, playerGroup, enemyManager, callbacks = {}) {
     slashes.scale.setScalar(0.35);
     attackVisual.add(slashes);
     attackVisual.userData.layers.push(slashes);
+
+    // A second, offset set of colored streaks creates a layered prismatic burst.
+    const accentPositions = [];
+    for (let i = 0; i < 10; i++) {
+      const angle = ((i + 0.5) / 10) * Math.PI * 2;
+      accentPositions.push(
+        Math.cos(angle) * radius * 0.48, Math.sin(angle) * radius * 0.48, 0.04,
+        Math.cos(angle) * radius * (i % 2 ? 0.94 : 1.14),
+        Math.sin(angle) * radius * (i % 2 ? 0.94 : 1.14), 0.04
+      );
+    }
+    const accentGeometry = new THREE.BufferGeometry();
+    accentGeometry.setAttribute('position', new THREE.Float32BufferAttribute(accentPositions, 3));
+    const accentMaterial = new THREE.LineBasicMaterial({
+      color: 0xff62e5, transparent: true, opacity: 0.9,
+      depthWrite: false, blending: THREE.AdditiveBlending
+    });
+    const accents = new THREE.LineSegments(accentGeometry, accentMaterial);
+    accents.userData.slashRatios = [0.48, 1.14];
+    accents.userData.baseOpacity = 0.9;
+    accents.scale.setScalar(0.24);
+    attackVisual.add(accents);
+    attackVisual.userData.layers.push(accents);
 
     scene.add(attackVisual);
 
