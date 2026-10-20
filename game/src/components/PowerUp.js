@@ -501,14 +501,13 @@ export function createMysteryBox(x, y) {
     new THREE.TorusGeometry(18, 0.65, 8, 64),
     new THREE.MeshBasicMaterial({ color: 0xb77aff, transparent: true, opacity: 0.85 })
   );
-  aura.rotation.x = Math.PI / 2;
+  // TorusGeometry already lies in the XY ground plane (world Z-up).
   aura.position.z = -5;
   group.add(aura);
   const halo = new THREE.Mesh(
     new THREE.TorusGeometry(24, 0.45, 8, 64),
     new THREE.MeshBasicMaterial({ color: 0xffd166, transparent: true, opacity: 0.6 })
   );
-  halo.rotation.x = Math.PI / 2;
   halo.position.z = -6;
   group.add(halo);
 
