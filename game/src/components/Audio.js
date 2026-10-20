@@ -145,7 +145,18 @@ export function createAudio() {
                         noise: 0.018, filterFreq: 850 }),
     frogCroakB: build({ type: 'square', freq: 320, freqEnd: 175, dur: 0.13,
                         attack: 0.006, decay: 0.14, gain: 0.05,
-                        noise: 0.015, filterFreq: 700 })
+                        noise: 0.015, filterFreq: 700 }),
+    // Three short, wavering whistles form a recognizable distant seagull call.
+    // The light noise layer keeps the chirps from sounding like pure UI beeps.
+    seagullA: build({ type: 'sine', freq: 880, freqEnd: 1480, dur: 0.22,
+                      attack: 0.012, decay: 0.22, gain: 0.13,
+                      noise: 0.025, filterFreq: 2100 }),
+    seagullB: build({ type: 'triangle', freq: 1380, freqEnd: 760, dur: 0.25,
+                      attack: 0.008, decay: 0.25, gain: 0.11,
+                      noise: 0.035, filterFreq: 1800 }),
+    seagullC: build({ type: 'sine', freq: 1020, freqEnd: 1640, dur: 0.18,
+                      attack: 0.01, decay: 0.18, gain: 0.085,
+                      noise: 0.018, filterFreq: 2300 })
   };
 
   function safePlay(snd) {
@@ -372,6 +383,11 @@ export function createAudio() {
     playFrogCroak: () => {
       safePlay(sfx.frogCroakA);
       setTimeout(() => safePlay(sfx.frogCroakB), 85);
+    },
+    playSeagull: () => {
+      safePlay(sfx.seagullA);
+      setTimeout(() => safePlay(sfx.seagullB), 115);
+      setTimeout(() => safePlay(sfx.seagullC), 285);
     },
     startAmbient,
     stopAmbient,
