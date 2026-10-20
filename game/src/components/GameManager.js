@@ -463,8 +463,9 @@ export function createGameManager({
   }
 
   function createMysteryOptions() {
-    const twoBetter = Math.random() < 0.35;
-    const commonCount = twoBetter ? 1 : 2;
+    // The requested 35% roll is exactly two common options + one better option.
+    const twoCommon = Math.random() < 0.35;
+    const commonCount = twoCommon ? 2 : 1;
     const betterCount = 3 - commonCount;
     const common = sampleDistinct(MYSTERY_COMMON, commonCount, 'common');
     const better = sampleDistinct(MYSTERY_BETTER, betterCount, 'better');
