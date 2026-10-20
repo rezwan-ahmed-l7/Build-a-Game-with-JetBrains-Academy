@@ -240,6 +240,9 @@ try {
   await page.waitForFunction(() => window.__game.currentState() === 'playing', null, { timeout: 6000 });
 
   // Timeout path: the reward is missed, then the same 3-2-1 resume sequence runs.
+  await page.evaluate((position) => window.__game.onMysteryBoxPickup(position), powerupPosition);
+  await page.locator('#mystery-overlay').waitFor({ state: 'visible' });
+  // Capture after the pause is active so no in-flight gameplay frame can alter the baseline.
   const beforeMysteryTimeout = await page.evaluate(() => ({
     score: window.__game.score.getScore(),
     hp: window.__game.health.getHp(),
@@ -250,8 +253,6 @@ try {
     magnet: window.__game.gameManager.getMagnetRemaining(),
     freeze: window.__game.gameManager.getFreezeRemaining()
   }));
-  await page.evaluate((position) => window.__game.onMysteryBoxPickup(position), powerupPosition);
-  await page.locator('#mystery-overlay').waitFor({ state: 'visible' });
   await page.locator('#mystery-overlay').waitFor({ state: 'hidden', timeout: 18000 });
   await page.locator('.resume-countdown').waitFor({ state: 'visible' });
   const afterMysteryTimeout = await page.evaluate(() => ({
