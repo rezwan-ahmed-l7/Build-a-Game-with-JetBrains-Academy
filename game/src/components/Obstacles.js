@@ -9,6 +9,7 @@ import { WORLD_RADIUS } from './WorldBounds.js';
 // Counts increased to fill the expanded playable area (840 radius).
 const TREE_COUNT = 240;          // more trees to fill expanded edges
 const BUSH_COUNT = 65;
+const FLOWER_PATCH_COUNT = 82;
 const BIG_ROCK_COUNT = 38;
 const SMALL_ROCK_COUNT = 55;
 const STUMP_COUNT = 18;
@@ -35,13 +36,54 @@ const FOREST_OUTER_BIAS = 0.75;
 const CLEARING_RADIUS = 40;
 const POND_EXCLUSION_RADIUS = 48;  // keep other obstacles away from pond
 
-const TREE_COLLISION_RADIUS = 12;
-const BIG_ROCK_COLLISION_RADIUS = 9;
+// Ground-footprint collision radii; tree canopies and boulder silhouettes
+// are intentionally larger than the space they occupy at ground level.
+const TREE_COLLISION_RADIUS = 4.5;
+const BIG_ROCK_COLLISION_RADIUS = 2;
 const STUMP_COLLISION_RADIUS = 4;
 const HOUSE_COLLISION_RADIUS = 14;
 
 const _color = new THREE.Color();
 const _greenTint = new THREE.Color();
+
+const BUSH_FOLIAGE_GEOMETRY = new THREE.IcosahedronGeometry(1, 1);
+const BUSH_FOLIAGE_MATERIALS = [
+  0x315b32, 0x3d6a37, 0x4c743b, 0x587c40, 0x2f6346, 0x6b8546
+].map((color) => new THREE.MeshStandardMaterial({
+  color, roughness: 0.96, metalness: 0, flatShading: true
+}));
+
+function createFlowerHeadGeometry() {
+  const shape = new THREE.Shape();
+  const petals = 16;
+  for (let i = 0; i < petals; i++) {
+    const angle = (i / petals) * Math.PI * 2;
+    const radius = i % 2 === 0 ? 0.66 : 0.43;
+    const x = Math.cos(angle) * radius;
+    const y = Math.sin(angle) * radius;
+    if (i === 0) shape.moveTo(x, y);
+    else shape.lineTo(x, y);
+  }
+  shape.closePath();
+  return new THREE.ShapeGeometry(shape, 1);
+}
+
+const FLOWER_HEAD_GEOMETRY = createFlowerHeadGeometry();
+const FLOWER_HEAD_MATERIALS = [
+  0xff6b9d, 0xffd166, 0xf7f3df, 0xb8a1ff, 0xff8a5b, 0xe9f28d
+].map((color) => new THREE.MeshStandardMaterial({
+  color, roughness: 0.78, metalness: 0, side: THREE.DoubleSide
+}));
+const FLOWER_CENTER_GEOMETRY = new THREE.SphereGeometry(0.22, 8, 6);
+const FLOWER_CENTER_MATERIAL = new THREE.MeshStandardMaterial({
+  color: 0x8d5b27, roughness: 0.9, flatShading: true
+});
+const FLOWER_STEM_GEOMETRY = new THREE.CylinderGeometry(0.065, 0.11, 1.5, 5);
+const FLOWER_STEM_MATERIALS = [
+  0x47733b, 0x527d40, 0x668343
+].map((color) => new THREE.MeshStandardMaterial({
+  color, roughness: 0.96, metalness: 0
+}));
 
 function snapToGround(mesh) {
   const box = new THREE.Box3().setFromObject(mesh);
@@ -49,22 +91,22 @@ function snapToGround(mesh) {
   return box;
 }
 
-// Give each boulder an irregular footprint and a lower, grounded silhouette.
-// Soft distortion: small per-vertex jitter so rocks don't look like
-// perfectly-smooth balls, but nothing so aggressive that the silhouette
-// reads as jagged/spiky.
+// Weathering breaks up the perfect primitive silhouette: broad uneven planes,
+// flattened bases, slightly asymmetric sides, and softened but non-spherical edges.
 function distortGeometry(geo, rand, flatness) {
   const pos = geo.attributes.position;
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i);
     const y = pos.getY(i);
     const z = pos.getZ(i);
-    const lower = z < 0 ? 0.72 : 1.0;
+    const lower = z < 0 ? 0.78 : 1.0;
+    const sideVariation = 0.82 + rand() * 0.30;
+    const verticalVariation = 0.80 + rand() * 0.32;
     pos.setXYZ(
       i,
-      x * (0.95 + rand() * 0.10),     // mild X jitter
-      y * (0.95 + rand() * 0.10),     // mild Y jitter
-      z * (0.85 + rand() * 0.10) * lower * (flatness / 0.55)
+      x * sideVariation,
+      y * (0.84 + rand() * 0.28),
+      z * verticalVariation * lower * (flatness / 0.55)
     );
   }
   geo.computeVertexNormals();
@@ -211,6 +253,26 @@ function makeRedLeafTree(rand, style) {
   return { group, totalHeight: height };
 }
 
+// Shared bark materials and unit branch geometry keep the richer tree
+// silhouettes inexpensive even with a large forest.
+const TREE_BRANCH_GEOMETRY = new THREE.CylinderGeometry(0.42, 0.78, 1, 6);
+const TREE_BRANCH_MATERIALS = [
+  new THREE.MeshStandardMaterial({ color: 0x563821, roughness: 1, flatShading: true }),
+  new THREE.MeshStandardMaterial({ color: 0x6a472b, roughness: 1, flatShading: true }),
+  new THREE.MeshStandardMaterial({ color: 0x785235, roughness: 1, flatShading: true })
+];
+
+function addTreeBranch(group, start, end, thickness, materialIndex = 0) {
+  const direction = end.clone().sub(start);
+  const branch = new THREE.Mesh(TREE_BRANCH_GEOMETRY, TREE_BRANCH_MATERIALS[materialIndex % TREE_BRANCH_MATERIALS.length]);
+  branch.position.copy(start).add(end).multiplyScalar(0.5);
+  branch.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.clone().normalize());
+  branch.scale.set(thickness, direction.length(), thickness);
+  branch.castShadow = true;
+  branch.receiveShadow = true;
+  group.add(branch);
+}
+
 // Pine / fir — tall conifer with visible trunk, layered conical
 // canopy, and slight color variation per layer for realism.
 function makePineTree(rand) {
@@ -234,6 +296,27 @@ function makePineTree(rand) {
   trunk.castShadow = true;
   trunk.receiveShadow = true;
   group.add(trunk);
+
+  // Whorled lateral limbs break up the perfect cone silhouette. The lowest
+  // limbs stay visible beneath the canopy and the upper limbs peek between
+  // foliage tiers, with small natural differences in angle and length.
+  const limbLevels = 5;
+  for (let level = 0; level < limbLevels; level++) {
+    const z = trunkHeight * (0.55 + level * 0.23);
+    const limbCount = 4 + Math.floor(rand() * 2);
+    const phase = rand() * Math.PI * 2;
+    for (let i = 0; i < limbCount; i++) {
+      const angle = phase + (i / limbCount) * Math.PI * 2;
+      const length = (5.2 + rand() * 3.4) * (1 - level * 0.105);
+      const start = new THREE.Vector3(Math.cos(angle) * 0.45, Math.sin(angle) * 0.45, z);
+      const end = new THREE.Vector3(
+        Math.cos(angle) * length,
+        Math.sin(angle) * length,
+        z + 0.8 + rand() * 1.7
+      );
+      addTreeBranch(group, start, end, 0.55 + rand() * 0.25, Math.floor(rand() * 3));
+    }
+  }
 
   // Foliage color varies subtly per tree (cold dark green for conifers)
   const baseHue = 0.30 + (rand() - 0.5) * 0.05;
@@ -304,6 +387,26 @@ function makeBroadleafTree(rand) {
   trunk.receiveShadow = true;
   group.add(trunk);
 
+  // Main limbs fan out from the trunk into the crown. A few thicker branches
+  // remain visible around the canopy edge, giving broadleaf trees a readable
+  // trunk-to-branch structure instead of a stack of detached green blobs.
+  const limbCount = 5 + Math.floor(rand() * 3);
+  for (let i = 0; i < limbCount; i++) {
+    const angle = (i / limbCount) * Math.PI * 2 + (rand() - 0.5) * 0.28;
+    const start = new THREE.Vector3(
+      Math.cos(angle) * 0.45,
+      Math.sin(angle) * 0.45,
+      trunkHeight * (0.68 + rand() * 0.18)
+    );
+    const length = 5.5 + rand() * 4.2;
+    const end = new THREE.Vector3(
+      Math.cos(angle) * length,
+      Math.sin(angle) * length,
+      start.z + 1.5 + rand() * 4
+    );
+    addTreeBranch(group, start, end, 0.8 + rand() * 0.35, Math.floor(rand() * 3));
+  }
+
   // Base foliage color (lighter / warmer than conifer)
   const baseHue = 0.24 + (rand() - 0.5) * 0.06;
   const baseSat = 0.55 + rand() * 0.18;
@@ -369,30 +472,28 @@ function makeBroadleafTree(rand) {
 }
 
 // Bush — low, multi-blob, no collision
+// Fuller ornamental shrubs: broad overlapping leaf clusters and layered greens
+// make each bush stand out while remaining decorative and non-colliding.
 function makeBush(rand) {
   const group = new THREE.Group();
-  _greenTint.setHSL(0.26 + (rand() - 0.5) * 0.08,
-                    0.55 + rand() * 0.20,
-                    0.22 + rand() * 0.10);
-  const foliageColor = _greenTint.getHex();
-
-  const blobs = 3 + Math.floor(rand() * 2);
+  const blobs = 5 + Math.floor(rand() * 3);
   for (let i = 0; i < blobs; i++) {
-    const r = 1.0 + rand() * 0.7;
+    const r = 1.45 + rand() * 0.8;
     const blob = new THREE.Mesh(
-      new THREE.IcosahedronGeometry(r, 1),
-      new THREE.MeshStandardMaterial({
-        color: foliageColor,
-        roughness: 0.95,
-        metalness: 0,
-        flatShading: true
-      })
+      BUSH_FOLIAGE_GEOMETRY,
+      BUSH_FOLIAGE_MATERIALS[Math.floor(rand() * BUSH_FOLIAGE_MATERIALS.length)]
     );
     const ang = rand() * Math.PI * 2;
-    const dist = rand() * 0.9;
+    const dist = i === 0 ? rand() * 0.35 : 0.45 + rand() * 1.15;
     blob.position.x = Math.cos(ang) * dist;
     blob.position.y = Math.sin(ang) * dist;
-    blob.position.z = r * 0.6;
+    blob.position.z = r * (0.62 + rand() * 0.12) + (i === 0 ? 0.25 : 0);
+    blob.scale.set(
+      r * (0.94 + rand() * 0.25),
+      r * (0.88 + rand() * 0.25),
+      r * (0.82 + rand() * 0.24)
+    );
+    blob.rotation.set((rand() - 0.5) * 0.18, (rand() - 0.5) * 0.18, rand() * Math.PI * 2);
     blob.castShadow = true;
     blob.receiveShadow = true;
     group.add(blob);
@@ -400,60 +501,112 @@ function makeBush(rand) {
   return { group };
 }
 
-// Big boulder — smooth gray with a top "moss" cap. Higher subdivision +
-// gentle distortion = no jagged facets, just a rounded weathered stone.
+// Small wildflower patch with low stems, distinct petal colors and warm centers.
+// Geometry/materials are shared to keep added ground detail reasonably light.
+function makeFlowerPatch(rand) {
+  const group = new THREE.Group();
+  const count = 3 + Math.floor(rand() * 3);
+  for (let i = 0; i < count; i++) {
+    const angle = rand() * Math.PI * 2;
+    const spread = 0.6 + rand() * 2.0;
+    const x = Math.cos(angle) * spread;
+    const y = Math.sin(angle) * spread;
+    const height = 1.05 + rand() * 0.8;
+
+    const stem = new THREE.Mesh(
+      FLOWER_STEM_GEOMETRY,
+      FLOWER_STEM_MATERIALS[Math.floor(rand() * FLOWER_STEM_MATERIALS.length)]
+    );
+    stem.rotation.x = Math.PI / 2;
+    stem.scale.y = height / 1.5;
+    stem.position.set(x, y, height * 0.5);
+    stem.castShadow = false;
+    stem.receiveShadow = true;
+    group.add(stem);
+
+    const bloom = new THREE.Mesh(
+      FLOWER_HEAD_GEOMETRY,
+      FLOWER_HEAD_MATERIALS[Math.floor(rand() * FLOWER_HEAD_MATERIALS.length)]
+    );
+    bloom.position.set(x, y, height);
+    bloom.rotation.z = rand() * Math.PI * 2;
+    bloom.castShadow = false;
+    bloom.receiveShadow = true;
+    group.add(bloom);
+
+    const center = new THREE.Mesh(FLOWER_CENTER_GEOMETRY, FLOWER_CENTER_MATERIAL);
+    center.position.set(x, y, height + 0.025);
+    center.scale.z = 0.28;
+    center.castShadow = false;
+    center.receiveShadow = true;
+    group.add(center);
+  }
+  return group;
+}
+
 function makeBigRock(rand) {
   const group = new THREE.Group();
   const size = 5.2 + rand() * 5.0;
-  // 2 subdivisions → ~162 verts vs 12 for 1 subdivision. Smooth silhouette.
   const geo = new THREE.IcosahedronGeometry(size, 2);
   distortGeometry(geo, rand, 0.52);
-  const baseGray = 0.25 + rand() * 0.07;
+  const palette = [0x777b78, 0x89877d, 0x6f7779, 0x938b7b, 0x686f70, 0x81766b];
   const rockMat = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(baseGray - 0.02, baseGray, baseGray + 0.02),
-    roughness: 0.95,
+    color: palette[Math.floor(rand() * palette.length)],
+    roughness: 0.98,
     metalness: 0,
-    flatShading: false  // smooth shading — clean curves, not facets
+    flatShading: true
   });
   const rock = new THREE.Mesh(geo, rockMat);
+  rock.scale.set(0.88 + rand() * 0.42, 0.78 + rand() * 0.48, 0.62 + rand() * 0.35);
+  rock.rotation.set((rand() - 0.5) * 0.18, (rand() - 0.5) * 0.18, rand() * Math.PI * 2);
   rock.castShadow = true;
   rock.receiveShadow = true;
   group.add(rock);
 
-  // Moss cap (top half): a slightly smaller copy in a mossy green
-  const mossGeo = new THREE.SphereGeometry(size * 0.60, 12, 8);
+  // Small, uneven moss patches sit on only part of the boulder, not as a perfect cap.
   const mossMat = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(0x2f512b),
+    color: [0x3d5b32, 0x536a3b, 0x66754a][Math.floor(rand() * 3)],
     roughness: 1.0,
     metalness: 0,
-    flatShading: false
+    flatShading: true
   });
-  const moss = new THREE.Mesh(mossGeo, mossMat);
-  moss.position.z = size * 0.22;
-  moss.scale.set(1.0 + rand() * 0.12, 0.9 + rand() * 0.10, 0.24);
-  moss.castShadow = false;
-  moss.receiveShadow = true;
-  group.add(moss);
-
+  const patchCount = 1 + Math.floor(rand() * 3);
+  for (let i = 0; i < patchCount; i++) {
+    const patch = new THREE.Mesh(
+      new THREE.IcosahedronGeometry(size * (0.17 + rand() * 0.12), 1),
+      mossMat
+    );
+    distortGeometry(patch.geometry, rand, 0.42);
+    const a = rand() * Math.PI * 2;
+    patch.position.set(
+      Math.cos(a) * size * (0.22 + rand() * 0.24),
+      Math.sin(a) * size * (0.22 + rand() * 0.24),
+      size * (0.25 + rand() * 0.28)
+    );
+    patch.scale.set(1.3 + rand() * 0.6, 0.8 + rand() * 0.5, 0.28);
+    patch.castShadow = false;
+    patch.receiveShadow = true;
+    group.add(patch);
+  }
   return { group, size };
 }
 
 function makeSmallRock(rand) {
-  const size = 0.8 + rand() * 1.0;
-  // Higher subdivision + smooth shading for the small pebbles too —
-  // they read as clean river stones rather than shards.
-  const geo = new THREE.IcosahedronGeometry(size, 2);
+  const size = 0.65 + rand() * 1.35;
+  const geo = new THREE.IcosahedronGeometry(size, 1);
   distortGeometry(geo, rand, 0.48);
-  const baseGray = 0.42 + rand() * 0.16;
+  const palette = [0xaaa394, 0x827f77, 0x6c7777, 0xb3a68d, 0x77716a, 0x8d9996];
   const rock = new THREE.Mesh(
     geo,
     new THREE.MeshStandardMaterial({
-      color: new THREE.Color(baseGray, baseGray, baseGray + 0.01),
-      roughness: 0.95,
+      color: palette[Math.floor(rand() * palette.length)],
+      roughness: 0.98,
       metalness: 0,
-      flatShading: false
+      flatShading: true
     })
   );
+  rock.scale.set(0.72 + rand() * 0.65, 0.68 + rand() * 0.7, 0.48 + rand() * 0.68);
+  rock.rotation.set((rand() - 0.5) * 0.2, (rand() - 0.5) * 0.2, rand() * Math.PI * 2);
   rock.castShadow = true;
   rock.receiveShadow = true;
   return { mesh: rock, size };
@@ -577,36 +730,95 @@ function makeMushroomCluster(rand) {
   return cluster;
 }
 
-// Lily pad for the pond
+// Lily pad with a natural notch, layered leaf surface, subtle veins and a
+// proper multi-petal water-lily bloom. All geometry is native Three.js.
 function makeLilyPad(rand) {
-  const r = 1.6 + rand() * 0.8;
-  const pad = new THREE.Mesh(
-    new THREE.CircleGeometry(r, 8),
+  const r = 2.0 + rand() * 1.0;
+  const pad = new THREE.Group();
+  const leafShape = new THREE.Shape();
+  const start = Math.PI * 0.24;
+  const end = Math.PI * 1.76;
+  leafShape.moveTo(0, 0);
+  leafShape.absarc(0, 0, r, start, end, false);
+  leafShape.lineTo(0, 0);
+  leafShape.closePath();
+
+  const leaf = new THREE.Mesh(
+    new THREE.ShapeGeometry(leafShape, 20),
     new THREE.MeshStandardMaterial({
-      color: 0x1f4a2a,
-      roughness: 0.7,
+      color: new THREE.Color().setHSL(0.30 + rand() * 0.035, 0.48 + rand() * 0.16, 0.23 + rand() * 0.09),
+      roughness: 0.82,
       metalness: 0,
       side: THREE.DoubleSide
     })
   );
-  pad.rotation.x = Math.PI / 2;
-  // Notch by subtracting a triangle via group? Simpler: just place an
-  // emissive bud on top so it reads as a lily from above.
-  const hasFlower = rand() < 0.55;
+  leaf.position.z = 0.04;
+  leaf.receiveShadow = true;
+  pad.add(leaf);
+
+  // A small raised center and radial veins catch light and make the leaf
+  // read as a real plant rather than a flat green polygon.
+  const center = new THREE.Mesh(
+    new THREE.SphereGeometry(0.22, 8, 5),
+    new THREE.MeshStandardMaterial({ color: 0x8ca85a, roughness: 0.9 })
+  );
+  center.scale.z = 0.22;
+  center.position.z = 0.12;
+  pad.add(center);
+
+  const veinMat = new THREE.LineBasicMaterial({ color: 0x8aa66a, transparent: true, opacity: 0.62 });
+  for (let i = 0; i < 5; i++) {
+    const angle = start + 0.18 + i * ((end - start - 0.36) / 4);
+    const points = [
+      new THREE.Vector3(0.1, 0.0, 0.14),
+      new THREE.Vector3(Math.cos(angle) * r * 0.78, Math.sin(angle) * r * 0.78, 0.14)
+    ];
+    const vein = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints(points),
+      veinMat
+    );
+    pad.add(vein);
+  }
+
+  const hasFlower = rand() < 0.62;
   if (hasFlower) {
-    const flowerColor = new THREE.Color().setHSL(0.95 + rand() * 0.05, 0.6, 0.65);
-    const flower = new THREE.Mesh(
-      new THREE.SphereGeometry(0.35, 6, 4),
+    const bloom = new THREE.Group();
+    const flowerColor = new THREE.Color().setHSL(rand() < 0.65 ? 0.94 + rand() * 0.055 : 0.12 + rand() * 0.025, 0.72, 0.72);
+    const petalMat = new THREE.MeshStandardMaterial({
+      color: flowerColor,
+      emissive: flowerColor,
+      emissiveIntensity: 0.16,
+      roughness: 0.42,
+      metalness: 0.02,
+      side: THREE.DoubleSide
+    });
+    const petalCount = 8;
+    for (let i = 0; i < petalCount; i++) {
+      const angle = (i / petalCount) * Math.PI * 2;
+      const petal = new THREE.Mesh(
+        new THREE.SphereGeometry(0.48, 8, 6),
+        petalMat
+      );
+      petal.scale.set(0.62, 1.0, 0.24);
+      petal.position.set(Math.cos(angle) * 0.46, Math.sin(angle) * 0.46, 0.22);
+      petal.rotation.z = angle - Math.PI / 2;
+      bloom.add(petal);
+    }
+
+    const heart = new THREE.Mesh(
+      new THREE.SphereGeometry(0.28, 10, 7),
       new THREE.MeshStandardMaterial({
-        color: flowerColor,
-        emissive: flowerColor,
-        emissiveIntensity: 0.6,
+        color: 0xf7c95e,
+        emissive: 0x8c5a18,
+        emissiveIntensity: 0.12,
         roughness: 0.5
       })
     );
-    flower.scale.z = 0.4;
-    flower.position.z = 0.15;
-    pad.add(flower);
+    heart.scale.z = 0.55;
+    heart.position.z = 0.34;
+    bloom.add(heart);
+    bloom.position.set((rand() - 0.5) * 0.7, (rand() - 0.5) * 0.7, 0.08);
+    pad.add(bloom);
   }
   return pad;
 }
@@ -641,48 +853,79 @@ function makePond(rand, scale = 1.0) {
   const baseRadius = 70 + rand() * 18;
   const radius = baseRadius * scale;
 
-  // Water surface (lighter teal that picks up the sky color so it doesn't
-  // read as a black blob at dusk; the high metalness gives it a subtle
-  // sky-reflection feel without needing actual cube maps).
-  // side: DoubleSide so the disc reads as a flat pond from any camera
-  // angle (otherwise a low camera can see only the back face and it
-  // looks like a wall rising out of the ground).
+  // A clean, near-perfect circular shoreline with a natural sandy/pebble lip.
+  // Higher segment counts avoid visibly polygonal edges at close camera angles.
+  const shore = new THREE.Mesh(
+    new THREE.RingGeometry(radius * 0.965, radius * 1.045, 128),
+    new THREE.MeshStandardMaterial({
+      color: 0x9a8a65,
+      roughness: 0.98,
+      metalness: 0,
+      side: THREE.DoubleSide
+    })
+  );
+  shore.position.z = 0.025;
+  group.add(shore);
+
+  // Clear turquoise shallows fade into richer blue-green pond water.
+  const shallows = new THREE.Mesh(
+    new THREE.RingGeometry(radius * 0.86, radius * 0.99, 128),
+    new THREE.MeshStandardMaterial({
+      color: 0x56c5b3,
+      roughness: 0.52,
+      metalness: 0.03,
+      transparent: true,
+      opacity: 0.88,
+      side: THREE.DoubleSide,
+      depthWrite: false
+    })
+  );
+  shallows.position.z = 0.035;
+  group.add(shallows);
+
   const waterMat = new THREE.MeshStandardMaterial({
-    color: 0x2a6a78,
-    roughness: 0.30,
-    metalness: 0.45,
-    transparent: true,
-    opacity: 0.94,
+    color: 0x278b98,
+    roughness: 0.38,
+    metalness: 0.06,
     side: THREE.DoubleSide
   });
   const water = new THREE.Mesh(
-    new THREE.CircleGeometry(radius, 48),
+    new THREE.CircleGeometry(radius * 0.91, 128),
     waterMat
   );
-  // The game's coordinate system is Z-up — the ground plane is XY, with
-  // Z as height. CircleGeometry's default plane is also XY with normal
-  // pointing +Z, so it's ALREADY flat on the ground. No rotation needed.
-  // (Earlier code rotated it +90° around X, which tipped the disc onto
-  // its edge and made it appear as a vertical wall from the camera.)
-  water.position.z = 0.05;          // just above ground so it never z-fights
+  // Z-up world: CircleGeometry is already on the XY ground plane.
+  water.position.z = 0.05;
   water.receiveShadow = true;
   group.add(water);
 
-  // Animated ripple ring
+  // Three fine, staggered wave rings create a continuous, gentle water-motion effect.
   const rippleMat = new THREE.MeshBasicMaterial({
-    color: 0x9ee7ff,
+    color: 0xc5fff4,
     transparent: true,
-    opacity: 0.4,
+    opacity: 0.28,
     side: THREE.DoubleSide,
     depthWrite: false
   });
   const ripple = new THREE.Mesh(
-    new THREE.RingGeometry(radius * 0.30, radius * 0.36, 48),
+    new THREE.RingGeometry(radius * 0.18, radius * 0.195, 128),
     rippleMat
   );
-  // Z-up world — ripple lies flat on the XY plane with no rotation.
-  ripple.position.z = 0.2;
+  ripple.position.set(-radius * 0.1, radius * 0.06, 0.19);
   group.add(ripple);
+
+  const rippleSecondary = new THREE.Mesh(
+    new THREE.RingGeometry(radius * 0.38, radius * 0.395, 128),
+    rippleMat.clone()
+  );
+  rippleSecondary.position.set(radius * 0.12, -radius * 0.08, 0.18);
+  group.add(rippleSecondary);
+
+  const rippleTertiary = new THREE.Mesh(
+    new THREE.RingGeometry(radius * 0.56, radius * 0.575, 128),
+    rippleMat.clone()
+  );
+  rippleTertiary.position.set(-radius * 0.02, -radius * 0.02, 0.175);
+  group.add(rippleTertiary);
 
   // Lily pads, scattered around inner 70% of pond
   const lilyPads = [];
@@ -698,26 +941,27 @@ function makePond(rand, scale = 1.0) {
     lilyPads.push(pad);
   }
 
-  // Edge rocks (lighter warm gray so they read as stones, not black blobs
-  // in low light / at dusk).
-  const edgeRockMat = new THREE.MeshStandardMaterial({
-    color: 0x6e6358,
-    roughness: 0.92,
-    metalness: 0,
-    flatShading: true
-  });
+  // Pond-edge stones vary in hue, size, height and rotation like naturally
+  // weathered pebbles embedded unevenly around the shoreline.
+  const edgeRockMats = [0x8e8779, 0x777c79, 0xa39882, 0x646f70, 0x7d7063].map((color) =>
+    new THREE.MeshStandardMaterial({
+      color, roughness: 0.98, metalness: 0, flatShading: true
+    })
+  );
   for (let i = 0; i < 14; i++) {
     const ang = (i / 14) * Math.PI * 2 + (rand() - 0.5) * 0.18;
-    const r = radius + 1 + rand() * 2;
-    const sz = 1.4 + rand() * 1.4;
+    const sz = 1.0 + rand() * 2.0;
+    const r = radius + 0.4 + rand() * 2.8;
     const stone = new THREE.Mesh(
-      new THREE.IcosahedronGeometry(sz, 0),
-      edgeRockMat
+      new THREE.IcosahedronGeometry(sz, 1),
+      edgeRockMats[Math.floor(rand() * edgeRockMats.length)]
     );
     distortGeometry(stone.geometry, rand, 0.45);
+    stone.scale.set(0.7 + rand() * 0.7, 0.7 + rand() * 0.65, 0.42 + rand() * 0.65);
+    stone.rotation.set((rand() - 0.5) * 0.16, (rand() - 0.5) * 0.16, rand() * Math.PI * 2);
     stone.position.x = Math.cos(ang) * r;
     stone.position.y = Math.sin(ang) * r;
-    stone.position.z = sz * 0.4;
+    stone.position.z = sz * 0.35;
     stone.castShadow = true;
     stone.receiveShadow = true;
     group.add(stone);
@@ -747,7 +991,7 @@ function makePond(rand, scale = 1.0) {
     group.add(stem, head);
   }
 
-  return { group, radius, water, ripple, lilyPads };
+  return { group, radius, water, ripple, rippleSecondary, rippleTertiary, lilyPads };
 }
 
 function placeRandomly(rand, avoid, minDist) {
@@ -838,8 +1082,10 @@ export function createObstacles(scene) {
 
     let placed2 = false;
     for (let attempt = 0; attempt < 40; attempt++) {
-      // Keep one pond reliably visible from the starting area without
-      // overlapping the player clearing; other ponds remain distributed.
+      // Guarantee one unmistakable pond landmark just ahead of the starting
+      // clearing. Earlier every pond was randomly scattered 150–600 units
+      // away, so the upgraded water/lilies could be absent from the opening
+      // camera view and appear unchanged during a quick local check.
       const showcasePond = p === 0;
       const angle = showcasePond ? Math.PI / 2 : rand() * Math.PI * 2;
       const minR = Math.max(CLEARING_RADIUS + POND_EXCLUSION_RADIUS, PLAYER_CLEARING_RADIUS + 60);
@@ -903,6 +1149,7 @@ export function createObstacles(scene) {
     treeRecords.push({
       index: i,
       group: originalTree.group,
+      totalHeight: originalTree.totalHeight,
       pos,
       rotation: rand() * Math.PI * 2
     });
@@ -961,10 +1208,21 @@ export function createObstacles(scene) {
   const redStyleOrder = [0, 2, 1, 4, 3];
   for (const record of treeRecords) {
     let group = record.group;
+    let totalHeight = record.totalHeight;
     if (redTreeIndices.has(record.index)) {
       const style = redStyleOrder[redTreeIndices.size ? redTreeRecords.findIndex((r) => r.index === record.index) % redStyleOrder.length : 0];
-      group = makeRedLeafTree(redDesignRand, style).group;
+      const redTree = makeRedLeafTree(redDesignRand, style);
+      group = redTree.group;
+      totalHeight = redTree.totalHeight;
     }
+
+    // Every fifth tree becomes a tall landmark tree (70–80 nominal units).
+    // Scale only vertically so its ground footprint, spacing and collisions stay unchanged.
+    if (record.index % 5 === 0 && totalHeight > 0) {
+      const targetHeight = 70 + ((record.index * 7) % 11);
+      group.scale.z = targetHeight / totalHeight;
+    }
+
     group.position.x = record.pos.x;
     group.position.y = record.pos.y;
     group.rotation.z = record.rotation;
@@ -1090,6 +1348,35 @@ export function createObstacles(scene) {
     });
   }
 
+  // ----- Wildflowers: fill open meadow gaps without overlapping obstacles -----
+  // Independent seeded randomness means these details do not shift existing
+  // tree, rock, pond, pickup or house positions.
+  const flowerRand = mulberry32(0xF10A3);
+  const flowerAvoid = playerAvoid.concat(
+    pondAvoid,
+    placed,
+    obstacles.map(({ position, radius }) => ({ x: position.x, y: position.y, r: radius })),
+    housePositions
+  );
+  for (let i = 0; i < FLOWER_PATCH_COUNT; i++) {
+    let pos = null;
+    for (let attempt = 0; attempt < 70 && !pos; attempt++) {
+      const angle = flowerRand() * Math.PI * 2;
+      const r = Math.sqrt(CLEARING_RADIUS ** 2 + flowerRand() * (WORLD_RADIUS ** 2 - CLEARING_RADIUS ** 2));
+      const candidate = { x: Math.cos(angle) * r, y: Math.sin(angle) * r };
+      if (flowerAvoid.every((p) =>
+        Math.hypot(candidate.x - p.x, candidate.y - p.y) >= 7.5 + (p.r || 0)
+      )) pos = candidate;
+    }
+    // Skip if no clear spot is available instead of forcing overlap.
+    if (!pos) continue;
+    const patch = makeFlowerPatch(flowerRand);
+    patch.position.set(pos.x, pos.y, 0);
+    patch.rotation.z = flowerRand() * Math.PI * 2;
+    scene.add(patch);
+    flowerAvoid.push({ x: pos.x, y: pos.y, r: 5.5 });
+  }
+
   // Animation hook: ripple expands, lily pads bob. Called from main loop.
   // Animates every pond with a small phase offset so the ripples aren't
   // perfectly synchronized.
@@ -1098,10 +1385,22 @@ export function createObstacles(scene) {
     pondTime += delta;
     for (let p = 0; p < ponds.length; p++) {
       const pond = ponds[p].ref;
-      const phase = pondTime * 0.6 + p * 0.33;
+      const phase = pondTime * 0.42 + p * 0.27;
       const t = phase % 1;
-      pond.ripple.scale.setScalar(1 + t * 0.7);
-      pond.ripple.material.opacity = 0.45 * (1 - t);
+      pond.ripple.scale.setScalar(0.72 + t * 1.45);
+      pond.ripple.material.opacity = 0.30 * (1 - t);
+      const secondaryT = (t + 0.38) % 1;
+      pond.rippleSecondary.scale.setScalar(0.72 + secondaryT * 1.35);
+      pond.rippleSecondary.material.opacity = 0.23 * (1 - secondaryT);
+      const tertiaryT = (t + 0.68) % 1;
+      pond.rippleTertiary.scale.setScalar(0.72 + tertiaryT * 1.2);
+      pond.rippleTertiary.material.opacity = 0.18 * (1 - tertiaryT);
+      // Gentle, non-synchronous shimmer keeps the water from feeling static.
+      pond.water.material.color.setHSL(
+        0.505 + Math.sin(pondTime * 0.38 + p * 0.7) * 0.008,
+        0.58,
+        0.37 + Math.sin(pondTime * 0.52 + p) * 0.018
+      );
       for (let i = 0; i < pond.lilyPads.length; i++) {
         const pad = pond.lilyPads[i];
         pad.position.z = 0.05 + Math.sin(pondTime * 1.2 + i * 0.7 + p) * 0.08;
@@ -1113,7 +1412,9 @@ export function createObstacles(scene) {
     return obstacles;
   }
 
-  // Water footprint includes lily-pad positions; pads are inside the water disc.
+  // Pond movement area matches the actual water disc. Lily pads are placed
+  // within the inner 70% of this radius, so standing on a pad gets the same
+  // environmental movement effect as standing on the water.
   function isPositionOverPond(x, y) {
     return isPositionOverAnyPond(x, y, ponds);
   }
