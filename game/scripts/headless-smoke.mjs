@@ -3,9 +3,23 @@
 // to debug blank-screen issues without a real browser.
 
 import puppeteer from 'puppeteer-core';
+import { existsSync } from 'node:fs';
 
 const url = process.argv[2] || 'http://localhost:5181/';
-const chromePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+const chromeCandidates = [
+  process.env.CHROME_PATH,
+  process.env.CHROMIUM_PATH,
+  process.env.PUPPETEER_EXECUTABLE_PATH,
+  ...(process.platform === 'win32'
+    ? ['C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe']
+    : process.platform === 'darwin'
+      ? ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome']
+      : ['/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser'])
+].filter(Boolean);
+const chromePath = chromeCandidates.find((candidate) => existsSync(candidate));
+if (!chromePath) {
+  throw new Error('Chrome/Chromium not found. Set CHROME_PATH to the browser executable.');
+}
 
 (async () => {
   console.log('Launching Chrome...');

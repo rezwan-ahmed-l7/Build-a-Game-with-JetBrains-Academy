@@ -17,15 +17,15 @@ let countdownTimer = 0; // handle for the in-flight 3-2-1 start countdown
 // Level-based frog stat scaling config
 // { maxHp, attackDamage, attackCooldown, moveSpeedMult, dashCooldownMs }
 const LEVEL_STATS = {
-  1: { maxHp: 3, attackDamage: 1, attackCooldown: 0.85, moveSpeedMult: 1.0, dashCooldownMs: 3000 },
-  2: { maxHp: 3, attackDamage: 1, attackCooldown: 0.85, moveSpeedMult: 1.0, dashCooldownMs: 3000 },
-  3: { maxHp: 4, attackDamage: 1, attackCooldown: 0.75, moveSpeedMult: 1.1, dashCooldownMs: 2500 },
-  4: { maxHp: 4, attackDamage: 1, attackCooldown: 0.75, moveSpeedMult: 1.1, dashCooldownMs: 2500 },
-  5: { maxHp: 5, attackDamage: 1, attackCooldown: 0.65, moveSpeedMult: 1.2, dashCooldownMs: 2000 },
-  6: { maxHp: 5, attackDamage: 1, attackCooldown: 0.65, moveSpeedMult: 1.2, dashCooldownMs: 2000 },
-  7: { maxHp: 5, attackDamage: 2, attackCooldown: 0.65, moveSpeedMult: 1.2, dashCooldownMs: 2000 },
-  8: { maxHp: 5, attackDamage: 2, attackCooldown: 0.65, moveSpeedMult: 1.2, dashCooldownMs: 2000 },
-  9: { maxHp: 6, attackDamage: 2, attackCooldown: 0.55, moveSpeedMult: 1.3, dashCooldownMs: 1500 },
+  1: { maxHp: 3, attackRadius: 40, attackDamage: 2, attackCooldown: 0.50, moveSpeedMult: 1.0, dashCooldownMs: 3000 },
+  2: { maxHp: 3, attackRadius: 43, attackDamage: 2.5, attackCooldown: 0.50, moveSpeedMult: 1.0, dashCooldownMs: 3000 },
+  3: { maxHp: 4, attackRadius: 46, attackDamage: 3, attackCooldown: 0.40, moveSpeedMult: 1.1, dashCooldownMs: 2500 },
+  4: { maxHp: 4, attackRadius: 49, attackDamage: 3.5, attackCooldown: 0.40, moveSpeedMult: 1.1, dashCooldownMs: 2500 },
+  5: { maxHp: 5, attackRadius: 52, attackDamage: 4, attackCooldown: 0.30, moveSpeedMult: 1.2, dashCooldownMs: 2000 },
+  6: { maxHp: 5, attackRadius: 55, attackDamage: 4.5, attackCooldown: 0.30, moveSpeedMult: 1.2, dashCooldownMs: 2000 },
+  7: { maxHp: 5, attackRadius: 58, attackDamage: 5, attackCooldown: 0.20, moveSpeedMult: 1.2, dashCooldownMs: 2000 },
+  8: { maxHp: 5, attackRadius: 61, attackDamage: 5.5, attackCooldown: 0.20, moveSpeedMult: 1.2, dashCooldownMs: 2000 },
+  9: { maxHp: 6, attackRadius: 64, attackDamage: 6, attackCooldown: 0.10, moveSpeedMult: 1.3, dashCooldownMs: 1500 },
 };
 
 function getLevelStats(level) {
@@ -132,7 +132,8 @@ export function createGameManager({
   function getBoostedAttackRadius() {
     const lvl = currentLevel;
     const eff = getPowerUpEffect('attack', lvl);
-    return attackRef.getRadius() * eff.mult;
+    const stats = getLevelStats(lvl);
+    return stats.attackRadius * eff.mult;
   }
 
   function flashDamage() {
@@ -253,6 +254,7 @@ export function createGameManager({
     }
 
     // Attack: set cooldown and damage
+    attackRef.setRadius(stats.attackRadius);
     attackRef.setCooldown(stats.attackCooldown);
     attackRef.setDamage(stats.attackDamage);
 
@@ -456,6 +458,33 @@ export function createGameManager({
       if (dist < playerVsEnemyDist) {
         // Use the enemy type's attackContact damage (chaser=1, sprinter=1, brute=2)
         const dmg = enemy.def && enemy.def.attackContact ? enemy.def.attackContact : 1;
+
+        // Contact attack impact: a hot, directional burst plus a cooler
+        // secondary spark ring makes enemy hits readable without adding
+        // meshes, lights, textures, or post-processing to the frame loop.
+        const hitX = player.group.position.x;
+        const hitY = player.group.position.y;
+        const hitZ = player.group.position.z + 5;
+        const enemyColor = enemy.type === 'brute' ? 0xff5a36
+          : enemy.type === 'sprinter' ? 0xffbd4a : 0xff784f;
+        particles.spawnBurst(hitX, hitY, hitZ, {
+          count: enemy.type === 'brute' ? 24 : 16,
+          color: enemyColor,
+          speed: enemy.type === 'brute' ? 115 : 90,
+          life: 0.42,
+          size: enemy.type === 'brute' ? 8 : 6,
+          upBias: 24
+        });
+        particles.spawnBurst(hitX - dx / (dist || 1) * 3, hitY - dy / (dist || 1) * 3, hitZ + 1, {
+          count: 9,
+          color: 0xb9f4ff,
+          speed: 65,
+          life: 0.28,
+          size: 4,
+          upBias: 12
+        });
+        damageNumbers.spawn(dmg > 1 ? `-${dmg} HP!` : '-1 HP', hitX, hitY, hitZ + 7, '#ff6b5f', { kind: 'crit' });
+
         health.damage(dmg);
         const nx = dx / (dist || 1);
         const ny = dy / (dist || 1);
@@ -590,6 +619,6 @@ export function createGameManager({
     ATTACK_BOOST_MULT,
     SPEED_BOOST_MULT,
     LEVEL_STATS,
-    BASE_ATTACK_RADIUS: 38
+    BASE_ATTACK_RADIUS: 40
   };
 }

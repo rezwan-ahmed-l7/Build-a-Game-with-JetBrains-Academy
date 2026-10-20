@@ -1,4 +1,6 @@
 export const PLAYER_COLLISION_RADIUS = 18;
+// The frog's obstacle footprint is much smaller than its animated model.
+export const PLAYER_OBSTACLE_RADIUS = 5;
 export const ENEMY_COLLISION_RADIUS = 14;
 
 const _sep = { x: 0, y: 0 };
@@ -96,10 +98,9 @@ export function resolveEnemyVsObstacles(enemies, obstacles) {
 }
 
 export function resolvePlayerVsObstacles(playerPos, obstacles) {
-  // The player model is large relative to thin tree trunks, so use a smaller
-  // effective radius when checking against obstacles — otherwise the player
-  // can't fit through gaps that look visually navigable.
-  const playerEffective = Math.max(4, PLAYER_COLLISION_RADIUS * 0.5);
+  // Match movement validation to the frog's ground footprint so visual gaps
+  // remain traversable without letting the animated body dictate collisions.
+  const playerEffective = PLAYER_OBSTACLE_RADIUS;
   let pushed = false;
   for (const ob of obstacles) {
     const sep = getSeparationVector(playerPos, ob.position, playerEffective, ob.radius);
@@ -113,7 +114,7 @@ export function resolvePlayerVsObstacles(playerPos, obstacles) {
 }
 
 export function canPlayerMoveTo(newPos, enemies, obstacles) {
-  const playerEffective = Math.max(4, PLAYER_COLLISION_RADIUS * 0.5);
+  const playerEffective = PLAYER_OBSTACLE_RADIUS;
   for (const enemy of enemies) {
     if (enemy.isSpawning) continue;
     if (isColliding(newPos, PLAYER_COLLISION_RADIUS, enemy.group.position, ENEMY_COLLISION_RADIUS)) {

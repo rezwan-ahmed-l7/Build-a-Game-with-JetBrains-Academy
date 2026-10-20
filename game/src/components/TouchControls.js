@@ -40,6 +40,10 @@ export function createTouchControls({ onPause, onAttack, onDash }) {
 
   // Retain the last intentional direction across joystick release.
   let lastDirection = null;
+  // A quick drag can end before the next animation frame reads it. Keep one
+  // unqueued release direction pending so short touch gestures are not lost.
+  let pendingMoveDirection = null;
+  let lastQueuedMoveDirection = null;
 
   function setKnob() {
     const x = Math.max(-state.radius, Math.min(state.radius, state.dx));
@@ -55,6 +59,8 @@ export function createTouchControls({ onPause, onAttack, onDash }) {
     if (state.active && state.pointerId !== e.pointerId) return;
     state.active = true;
     state.pointerId = e.pointerId;
+    pendingMoveDirection = null;
+    lastQueuedMoveDirection = null;
     const rect = stickBase.getBoundingClientRect();
     const knobRect = stickKnob.getBoundingClientRect();
     state.baseX = rect.left + rect.width / 2;
@@ -84,6 +90,7 @@ export function createTouchControls({ onPause, onAttack, onDash }) {
     // The DASH button is separate, so pointerup may happen before the game
     // loop reads getDirection() one last time.
     const dead = state.radius * 0.2;
+    let releasedDirection = null;
     if (state.active && Math.hypot(state.dx, state.dy) >= dead) {
       lastDirection = {
         fwd: state.dy < -dead,
@@ -91,6 +98,16 @@ export function createTouchControls({ onPause, onAttack, onDash }) {
         left: state.dx < -dead,
         right: state.dx > dead
       };
+      if (Math.abs(state.dx) > Math.abs(state.dy)) {
+        releasedDirection = state.dx < 0 ? 'left' : 'right';
+      } else {
+        releasedDirection = state.dy < 0 ? 'forward' : 'backward';
+      }
+    }
+    // Do not lose a quick flick if pointerup arrives before requestAnimationFrame.
+    // If this direction was already queued while dragging, it needs no replay.
+    if (releasedDirection && releasedDirection !== lastQueuedMoveDirection) {
+      pendingMoveDirection = releasedDirection;
     }
 
     state.active = false;
@@ -139,18 +156,26 @@ export function createTouchControls({ onPause, onAttack, onDash }) {
   // Movement uses one jump direction at a time. Choose the dominant axis
   // so diagonal drags remain predictable and feed the normal movement queue.
   function getMoveDirection() {
-    if (!state.active) return null;
-    const dead = state.radius * 0.2;
-    if (Math.hypot(state.dx, state.dy) < dead) return null;
-    if (Math.abs(state.dx) > Math.abs(state.dy)) {
-      return state.dx < 0 ? 'left' : 'right';
+    if (state.active) {
+      const dead = state.radius * 0.2;
+      if (Math.hypot(state.dx, state.dy) >= dead) {
+        if (Math.abs(state.dx) > Math.abs(state.dy)) {
+          return state.dx < 0 ? 'left' : 'right';
+        }
+        return state.dy < 0 ? 'forward' : 'backward';
+      }
     }
-    return state.dy < 0 ? 'forward' : 'backward';
+    return pendingMoveDirection;
+  }
+
+  function markMoveQueued(direction) {
+    lastQueuedMoveDirection = direction;
+    if (pendingMoveDirection === direction) pendingMoveDirection = null;
   }
 
   function dispose() {
     root.remove();
   }
 
-  return { getDirection, getMoveDirection, dispose };
+  return { getDirection, getMoveDirection, markMoveQueued, dispose };
 }
