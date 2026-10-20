@@ -58,6 +58,8 @@ export function createTouchControls({ onPause, onAttack, onDash }) {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     if (state.active && state.pointerId !== e.pointerId) return;
     state.active = true;
+    stickBase.classList.add('is-active');
+    stickKnob.classList.add('is-moving');
     state.pointerId = e.pointerId;
     pendingMoveDirection = null;
     lastQueuedMoveDirection = null;
@@ -111,6 +113,8 @@ export function createTouchControls({ onPause, onAttack, onDash }) {
     }
 
     state.active = false;
+    stickBase.classList.remove('is-active');
+    stickKnob.classList.remove('is-moving');
     state.pointerId = null;
     state.dx = 0;
     state.dy = 0;
