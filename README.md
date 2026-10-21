@@ -21,7 +21,7 @@
 
 You play as Tode, a frog surviving in a stylized meadow. Move through the arena, fight incoming enemies, use dash and attack abilities, collect power-ups, and aim for a new high score. Beyond the original learning foundation, this repository focuses on a richer game world, combat feedback, day/night atmosphere, responsive desktop/mobile controls, and an online leaderboard.
 
-**[Play Tode the Frog — Moonlit Meadow](https://build-a-game-with-jet-brains-academ.vercel.app/)**
+**[Play Tode the Frog — Moonlit Meadow](https://tode-frog-game.onrender.com/)**
 
 ## Game features
 
@@ -84,12 +84,20 @@ Add real screenshots from the deployed game to the paths below. Captures from bo
 </p>
 -->
 
+<img width="1917" height="1078" alt="Screenshot 2026-10-21 111012" src="https://github.com/user-attachments/assets/65c38ade-a081-455c-8cec-d1b11c03ae3d" />
+
+<img width="1917" height="1078" alt="Screenshot 2026-10-21 111115" src="https://github.com/user-attachments/assets/36512136-b8a2-4211-818d-602b2fc8171f" />
+
+
 ## JetBrains Academy course completion
 
 The original learning path for this project is the JetBrains Academy *Build a Game with an AI Coding Agent* course. I completed the course and am keeping this section for the course completion certificate.
 
 <!-- Add your actual certificate image as docs/images/jetbrains-course-certificate.png, then uncomment the image below. -->
 <!-- <p align="center"><img src="docs/images/jetbrains-course-certificate.png" width="72%" alt="JetBrains Academy Build a Game with an AI Coding Agent course completion certificate" /></p> -->
+
+[Build a Game with an AI Coding Agent-certificate.pdf](https://github.com/user-attachments/files/33751632/Build.a.Game.with.an.AI.Coding.Agent-certificate.pdf)
+
 
 ## Tech stack and tools
 
