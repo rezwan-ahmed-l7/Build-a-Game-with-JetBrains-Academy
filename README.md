@@ -38,7 +38,7 @@ The game world is designed as a stylized meadow rather than an empty arena. The 
 
 ### Gameplay
 
-- **Survival combat:** fight different enemy types with distinct behaviors and difficulty.
+- **Survival combat levelup:** fight different enemy types with distinct behaviors and difficulty.
 - **Attack and dash:** attack nearby enemies and dash to reposition or avoid danger.
 - **Health and progression:** monitor health, score, level, combos, and run performance.
 - **Power-ups:** collect upgrades that change or improve abilities during a run.
@@ -88,6 +88,12 @@ Add real screenshots from the deployed game to the paths below. Captures from bo
 
 <img width="1917" height="1078" alt="Screenshot 2026-10-21 111115" src="https://github.com/user-attachments/assets/36512136-b8a2-4211-818d-602b2fc8171f" />
 
+### Mobile version
+
+<img width="2412" height="1080" alt="Screenshot_2026-10-21-11-24-47-84_40deb401b9ffe8e1df2f1cc5ba480b12" src="https://github.com/user-attachments/assets/6750d59f-0907-46e8-87b9-1885585d4808" />
+
+<img width="2412" height="1080" alt="Screenshot_2026-10-21-11-26-40-92_40deb401b9ffe8e1df2f1cc5ba480b12" src="https://github.com/user-attachments/assets/cfc60518-152d-4ed5-95b2-994825456961" />
+
 
 ## JetBrains Academy course completion
 
@@ -95,6 +101,9 @@ The original learning path for this project is the JetBrains Academy *Build a Ga
 
 <!-- Add your actual certificate image as docs/images/jetbrains-course-certificate.png, then uncomment the image below. -->
 <!-- <p align="center"><img src="docs/images/jetbrains-course-certificate.png" width="72%" alt="JetBrains Academy Build a Game with an AI Coding Agent course completion certificate" /></p> -->
+
+<img width="2667" height="1500" alt="Build a Game with an AI Coding Agent-certificate-1" src="https://github.com/user-attachments/assets/105673a2-1045-4ae7-af55-6a9b5cdc91ba" />
+
 
 [Build a Game with an AI Coding Agent-certificate.pdf](https://github.com/user-attachments/files/33751632/Build.a.Game.with.an.AI.Coding.Agent-certificate.pdf)
 
